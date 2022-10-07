@@ -3,9 +3,12 @@ use std::io;
 use actix_web::{get, web::Data, App, HttpResponse, HttpServer};
 use components::AppComponents;
 use configuration::Config;
+use log;
 
 mod components;
 mod configuration;
+
+// logger initialization change depending on need
 
 #[get("/ping")]
 async fn ping(_app_data: Data<AppComponents>) -> HttpResponse {
@@ -14,15 +17,13 @@ async fn ping(_app_data: Data<AppComponents>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
+    env_logger::init();
+
     let data = Data::new(AppComponents::default());
-    print!("data");
 
     let configuration = Config::new().unwrap();
 
-    print!(
-        "config {} {}",
-        configuration.server.host, configuration.server.port
-    );
+    log::info!("System is running on port {}", configuration.server.port);
 
     HttpServer::new(move || App::new().app_data(data.clone()).service(ping))
         .bind((configuration.server.host, configuration.server.port))?
