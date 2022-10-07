@@ -8,8 +8,6 @@ use log;
 mod components;
 mod configuration;
 
-// logger initialization change depending on need
-
 #[get("/ping")]
 async fn ping(_app_data: Data<AppComponents>) -> HttpResponse {
     HttpResponse::Ok().json("pong")
@@ -17,6 +15,7 @@ async fn ping(_app_data: Data<AppComponents>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
+    // logger initialization change implementation depending on need
     env_logger::init();
 
     let data = Data::new(AppComponents::default());
