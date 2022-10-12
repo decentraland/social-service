@@ -7,6 +7,7 @@ use log;
 
 mod components;
 mod configuration;
+mod metrics;
 
 #[get("/ping")]
 async fn ping(_app_data: Data<AppComponents>) -> HttpResponse {
@@ -24,8 +25,13 @@ async fn main() -> io::Result<()> {
 
     log::info!("System is running on port {}", configuration.server.port);
 
-    HttpServer::new(move || App::new().app_data(data.clone()).service(ping))
-        .bind((configuration.server.host, configuration.server.port))?
-        .run()
-        .await
+    HttpServer::new(move || {
+        App::new()
+            .app_data(data.clone())
+            .wrap(metrics::initializeMetrics())
+            .service(ping)
+    })
+    .bind((configuration.server.host, configuration.server.port))?
+    .run()
+    .await
 }
