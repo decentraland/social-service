@@ -28,7 +28,7 @@ async fn main() -> io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .wrap(metrics::initializeMetrics())
+            .wrap(metrics::initialize_metrics())
             .service(ping)
     })
     .bind((configuration.server.host, configuration.server.port))?
