@@ -16,8 +16,8 @@ async fn main() -> io::Result<()> {
     // logger initialization change implementation depending on need
     env_logger::init();
 
-    let data = Data::new(AppComponents::default());
-
+    let app_data = AppComponents::new().await;
+    let data = Data::new(app_data);
     let configuration = Config::new().unwrap();
 
     log::info!("System is running on port {}", configuration.server.port);

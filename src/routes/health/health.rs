@@ -10,13 +10,13 @@ use crate::components::app::AppComponents;
 struct HealthStatus {
     version: String,
     checks: HashMap<String, ComponentHealthStatus>,
+    healthy: bool,
 }
 
 #[derive(Debug, Default, Serialize)]
-struct ComponentHealthStatus {
-    component: String,
-    component_type: String,
-    healthy: bool,
+pub struct ComponentHealthStatus {
+    pub component: String,
+    pub healthy: bool,
 }
 
 #[get("/health")]
@@ -24,7 +24,7 @@ pub async fn health(app_data: Data<AppComponents>) -> HttpResponse {
     let mut result = HealthStatus::default();
 
     result.version = "0.0.1".to_string();
-    let healthy_components = app_data.health_component.calculate_status().await;
+    result.checks = app_data.health_component.calculate_status().await;
 
     HttpResponse::Ok().json(result)
 }

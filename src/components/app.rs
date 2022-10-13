@@ -1,5 +1,3 @@
-use clap::App;
-
 use crate::components::health::HealthComponent;
 
 #[derive(Default)]
@@ -10,7 +8,10 @@ pub struct AppComponents {
 impl AppComponents {
     pub async fn new() -> Self {
         Self {
-            ..Default::default()
+            ..Default::default() 
+            // initialize components
+
+            // register for health checking
         }
     }
 }
