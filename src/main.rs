@@ -1,18 +1,15 @@
 use std::io;
 
-use actix_web::{get, web::Data, App, HttpResponse, HttpServer};
-use components::AppComponents;
+use crate::routes::health::live::live;
+use actix_web::{web::Data, App, HttpServer};
+use components::app::AppComponents;
 use configuration::Config;
 use log;
 
 mod components;
 mod configuration;
 mod metrics;
-
-#[get("/ping")]
-async fn ping(_app_data: Data<AppComponents>) -> HttpResponse {
-    HttpResponse::Ok().json("pong")
-}
+mod routes;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
@@ -29,7 +26,7 @@ async fn main() -> io::Result<()> {
         App::new()
             .app_data(data.clone())
             .wrap(metrics::initialize_metrics())
-            .service(ping)
+            .service(live)
     })
     .bind((configuration.server.host, configuration.server.port))?
     .run()
