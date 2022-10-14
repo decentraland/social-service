@@ -24,7 +24,7 @@ pub async fn health(app_data: Data<AppComponents>) -> HttpResponse {
     let mut result = HealthStatus::default();
 
     result.version = "0.0.1".to_string();
-    result.checks = app_data.health_component.calculate_status().await;
+    result.checks = app_data.health.calculate_status().await;
 
     HttpResponse::Ok().json(result)
 }

@@ -1,5 +1,6 @@
 use std::io;
 
+use crate::routes::health::health::health;
 use crate::routes::health::live::live;
 use actix_web::{web::Data, App, HttpServer};
 use components::app::AppComponents;
@@ -27,6 +28,7 @@ async fn main() -> io::Result<()> {
             .app_data(data.clone())
             .wrap(metrics::initialize_metrics())
             .service(live)
+            .service(health)
     })
     .bind((configuration.server.host, configuration.server.port))?
     .run()

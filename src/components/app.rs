@@ -1,17 +1,26 @@
 use crate::components::health::HealthComponent;
 
+use super::numbers::Numbers;
+
 #[derive(Default)]
 pub struct AppComponents {
-    pub health_component: HealthComponent,
+    pub health: HealthComponent,
+    pub numbers: Numbers,
 }
 
 impl AppComponents {
     pub async fn new() -> Self {
-        Self {
-            ..Default::default() 
-            // initialize components
+        // Initialize components
+        let mut health = HealthComponent::default();
+        let numbers = Numbers::default();
 
-            // register for health checking
+        // Register components to check health
+        health.register_component(Box::new(numbers.clone()), "numbers".to_string());
+
+        Self {
+            numbers,
+            health,
+            ..Default::default()
         }
     }
 }
