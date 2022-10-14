@@ -1,26 +1,24 @@
 use std::io;
 
-use actix_web::{get, web::Data, App, HttpResponse, HttpServer};
-use components::AppComponents;
+use crate::routes::health::health::health;
+use crate::routes::health::live::live;
+use actix_web::{web::Data, App, HttpServer};
+use components::app::AppComponents;
 use configuration::Config;
 use log;
 
 mod components;
 mod configuration;
 mod metrics;
-
-#[get("/ping")]
-async fn ping(_app_data: Data<AppComponents>) -> HttpResponse {
-    HttpResponse::Ok().json("pong")
-}
+mod routes;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     // logger initialization change implementation depending on need
     env_logger::init();
 
-    let data = Data::new(AppComponents::default());
-
+    let app_data = AppComponents::new().await;
+    let data = Data::new(app_data);
     let configuration = Config::new().unwrap();
 
     log::info!("System is running on port {}", configuration.server.port);
@@ -29,7 +27,8 @@ async fn main() -> io::Result<()> {
         App::new()
             .app_data(data.clone())
             .wrap(metrics::initialize_metrics())
-            .service(ping)
+            .service(live)
+            .service(health)
     })
     .bind((configuration.server.host, configuration.server.port))?
     .run()

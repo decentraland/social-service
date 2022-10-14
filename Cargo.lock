@@ -802,6 +802,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "actix-web-prom",
+ "async-trait",
  "clap",
  "config",
  "env_logger",
