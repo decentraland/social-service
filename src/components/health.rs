@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use async_trait::async_trait;
 
@@ -14,7 +14,15 @@ struct ComponentToCheck {
     name: String,
 }
 
-#[derive(Default)]
+impl std::fmt::Debug for ComponentToCheck {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ComponentToCheck")
+            .field("name", &self.name)
+            .finish()
+    }
+}
+
+#[derive(Default, Debug)]
 pub struct HealthComponent {
     components_to_check: Vec<ComponentToCheck>,
 }
@@ -25,6 +33,7 @@ impl HealthComponent {
             .push(ComponentToCheck { component, name });
     }
 
+    #[tracing::instrument(name = "Calculate components status")]
     pub async fn calculate_status(&self) -> HashMap<String, ComponentHealthStatus> {
         let mut result = HashMap::new();
 
