@@ -1,7 +1,8 @@
 use std::io;
 
-use crate::{routes::health::health::health, components::tracing::init_telemetry};
+use crate::metrics::initialize_metrics;
 use crate::routes::health::live::live;
+use crate::{components::tracing::init_telemetry, routes::health::health::health};
 use actix_web::{web::Data, App, HttpServer};
 use components::app::AppComponents;
 use configuration::Config;
@@ -29,7 +30,7 @@ async fn main() -> io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .wrap(metrics::initialize_metrics())
+            .wrap(initialize_metrics())
             .wrap(TracingLogger::default())
             .service(live)
             .service(health)
