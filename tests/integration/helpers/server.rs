@@ -9,9 +9,6 @@ pub fn get_configuration() -> Config {
 pub async fn start_server(config: Config) -> JoinHandle<Result<(), std::io::Error>> {
     let server = run_service(Some(config)).await;
 
-    if let Ok(server) = server {
-        actix_web::rt::spawn(server)
-    } else {
-        panic!("Couldn't run the server");
-    }
+    let server = server.unwrap_or_else(|_| panic!("Couldn't run the server"));
+    actix_web::rt::spawn(server)
 }
