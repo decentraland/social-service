@@ -1,17 +1,22 @@
 #[cfg(test)]
 mod tests {
 
-    use crate::helpers::server::start_server;
+    use crate::helpers::server::{get_configuration, start_server};
 
     #[actix_web::test]
     async fn test_index_get() {
-        let _ = start_server().await;
+        let config = get_configuration();
+        let _ = start_server(config.clone()).await;
         let client = reqwest::Client::new();
 
         // Act
         let response = client
             // Use the returned application address
-            .get(&format!("http://0.0.0.0:3010/health"))
+            .get(&format!(
+                "http://{}:{}/health",
+                config.server.host,
+                config.server.port.to_string()
+            ))
             .send()
             .await;
 

@@ -9,7 +9,7 @@ use configuration::Config;
 use tracing_actix_web::TracingLogger;
 
 pub mod components;
-mod configuration;
+pub mod configuration;
 mod metrics;
 pub mod routes;
 
