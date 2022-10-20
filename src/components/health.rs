@@ -77,7 +77,7 @@ mod tests {
         let res_1 = res.get(&component1_name);
         let res_2 = res.get(&component2_name);
 
-        assert_eq!(res_1.is_some(), true);
-        assert_eq!(res_2.is_some(), true);
+        assert!(res_1.is_some());
+        assert!(res_2.is_some());
     }
 }
