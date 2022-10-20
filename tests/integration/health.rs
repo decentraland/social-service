@@ -1,24 +1,39 @@
 #[cfg(test)]
 mod tests {
-    use actix_web::{
-        dev::Service,
-        http::header::ContentType,
-        test,
-        web::{self, Data},
-        App,
-    };
-    use social_service::{components::app::AppComponents, routes::health::health::health};
+    use actix_web::rt::task::JoinHandle;
+
+    use social_service::run_service;
+
+    async fn start_server() -> JoinHandle<Result<(), std::io::Error>> {
+        let server = run_service().await;
+
+        if let Ok(server) = server {
+            actix_web::rt::spawn(server)
+        } else {
+            panic!("Couldn't run the server");
+        }
+    }
 
     #[actix_web::test]
     async fn test_index_get() {
-        let service = build_app().await;
-        let req = test::TestRequest::default()
-            .insert_header(ContentType::plaintext())
-            .uri("/health")
-            .to_request();
-        let resp = test::call_service(&service, req).await;
+        let _ = start_server().await;
+        let client = reqwest::Client::new();
 
-        println!("{}", resp.status());
-        assert!(resp.status().is_success());
+        // Act
+        let response = client
+            // Use the returned application address
+            .get(&format!("http://0.0.0.0:3010/health"))
+            .send()
+            .await;
+
+        match response {
+            Ok(response) => {
+                assert!(response.status().is_success());
+                assert_ne!(Some(0), response.content_length());
+            }
+            Err(error) => log::error!("Error {}", error),
+        }
+
+        // Assert
     }
 }

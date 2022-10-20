@@ -1,5 +1,3 @@
-use std::net::TcpListener;
-
 use crate::metrics::initialize_metrics;
 use crate::routes::health::live::live;
 use crate::{components::tracing::init_telemetry, routes::health::health::health};
@@ -18,9 +16,12 @@ pub async fn run_service() -> Result<Server, std::io::Error> {
     // logger initialization change implementation depending on need
     env_logger::init();
 
+    let config = configuration::Config::new().expect("Couldn't read the configuration file");
+
     init_telemetry();
 
     let app_data = AppComponents::new().await;
+
     let data = Data::new(app_data);
 
     let server = HttpServer::new(move || {
@@ -31,7 +32,7 @@ pub async fn run_service() -> Result<Server, std::io::Error> {
             .service(live)
             .service(health)
     })
-    .bind(("127.0.0.1".to_string(), 3010))?
+    .bind((config.server.host, config.server.port))?
     .run();
 
     Ok(server)
