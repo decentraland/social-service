@@ -1,18 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use actix_web::rt::task::JoinHandle;
 
-    use social_service::run_service;
-
-    async fn start_server() -> JoinHandle<Result<(), std::io::Error>> {
-        let server = run_service().await;
-
-        if let Ok(server) = server {
-            actix_web::rt::spawn(server)
-        } else {
-            panic!("Couldn't run the server");
-        }
-    }
+    use crate::helpers::server::start_server;
 
     #[actix_web::test]
     async fn test_index_get() {
@@ -31,9 +20,7 @@ mod tests {
                 assert!(response.status().is_success());
                 assert_ne!(Some(0), response.content_length());
             }
-            Err(error) => log::error!("Error {}", error),
+            Err(error) => log::error!("Error querying health endpoint {}", error),
         }
-
-        // Assert
     }
 }

@@ -11,7 +11,7 @@ mod routes;
 async fn main() -> io::Result<()> {
     // logger initialization change implementation depending on need
 
-    let server = run_service();
+    let server = run_service(None);
     server.await?.await;
 
     Ok(())
