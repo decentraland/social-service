@@ -26,7 +26,9 @@ mod tests {
                 assert!(response.status().is_success());
                 assert_ne!(Some(0), response.content_length());
             }
-            Err(error) => log::error!("Error querying health endpoint {}", error),
+            Err(error) => {
+                panic!("Error querying health endpoint {}", error)
+            }
         }
     }
 }

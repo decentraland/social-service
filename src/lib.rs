@@ -13,7 +13,10 @@ pub mod configuration;
 mod metrics;
 pub mod routes;
 
-pub async fn run_service(custom_config: Option<Config>) -> Result<Server, std::io::Error> {
+pub fn run_service(
+    custom_config: Option<Config>,
+    data: Data<AppComponents>,
+) -> Result<Server, std::io::Error> {
     // logger initialization change implementation depending on need
     env_logger::init();
 
@@ -21,10 +24,6 @@ pub async fn run_service(custom_config: Option<Config>) -> Result<Server, std::i
         custom_config.unwrap_or(Config::new().expect("Couldn't read the configuration file"));
 
     init_telemetry();
-
-    let app_data = AppComponents::new().await;
-
-    let data = Data::new(app_data);
 
     let server = HttpServer::new(move || {
         App::new()
@@ -38,4 +37,10 @@ pub async fn run_service(custom_config: Option<Config>) -> Result<Server, std::i
     .run();
 
     Ok(server)
+}
+
+pub async fn get_app_data() -> Data<AppComponents> {
+    let app_data = AppComponents::new().await;
+    let data = Data::new(app_data);
+    data
 }
