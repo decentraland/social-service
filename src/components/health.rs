@@ -52,3 +52,32 @@ impl HealthComponent {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::components::numbers::Numbers;
+
+    use super::HealthComponent;
+
+    #[actix_web::test]
+    async fn health_check_checks_all_components() {
+        let component1 = Box::new(Numbers::default());
+        let component2 = Box::new(Numbers::default());
+
+        let component1_name = "numbers".to_string();
+        let component2_name = "numbers2".to_string();
+
+        let mut health_component = HealthComponent::default();
+
+        health_component.register_component(component1, component1_name.to_string());
+        health_component.register_component(component2, component2_name.to_string());
+
+        let res = health_component.calculate_status().await;
+
+        let res_1 = res.get(&component1_name);
+        let res_2 = res.get(&component2_name);
+
+        assert!(res_1.is_some());
+        assert!(res_2.is_some());
+    }
+}

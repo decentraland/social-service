@@ -20,7 +20,7 @@ pub struct Server {
     pub port: u16,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub server: Server,
 }
@@ -32,7 +32,7 @@ impl Config {
 
         let config = config::Config::builder()
             .add_source(File::with_name("configuration"))
-            .set_override("127.0.0.1", args.host)?
+            .set_override("0.0.0.0", args.host)?
             .set_override("3000", args.port)?
             .build()?;
 
