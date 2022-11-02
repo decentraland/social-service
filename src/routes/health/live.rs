@@ -2,7 +2,7 @@ use actix_web::{get, web::Data, HttpResponse};
 
 use crate::components::app::AppComponents;
 
-#[get("/live")]
+#[get("/health/live")]
 pub async fn live(_app_data: Data<AppComponents>) -> HttpResponse {
     HttpResponse::Ok().finish()
 }
