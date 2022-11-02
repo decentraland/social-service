@@ -2,7 +2,10 @@ use std::{collections::HashMap, fmt};
 
 use async_trait::async_trait;
 
-use crate::routes::health::health::ComponentHealthStatus;
+use crate::routes::health::{
+    consts::{FAIL, PASS},
+    health::ComponentHealthStatus,
+};
 
 #[async_trait]
 pub trait Healthy {
@@ -43,8 +46,11 @@ impl HealthComponent {
             result.insert(
                 component.name.to_string(),
                 ComponentHealthStatus {
-                    component: component.name.to_string(),
-                    healthy,
+                    status: if healthy {
+                        PASS.to_string()
+                    } else {
+                        FAIL.to_string()
+                    },
                 },
             );
         }

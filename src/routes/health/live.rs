@@ -4,5 +4,5 @@ use crate::components::app::AppComponents;
 
 #[get("/health/live")]
 pub async fn live(_app_data: Data<AppComponents>) -> HttpResponse {
-    HttpResponse::Ok().finish()
+    HttpResponse::Ok().json("alive")
 }
