@@ -20,8 +20,8 @@ pub fn run_service(
     // logger initialization change implementation depending on need
     env_logger::init();
 
-    let config =
-        custom_config.unwrap_or(Config::new().expect("Couldn't read the configuration file"));
+    let config = custom_config
+        .unwrap_or_else(|| Config::new().expect("Couldn't read the configuration file"));
 
     init_telemetry();
 
@@ -41,6 +41,5 @@ pub fn run_service(
 
 pub async fn get_app_data() -> Data<AppComponents> {
     let app_data = AppComponents::new().await;
-    let data = Data::new(app_data);
-    data
+    Data::new(app_data)
 }

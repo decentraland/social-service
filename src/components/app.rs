@@ -8,13 +8,10 @@ pub struct AppComponents {
 impl AppComponents {
     pub async fn new() -> Self {
         // Initialize components
-        let mut health = HealthComponent::default();
+        let health = HealthComponent::default();
 
         // Register components to check health
 
-        Self {
-            health,
-            ..Default::default()
-        }
+        Self { health }
     }
 }

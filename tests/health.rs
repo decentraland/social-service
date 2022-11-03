@@ -14,7 +14,7 @@ mod tests {
         let response = client
             // Use the returned application address
             .get(&format!(
-                "http://{}:{}/health",
+                "http://{}:{}/health/ready",
                 config.server.host,
                 config.server.port.to_string()
             ))
@@ -23,6 +23,7 @@ mod tests {
 
         match response {
             Ok(response) => {
+                println!("status {}", response.status());
                 assert!(response.status().is_success());
                 assert_ne!(Some(0), response.content_length());
             }
