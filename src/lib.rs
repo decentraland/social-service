@@ -1,6 +1,9 @@
 use crate::metrics::initialize_metrics;
 use crate::routes::health::live::live;
-use crate::{components::tracing::init_telemetry, routes::health::health::health};
+use crate::{
+    components::tracing::init_telemetry,
+    routes::{health::health::health, synapse::version::version},
+};
 
 use actix_web::dev::Server;
 use actix_web::{web::Data, App, HttpServer};
@@ -13,17 +16,14 @@ pub mod configuration;
 mod metrics;
 pub mod routes;
 
-pub fn run_service(
-    custom_config: Option<Config>,
-    data: Data<AppComponents>,
-) -> Result<Server, std::io::Error> {
+pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> {
     // logger initialization change implementation depending on need
     env_logger::init();
 
-    let config = custom_config
-        .unwrap_or_else(|| Config::new().expect("Couldn't read the configuration file"));
-
     init_telemetry();
+
+    let server_host = data.config.server.host.clone();
+    let server_port = data.config.server.port;
 
     let server = HttpServer::new(move || {
         App::new()
@@ -32,14 +32,16 @@ pub fn run_service(
             .wrap(TracingLogger::default())
             .service(live)
             .service(health)
+            .service(version)
     })
-    .bind((config.server.host, config.server.port))?
+    .bind((server_host, server_port))?
     .run();
 
     Ok(server)
 }
 
-pub async fn get_app_data() -> Data<AppComponents> {
-    let app_data = AppComponents::new().await;
-    Data::new(app_data)
+pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> {
+    let app_data = AppComponents::new(custom_config).await;
+    let data = Data::new(app_data);
+    data
 }
