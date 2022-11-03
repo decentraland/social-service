@@ -32,8 +32,8 @@ impl Config {
 
         let config = config::Config::builder()
             .add_source(File::with_name("configuration"))
-            .set_override("0.0.0.0", args.host)?
-            .set_override("3000", args.port)?
+            .set_override_option("server.host", args.host)?
+            .set_override_option("server.port", args.port)?
             .build()?;
 
         config.try_deserialize()
