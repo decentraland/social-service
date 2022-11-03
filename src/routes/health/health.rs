@@ -27,7 +27,7 @@ pub async fn is_app_healthy(app_data: Data<AppComponents>) -> HttpResponse {
     let mut result = HealthStatus::default();
 
     result.checks = app_data.health.calculate_status().await;
-    let is_ready = result
+    let is_ready = !result
         .checks
         .values()
         .any(|value| value.status.eq_ignore_ascii_case(FAIL));
