@@ -2,7 +2,7 @@ use crate::metrics::initialize_metrics;
 use crate::routes::health::live::live;
 use crate::{
     components::tracing::init_telemetry,
-    routes::{health::health::health, synapse::version::version},
+    routes::{health::controllers::health, synapse::controllers::version},
 };
 
 use actix_web::dev::Server;
@@ -42,6 +42,5 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
 
 pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> {
     let app_data = AppComponents::new(custom_config).await;
-    let data = Data::new(app_data);
-    data
+    Data::new(app_data)
 }

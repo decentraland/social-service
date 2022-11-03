@@ -82,3 +82,8 @@ pub async fn health(app_data: Data<AppComponents>) -> HttpResponse {
 pub async fn startup(app_data: Data<AppComponents>) -> HttpResponse {
     is_app_healthy(app_data).await
 }
+
+#[get("/health/live")]
+pub async fn live(_app_data: Data<AppComponents>) -> HttpResponse {
+    HttpResponse::Ok().json("alive")
+}

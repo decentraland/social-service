@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use crate::routes::health::{
     consts::{FAIL, PASS},
-    health::ComponentHealthStatus,
+    controllers::ComponentHealthStatus,
 };
 
 #[async_trait]

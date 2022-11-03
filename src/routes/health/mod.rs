@@ -1,3 +1,3 @@
 pub mod consts;
-pub mod health;
+pub mod controllers;
 pub mod live;
