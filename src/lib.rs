@@ -1,8 +1,10 @@
 use crate::metrics::initialize_metrics;
-use crate::routes::health::live::live;
 use crate::{
     components::tracing::init_telemetry,
-    routes::{health::handlers::health, synapse::handlers::version},
+    routes::{
+        health::handlers::{health, live},
+        synapse::handlers::version,
+    },
 };
 
 use actix_web::dev::Server;
