@@ -30,8 +30,7 @@ pub async fn is_app_healthy(app_data: Data<AppComponents>) -> HttpResponse {
     let is_ready = result
         .checks
         .values()
-        .find(|value| value.status.eq_ignore_ascii_case(FAIL))
-        .is_none();
+        .any(|value| value.status.eq_ignore_ascii_case(FAIL));
 
     let status = if is_ready {
         SUCCESSFUL_STATUS
