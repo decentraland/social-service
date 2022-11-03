@@ -7,8 +7,8 @@ pub fn get_configuration() -> Config {
 }
 
 pub async fn start_server(config: Config) -> JoinHandle<Result<(), std::io::Error>> {
-    let app_data = get_app_data().await;
-    let server = run_service(Some(config), app_data);
+    let app_data = get_app_data(Some(config)).await;
+    let server = run_service(app_data);
 
     let server = server.unwrap_or_else(|_| panic!("Couldn't run the server"));
     actix_web::rt::spawn(server)

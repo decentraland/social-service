@@ -6,9 +6,9 @@ use social_service::{get_app_data, run_service};
 async fn main() -> io::Result<()> {
     // logger initialization change implementation depending on need
 
-    let app_data = get_app_data().await;
+    let app_data = get_app_data(None).await;
 
-    let server = run_service(None, app_data);
+    let server = run_service(app_data);
     if let Ok(server) = server {
         server.await?;
     }
