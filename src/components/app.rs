@@ -10,7 +10,7 @@ impl AppComponents {
     pub async fn new(custom_config: Option<Config>) -> Self {
         // Initialize components
         let config =
-            custom_config.unwrap_or(Config::new().expect("Couldn't read the configuratio"));
+            custom_config.unwrap_or_else(|| Config::new().expect("Couldn't read the configuratio"));
 
         let health = HealthComponent::default();
         let synapse = SynapseComponent::new(config.synapse.url.clone());

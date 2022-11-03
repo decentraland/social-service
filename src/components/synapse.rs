@@ -17,7 +17,7 @@ pub struct VersionResponse {
 
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
-        if url == "" {
+        if url.is_empty() {
             panic!("missing synapse URL")
         }
 
