@@ -24,13 +24,15 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
 
     init_telemetry();
 
+    log::debug!("App Config: {:?}", data.config);
+
     let server_host = data.config.server.host.clone();
     let server_port = data.config.server.port;
 
     let server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
-            .wrap(initialize_metrics())
+            .wrap(initialize_metrics(data.config.env.clone()))
             .wrap(TracingLogger::default())
             .service(live)
             .service(health)

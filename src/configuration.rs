@@ -29,9 +29,11 @@ pub struct Synapse {
 pub struct Config {
     pub server: Server,
     pub synapse: Synapse,
+    pub env: String, // prd / stg / dev / biz
 }
 
 const SYNAPSE_URL_ENV: &str = "SYNAPSE_URL";
+const ENV_VAR: &str = "ENV";
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
@@ -43,12 +45,15 @@ impl Config {
             .add_source(
                 config::Environment::default()
                     .with_list_parse_key(SYNAPSE_URL_ENV)
+                    .with_list_parse_key(ENV_VAR)
                     .try_parsing(true)
-                    .separator("_"),
+                    .separator("_")
+                    .list_separator(" "),
             )
             .set_override_option("server.host", args.host)?
             .set_override_option("server.port", args.port)?
             .set_default("synapse.url", "https://synapse.decentraland.zone")?
+            .set_default("env", "dev")?
             .build()?;
 
         config.try_deserialize()
