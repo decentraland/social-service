@@ -5,7 +5,7 @@ use actix_web_prom::{PrometheusMetrics, PrometheusMetricsBuilder};
 pub fn initialize_metrics(environment: String) -> PrometheusMetrics {
     let mut map = HashMap::new();
     map.insert(String::from("env"), environment);
-    PrometheusMetricsBuilder::new("api")
+    PrometheusMetricsBuilder::new("dcl_social_service")
         .endpoint("/metrics")
         .const_labels(map)
         .build()
