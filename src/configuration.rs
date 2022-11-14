@@ -60,6 +60,7 @@ impl Config {
             .set_override_option("server.port", args.port)?
             .set_default("synapse.url", "https://synapse.decentraland.zone")?
             .set_default("env", "dev")?
+            .set_default("wkc_metrics_bearer_token", "")?
             .build()?;
 
         config.try_deserialize()
