@@ -50,6 +50,18 @@ where
         if request.path() == "/metrics" {
             let token = query_params.get(BEARER_TOKEN_PARAM).unwrap_or("");
             let app_config = request.app_data::<Data<AppComponents>>().unwrap();
+
+            if app_config.config.wkc_metrics_bearer_token.is_empty() {
+                log::error!("missing wkc_metrics_bearer_token in configuration component");
+                let (request, _pl) = request.into_parts();
+
+                let response = HttpResponse::InternalServerError()
+                    .finish()
+                    .map_into_right_body();
+
+                return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
+            }
+
             if token.is_empty() || token != app_config.config.wkc_metrics_bearer_token {
                 let (request, _pl) = request.into_parts();
 
