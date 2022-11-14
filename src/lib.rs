@@ -56,7 +56,9 @@ pub fn get_app_router(
         .app_data(data.clone())
         .wrap(TracingLogger::default())
         .wrap(initialize_metrics(data.config.env.clone()))
-        .wrap(CheckMetricsToken)
+        .wrap(CheckMetricsToken::new(
+            data.config.wkc_metrics_bearer_token.clone(),
+        ))
         .service(live)
         .service(health)
         .service(version)

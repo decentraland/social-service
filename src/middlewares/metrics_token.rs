@@ -3,15 +3,23 @@ use std::future::{ready, Ready};
 use actix_web::{
     body::EitherBody,
     dev::{self, Service, ServiceRequest, ServiceResponse, Transform},
-    web::Data,
     Error, HttpResponse,
 };
 use futures_util::future::LocalBoxFuture;
 
-use crate::components::app::AppComponents;
-
-pub struct CheckMetricsToken;
 const BEARER_TOKEN_PARAM: &str = "bearer_token";
+
+pub struct CheckMetricsToken {
+    bearer_token: String,
+}
+
+impl CheckMetricsToken {
+    pub fn new(token: String) -> Self {
+        CheckMetricsToken {
+            bearer_token: token,
+        }
+    }
+}
 
 impl<S, B> Transform<S, ServiceRequest> for CheckMetricsToken
 where
@@ -26,11 +34,15 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(CheckMetricsTokenMiddleware { service }))
+        ready(Ok(CheckMetricsTokenMiddleware {
+            service,
+            bearer_token: self.bearer_token.clone(),
+        }))
     }
 }
 pub struct CheckMetricsTokenMiddleware<S> {
     service: S,
+    bearer_token: String,
 }
 
 impl<S, B> Service<ServiceRequest> for CheckMetricsTokenMiddleware<S>
@@ -49,9 +61,8 @@ where
         let query_params = qstring::QString::from(request.query_string());
         if request.path() == "/metrics" {
             let token = query_params.get(BEARER_TOKEN_PARAM).unwrap_or("");
-            let app_config = request.app_data::<Data<AppComponents>>().unwrap();
 
-            if app_config.config.wkc_metrics_bearer_token.is_empty() {
+            if self.bearer_token.is_empty() {
                 log::error!("missing wkc_metrics_bearer_token in configuration component");
                 let (request, _pl) = request.into_parts();
 
@@ -62,7 +73,7 @@ where
                 return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
             }
 
-            if token.is_empty() || token != app_config.config.wkc_metrics_bearer_token {
+            if token.is_empty() || token != self.bearer_token {
                 let (request, _pl) = request.into_parts();
 
                 let response = HttpResponse::BadRequest().finish().map_into_right_body();
