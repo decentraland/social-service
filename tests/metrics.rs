@@ -33,7 +33,7 @@ mod metrics_endpoint_tests {
 
         let response = test::call_service(&app, req).await;
 
-        assert_eq!(response.status(), 400)
+        assert_eq!(response.status(), 401)
     }
 
     #[actix_web::test]

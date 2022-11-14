@@ -76,7 +76,7 @@ where
             if token.is_empty() || token != self.bearer_token {
                 let (request, _pl) = request.into_parts();
 
-                let response = HttpResponse::BadRequest().finish().map_into_right_body();
+                let response = HttpResponse::Unauthorized().finish().map_into_right_body();
 
                 return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
             }
