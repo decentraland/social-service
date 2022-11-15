@@ -2,8 +2,7 @@ use actix_web::{body::MessageBody, dev::ServiceFactory, App};
 use social_service::{configuration::Config, get_app_data, get_app_router};
 
 pub fn get_configuration() -> Config {
-    let mut config = Config::new().expect("Couldn't read the configuration file");
-    config.server.port = 0;
+    let config = Config::new().expect("Couldn't read the configuration file");
     config
 }
 
