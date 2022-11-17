@@ -2,34 +2,19 @@ mod helpers;
 #[cfg(test)]
 mod tests {
 
-    use crate::helpers::server::{get_configuration, start_server};
+    use crate::helpers::server::{get_app, get_configuration};
+    use actix_web::test;
 
     #[actix_web::test]
     async fn test_index_get() {
         let config = get_configuration();
-        let _ = start_server(config.clone()).await;
-        let client = reqwest::Client::new();
 
-        // Act
-        let response = client
-            // Use the returned application address
-            .get(&format!(
-                "http://{}:{}/health/ready",
-                config.server.host,
-                config.server.port.to_string()
-            ))
-            .send()
-            .await;
+        let app = test::init_service(get_app(config).await).await;
 
-        match response {
-            Ok(response) => {
-                println!("status {}", response.status());
-                assert!(response.status().is_success());
-                assert_ne!(Some(0), response.content_length());
-            }
-            Err(error) => {
-                panic!("Error querying health endpoint {}", error)
-            }
-        }
+        let req = test::TestRequest::get().uri("/health/ready").to_request();
+
+        let response = test::call_service(&app, req).await;
+
+        assert!(response.status().is_success())
     }
 }
