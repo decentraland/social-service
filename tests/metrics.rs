@@ -5,6 +5,8 @@ mod metrics_endpoint_tests {
     use crate::helpers::server::{get_app, get_configuration};
     use actix_web::test;
 
+    const METRICS_URI: &str = "/metrics";
+
     #[actix_web::test]
     async fn metrics_endpoint_should_work() {
         let mut config = get_configuration();
@@ -13,9 +15,12 @@ mod metrics_endpoint_tests {
 
         let app = test::init_service(get_app(config).await).await;
 
-        let uri = format!("/metrics?=bearer_token={}", token);
+        let header = ("authorization", format!("Bearer {}", token));
 
-        let req = test::TestRequest::get().uri(uri.as_str()).to_request();
+        let req = test::TestRequest::get()
+            .uri(METRICS_URI)
+            .insert_header(header)
+            .to_request();
 
         let response = test::call_service(&app, req).await;
 
@@ -23,13 +28,32 @@ mod metrics_endpoint_tests {
     }
 
     #[actix_web::test]
-    async fn metrics_endpoint_should_fail_400() {
+    async fn metrics_endpoint_should_fail_401_when_no_token() {
         let mut config = get_configuration();
         config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
 
         let app = test::init_service(get_app(config).await).await;
 
-        let req = test::TestRequest::get().uri("/metrics").to_request();
+        let header = ("authorization", format!("Bearer {}", ""));
+
+        let req = test::TestRequest::get()
+            .uri(METRICS_URI)
+            .insert_header(header)
+            .to_request();
+
+        let response = test::call_service(&app, req).await;
+
+        assert_eq!(response.status(), 401)
+    }
+
+    #[actix_web::test]
+    async fn metrics_endpoint_should_fail_401_when_no_header() {
+        let mut config = get_configuration();
+        config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
+
+        let app = test::init_service(get_app(config).await).await;
+
+        let req = test::TestRequest::get().uri(METRICS_URI).to_request();
 
         let response = test::call_service(&app, req).await;
 
@@ -42,7 +66,7 @@ mod metrics_endpoint_tests {
 
         let app = test::init_service(get_app(config).await).await;
 
-        let req = test::TestRequest::get().uri("/metrics").to_request();
+        let req = test::TestRequest::get().uri(METRICS_URI).to_request();
 
         let response = test::call_service(&app, req).await;
 
