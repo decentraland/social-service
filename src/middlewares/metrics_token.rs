@@ -7,8 +7,6 @@ use actix_web::{
 };
 use futures_util::future::LocalBoxFuture;
 
-const BEARER_TOKEN_PARAM: &str = "bearer_token";
-
 pub struct CheckMetricsToken {
     bearer_token: String,
 }
@@ -58,10 +56,7 @@ where
     dev::forward_ready!(service);
 
     fn call(&self, request: ServiceRequest) -> Self::Future {
-        let query_params = qstring::QString::from(request.query_string());
         if request.path() == "/metrics" {
-            let token = query_params.get(BEARER_TOKEN_PARAM).unwrap_or("");
-
             if self.bearer_token.is_empty() {
                 log::error!("missing wkc_metrics_bearer_token in configuration component");
                 let (request, _pl) = request.into_parts();
@@ -72,6 +67,23 @@ where
 
                 return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
             }
+
+            let token = if let Some(header) = request.headers().get("authorization") {
+                match header.to_str() {
+                    Ok(res) => {
+                        let split_header_bearer = res.split(' ').collect::<Vec<&str>>();
+                        let token = split_header_bearer.get(1);
+                        if let Some(token) = token {
+                            token.to_owned()
+                        } else {
+                            ""
+                        }
+                    }
+                    Err(_) => "",
+                }
+            } else {
+                ""
+            };
 
             if token.is_empty() || token != self.bearer_token {
                 let (request, _pl) = request.into_parts();
