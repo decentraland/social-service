@@ -1,5 +1,7 @@
 .vscode
 .gitignore
 target
-Cargo.lock
 Dockerfile
+README.md
+.git
+
