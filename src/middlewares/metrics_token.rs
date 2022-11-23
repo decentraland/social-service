@@ -71,7 +71,7 @@ where
             let token = if let Some(header) = request.headers().get("authorization") {
                 match header.to_str() {
                     Ok(res) => {
-                        let split_header_bearer = res.split(" ").collect::<Vec<&str>>();
+                        let split_header_bearer = res.split(' ').collect::<Vec<&str>>();
                         let token = split_header_bearer.get(1);
                         if let Some(token) = token {
                             token.to_owned()
