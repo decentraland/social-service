@@ -1,5 +1,4 @@
 pub mod components;
-pub mod configuration;
 mod metrics;
 pub mod middlewares;
 pub mod routes;
@@ -9,8 +8,7 @@ use actix_web::dev::{Server, ServiceFactory};
 use actix_web::{web::Data, App, HttpServer};
 use tracing_actix_web::TracingLogger;
 
-use components::{app::AppComponents, tracing::init_telemetry};
-use configuration::Config;
+use components::{app::AppComponents, tracing::init_telemetry, configuration::Config};
 use metrics::initialize_metrics;
 use middlewares::metrics_token::CheckMetricsToken;
 use routes::{

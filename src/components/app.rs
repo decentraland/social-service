@@ -1,5 +1,5 @@
-use crate::components::{health::HealthComponent, synapse::SynapseComponent};
-use crate::configuration::Config;
+use crate::components::{health::HealthComponent, synapse::SynapseComponent, configuration::Config};
+
 pub struct AppComponents {
     pub health: HealthComponent,
     pub synapse: SynapseComponent,
