@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Start DB
         run: |
-          docker-compose up -d --build
+          docker-compose up -d
           docker exec social-service_postgres_1 bash -c "until pg_isready; do sleep 1; done"
       - name: Build
         run: cargo build --verbose
