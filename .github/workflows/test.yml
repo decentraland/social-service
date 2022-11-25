@@ -12,8 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Start DB
-        run: docker-compose up -d
+        run: docker-compose up -d --build
       - name: Build
         run: cargo build --verbose
       - name: Test
         run: cargo test --verbose
+      - name: Stop containers
+        if: always()
+        run: docker-compose -f down
