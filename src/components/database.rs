@@ -29,6 +29,7 @@ impl DatabaseComponent {
                 self.db_user, self.db_password, self.db_host, self.db_name
             );
             log::debug!("DB URL: {}", url);
+            log::debug!("DB creds: {}-{}", self.db_user, self.db_password);
             let db_connection = match Database::connect(url).await {
                 Ok(db) => db,
                 Err(err) => {
