@@ -52,3 +52,4 @@ endif
 	@chmod +x ./m.sh
 	@$(SUCCESS) "Creating migration m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC).rs"
 	@./m.sh m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC)
+	
