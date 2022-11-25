@@ -10,7 +10,7 @@ mod tests {
 
         let app = test::init_service(get_app(config).await).await;
 
-        let req = test::TestRequest::get().uri("/health/ready").to_request();
+        let req = test::TestRequest::get().uri("/v1/friendships/0xa23").to_request();
 
         let response = test::call_service(&app, req).await;
 
