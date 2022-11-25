@@ -12,7 +12,10 @@ pub struct AppComponents {
 
 impl AppComponents {
     pub async fn new(custom_config: Option<Config>) -> Self {
-        env_logger::init();
+        match env_logger::try_init() {
+            Err(_) => log::debug!("Logger already init"),
+            _ => {}
+        }
         // Initialize components
         let config =
             custom_config.unwrap_or_else(|| Config::new().expect("Couldn't read the configuratio"));

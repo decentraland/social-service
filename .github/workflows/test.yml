@@ -16,7 +16,7 @@ jobs:
       - name: Build
         run: cargo build --verbose
       - name: Test
-        run: cargo test --verbose
+        run: RUST_LOG=debug cargo test --verbose
       - name: Stop containers
         if: always()
-        run: docker-compose -f down
+        run: docker-compose down
