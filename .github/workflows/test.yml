@@ -36,14 +36,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Start DB
-        run: docker-compose up
       - name: Build
         run: cargo build --verbose
-      - name: Containers
-        run: docker ps
-      - name: Test PG Connection
-        run: docker exec social-service_postgres_1 bash -c "until pg_isready; do sleep 1; done"
       - name: Test
         run: cargo test --verbose
         env:
