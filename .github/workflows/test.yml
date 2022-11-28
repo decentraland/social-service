@@ -16,12 +16,13 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: social_service
-          POSTGRES_HOST: postgres
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v2
@@ -30,4 +31,4 @@ jobs:
       - name: Test
         run: RUST_LOG=debug cargo test --verbose
         env:
-          DB_HOST: postgres:5432
+          DB_HOST: localhost:5432
