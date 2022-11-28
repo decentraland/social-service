@@ -1,5 +1,5 @@
 use actix_web::{body::MessageBody, dev::ServiceFactory, App};
-use social_service::{configuration::Config, get_app_data, get_app_router};
+use social_service::{components::configuration::Config, get_app_data, get_app_router};
 
 pub fn get_configuration() -> Config {
     let config = Config::new().expect("Couldn't read the configuration file");
