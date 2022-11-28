@@ -30,4 +30,4 @@ jobs:
       - name: Test
         run: RUST_LOG=debug cargo test --verbose
         env:
-          DB_HOST: postgres
+          DB_HOST: postgres:5432
