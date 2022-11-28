@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use sea_orm::{ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement};
+use sea_orm::{
+    ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement,
+};
 use sea_orm_migration::prelude::*;
 
 use super::configuration::Database as DatabaseConfig;
@@ -32,7 +34,13 @@ impl DatabaseComponent {
                 self.db_user, self.db_password, self.db_host, self.db_name
             );
             log::debug!("DB URL: {}", url);
-            let db_connection = match Database::connect(url).await {
+
+            let mut opts = ConnectOptions::new(url);
+            // Connection Pool
+            opts.min_connections(5);
+            opts.max_connections(10);
+
+            let db_connection = match Database::connect(opts).await {
                 Ok(db) => db,
                 Err(err) => {
                     log::debug!("Error on connecting to DB: {:?}", err);
