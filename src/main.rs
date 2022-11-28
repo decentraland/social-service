@@ -4,6 +4,8 @@ use social_service::{get_app_data, run_service};
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
+    // logger initialization change implementation depending on need
+
     let app_data = get_app_data(None).await;
 
     let server = run_service(app_data);
