@@ -20,7 +20,7 @@ impl AppComponents {
         let config =
             custom_config.unwrap_or_else(|| Config::new().expect("Couldn't read the configuratio"));
 
-        let health = HealthComponent::default();
+        let mut health = HealthComponent::default();
         let synapse = SynapseComponent::new(config.synapse.url.clone());
         let mut db = DatabaseComponent::new(&config.db);
         match db.run().await {
@@ -30,6 +30,8 @@ impl AppComponents {
             }
             _ => {}
         }
+
+        health.register_component(Box::new(db.clone()), "database".to_string());
 
         Self {
             config,

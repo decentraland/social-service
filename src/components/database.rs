@@ -1,8 +1,11 @@
-use sea_orm::{Database, DatabaseConnection};
+use async_trait::async_trait;
+use sea_orm::{ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement};
 use sea_orm_migration::prelude::*;
 
 use super::configuration::Database as DatabaseConfig;
+use super::health::Healthy;
 
+#[derive(Clone)]
 pub struct DatabaseComponent {
     db_host: String,
     db_user: String,
@@ -29,7 +32,6 @@ impl DatabaseComponent {
                 self.db_user, self.db_password, self.db_host, self.db_name
             );
             log::debug!("DB URL: {}", url);
-            log::debug!("DB creds: {}-{}", self.db_user, self.db_password);
             let db_connection = match Database::connect(url).await {
                 Ok(db) => db,
                 Err(err) => {
@@ -44,6 +46,25 @@ impl DatabaseComponent {
         } else {
             log::debug!("DB Connection is already set.");
             Ok(())
+        }
+    }
+}
+
+#[async_trait]
+impl Healthy for DatabaseComponent {
+    async fn is_healthy(&self) -> bool {
+        match self
+            .db_connection
+            .as_ref()
+            .unwrap()
+            .query_one(Statement::from_string(
+                DatabaseBackend::Postgres,
+                "SELECT COUNT(*) as connections from pg_stat_activity;".to_owned(),
+            ))
+            .await
+        {
+            Ok(result) => result.is_some(),
+            Err(_) => false,
         }
     }
 }
