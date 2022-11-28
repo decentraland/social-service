@@ -67,7 +67,7 @@ impl Healthy for DatabaseComponent {
             .unwrap()
             .query_one(Statement::from_string(
                 DatabaseBackend::Postgres,
-                "SELECT COUNT(*) as connections from pg_stat_activity;".to_owned(),
+                "SELECT CURRENT_TIMESTAMP;".to_owned(),
             ))
             .await
         {
