@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   postgres:
+    container_name: "social_service_db"
     image: 'postgres:latest'
     restart: always
     user: postgres
