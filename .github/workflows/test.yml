@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Start DB
-        run: docker-compose up -d
+        run: docker-compose up
       - name: Build
         run: cargo build --verbose
       - name: Containers
