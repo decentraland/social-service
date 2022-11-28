@@ -9,18 +9,25 @@ on:
 jobs:
   validations:
     runs-on: ubuntu-latest
+
+    services: # We use GH services because we cannot mount a volume as we do in the docker-compose
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: social_service
+          POSTGRES_HOST: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v2
-      - name: Start DB
-        run: docker-compose up
       - name: Build
         run: cargo build --verbose
-      - name: Containers
-        run: docker ps
-      - name: Test PG Connection
-        run: docker exec social-service_postgres_1 bash -c "until pg_isready; do sleep 1; done"
       - name: Test
         run: RUST_LOG=debug cargo test --verbose
-      - name: Stop containers
-        if: always()
-        run: docker-compose down
+        env:
+          DB_HOST: postgres
