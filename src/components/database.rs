@@ -7,6 +7,8 @@ use sea_orm_migration::prelude::*;
 use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
+use crate::migrator::Migrator;
+
 #[derive(Clone)]
 pub struct DatabaseComponent {
     db_host: String,
@@ -47,6 +49,15 @@ impl DatabaseComponent {
                     panic!("Unable to connect to DB")
                 }
             };
+
+            log::debug!("Running Database migrations...");
+
+            SchemaManager::new(&db_connection);
+
+            // Just runs the pending migrations
+            Migrator::up(&db_connection, None).await?;
+
+            log::debug!("Migrations executed!");
 
             self.db_connection = Some(db_connection);
 
