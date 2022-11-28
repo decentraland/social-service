@@ -9,26 +9,9 @@ on:
 jobs:
   validations:
     runs-on: ubuntu-latest
-
-    services: # We use GH services because we cannot mount a volume as we do in the docker-compose
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: social_service
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - uses: actions/checkout@v2
       - name: Build
         run: cargo build --verbose
       - name: Test
         run: cargo test --verbose
-        env:
-          DB_HOST: localhost:5432
