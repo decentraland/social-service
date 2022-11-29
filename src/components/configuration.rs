@@ -26,9 +26,18 @@ pub struct Synapse {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct Database {
+    pub host: String,
+    pub name: String,
+    pub user: String,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub server: Server,
     pub synapse: Synapse,
+    pub db: Database,
     pub env: String, // prd / stg / dev / biz
     pub wkc_metrics_bearer_token: String,
 }
@@ -36,6 +45,10 @@ pub struct Config {
 const SYNAPSE_URL_ENV: &str = "SYNAPSE_URL";
 const ENV_VAR: &str = "ENV";
 const METRICS_TOKEN: &str = "WKC_METRICS_BEARER_TOKEN";
+const DB_HOST: &str = "DB_HOST";
+const DB_USER: &str = "DB_USER";
+const DB_PWD: &str = "DB_PASSWORD";
+const DB_NAME: &str = "DB_NAME";
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
@@ -47,6 +60,10 @@ impl Config {
             .add_source(
                 config::Environment::default()
                     .with_list_parse_key(SYNAPSE_URL_ENV)
+                    .with_list_parse_key(DB_HOST)
+                    .with_list_parse_key(DB_USER)
+                    .with_list_parse_key(DB_PWD)
+                    .with_list_parse_key(DB_NAME)
                     .try_parsing(true)
                     .separator("_"),
             )
@@ -61,6 +78,10 @@ impl Config {
             .set_default("synapse.url", "https://synapse.decentraland.zone")?
             .set_default("env", "dev")?
             .set_default("wkc_metrics_bearer_token", "")?
+            .set_default("db.host", "0.0.0.0:3500")? // docker-compose -> local env
+            .set_default("db.user", "postgres")? // docker-compose -> local env
+            .set_default("db.password", "postgres")? // docker-compose -> local env
+            .set_default("db.name", "social_service")? // docker-compose -> local env
             .build()?;
 
         config.try_deserialize()
