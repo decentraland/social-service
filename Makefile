@@ -4,6 +4,8 @@ SUCCESS=echo "\033[0;32m"
 CARGO_RUN_WATCH = RUST_LOG=debug cargo watch -x 'run --bin social-service -- --port 8080'
 CARGO_RUN = RUST_LOG=debug cargo run -- --port 8080
 RUN_LOCAL_DB = docker-compose up -d && docker exec social_service_db bash -c "until pg_isready; do sleep 1; done" && sleep 5
+MIGRATE_UP = LOCAL=true RUST_LOG=debug MIGRATE=up cargo run -- --port 8080
+MIGRATE_DOWN = LOCAL=true RUST_LOG=debug MIGRATE=down cargo run -- --port 8080
 
 # Should run after migrations
 GENERATE_MODELS = sea-orm-cli generate entity -u postgres://postgres:postgres@0.0.0.0:3500/social_service -o ./src/entities
@@ -76,3 +78,23 @@ else
 	@$(INSTALL_SEA_ORM_CLI)
 	@$(GENERATE_MODELS)
 endif
+
+migrateup:
+ifdef count
+	$(eval COUNT = "$(count)")
+else
+	$(eval COUNT = "0")
+endif
+	@make rundb
+	@$(SUCCESS) "Running and applying migrations"
+	COUNT=$(COUNT) $(MIGRATE_UP)
+
+migratedown:
+ifdef count
+	$(eval COUNT = "$(count)")
+else
+	$(eval COUNT = "0")
+endif
+	@make rundb
+	@$(SUCCESS) "Rolling back migrations"
+	COUNT=$(COUNT) $(MIGRATE_DOWN)

@@ -5,6 +5,9 @@ pub mod middlewares;
 mod migrator;
 pub mod routes;
 
+use std::env;
+use std::ffi::OsString;
+
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
 use actix_web::{web::Data, App, HttpServer};
@@ -17,6 +20,13 @@ use routes::{
     health::handlers::{health, live},
     synapse::handlers::version,
 };
+
+#[derive(Debug)]
+pub enum MigrationHelper {
+    UP,
+    DOWN,
+    UNKNOWN,
+}
 
 pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> {
     init_telemetry();
@@ -59,4 +69,51 @@ pub fn get_app_router(
         .service(live)
         .service(health)
         .service(version)
+}
+
+pub fn should_run_migration_helper() -> bool {
+    let migration_helper = env::var_os("MIGRATE");
+
+    if is_local() && migration_helper.is_some() {
+        true
+    } else {
+        false
+    }
+}
+
+pub fn is_local() -> bool {
+    let local = env::var_os("LOCAL");
+    if local.is_some() {
+        if local.unwrap() == "true" {
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+pub fn get_migration_helper() -> (MigrationHelper, Option<u32>) {
+    let migration_helper = env::var_os("MIGRATE").unwrap_or(OsString::from(""));
+    let migration_helper_count = env::var_os("COUNT").unwrap_or(OsString::from("0")); // How many migrations back or up
+    let migration_helper_count = migration_helper_count
+        .into_string()
+        .unwrap()
+        .parse::<u32>()
+        .unwrap();
+
+    let migration_helper_count = if migration_helper_count == 0 {
+        None
+    } else {
+        Some(migration_helper_count)
+    };
+
+    if migration_helper == "up" {
+        (MigrationHelper::UP, migration_helper_count)
+    } else if migration_helper == "down" {
+        (MigrationHelper::DOWN, migration_helper_count)
+    } else {
+        (MigrationHelper::UNKNOWN, migration_helper_count)
+    }
 }

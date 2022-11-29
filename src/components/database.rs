@@ -8,6 +8,7 @@ use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
 use crate::migrator::Migrator;
+use crate::{get_migration_helper, is_local, MigrationHelper};
 
 #[derive(Clone)]
 pub struct DatabaseComponent {
@@ -50,20 +51,35 @@ impl DatabaseComponent {
                 }
             };
 
-            log::debug!("Running Database migrations...");
-
-            SchemaManager::new(&db_connection);
-
-            // Just runs the pending migrations
-            Migrator::up(&db_connection, None).await?;
-
-            log::debug!("Migrations executed!");
+            if !is_local() {
+                log::debug!("Running Database migrations...");
+                // Just runs the pending migrations
+                Migrator::up(&db_connection, None).await?;
+                log::debug!("Migrations executed!");
+            }
 
             self.db_connection = Some(db_connection);
 
             Ok(())
         } else {
             log::debug!("DB Connection is already set.");
+            Ok(())
+        }
+    }
+
+    pub async fn run_helper(&self) -> Result<(), DbErr> {
+        let (helper, steps) = get_migration_helper();
+        if self.db_connection.is_some() {
+            if matches!(helper, MigrationHelper::UP) {
+                Migrator::up(&self.db_connection.as_ref().unwrap(), steps).await?;
+                Ok(())
+            } else if matches!(helper, MigrationHelper::DOWN) {
+                Migrator::down(&self.db_connection.as_ref().unwrap(), steps).await?;
+                Ok(())
+            } else {
+                Ok(())
+            }
+        } else {
             Ok(())
         }
     }
