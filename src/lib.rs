@@ -1,5 +1,4 @@
 pub mod components;
-pub mod configuration;
 mod metrics;
 pub mod middlewares;
 pub mod routes;
@@ -9,8 +8,7 @@ use actix_web::dev::{Server, ServiceFactory};
 use actix_web::{web::Data, App, HttpServer};
 use tracing_actix_web::TracingLogger;
 
-use components::{app::AppComponents, tracing::init_telemetry};
-use configuration::Config;
+use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
 use metrics::initialize_metrics;
 use middlewares::metrics_token::CheckMetricsToken;
 use routes::{
@@ -19,9 +17,6 @@ use routes::{
 };
 
 pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> {
-    // logger initialization change implementation depending on need
-    env_logger::init();
-
     init_telemetry();
 
     log::debug!("App Config: {:?}", data.config);
