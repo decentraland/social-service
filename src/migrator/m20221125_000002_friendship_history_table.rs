@@ -30,7 +30,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .integer(),
                     )
-                    .col(ColumnDef::new(FriendshipHistory::Event).not_null().string())
+                    .col(
+                        ColumnDef::new(FriendshipHistory::Event)
+                            .not_null()
+                            .integer(),
+                    )
                     .col(
                         ColumnDef::new(FriendshipHistory::ActingUser)
                             .not_null()
@@ -53,6 +57,7 @@ impl MigrationTrait for Migration {
                     .from_col(FriendshipHistory::FriendshipId)
                     .to_tbl(Friendships::Table)
                     .to_col(Friendships::Id)
+                    .on_delete(ForeignKeyAction::Cascade)
                     .to_owned(),
             )
             .await

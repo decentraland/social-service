@@ -50,6 +50,9 @@ impl MigrationTrait for Migration {
     // Define how to rollback this migration: Drop the table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
+            .drop_index(Index::drop().name("unique_friendship_index").to_owned())
+            .await?;
+        manager
             .drop_table(Table::drop().table(Friendships::Table).to_owned())
             .await
     }
