@@ -15,10 +15,10 @@ pub struct AppComponents {
 
 impl AppComponents {
     pub async fn new(custom_config: Option<Config>) -> Self {
-        match env_logger::try_init() {
-            Err(_) => log::debug!("Logger already init"),
-            _ => {}
+        if let Err(_) = env_logger::try_init() {
+            log::debug!("Logger already init")
         }
+
         // Initialize components
         let config = custom_config
             .unwrap_or_else(|| Config::new().expect("Couldn't read the configuration"));
@@ -27,20 +27,15 @@ impl AppComponents {
         let synapse = SynapseComponent::new(config.synapse.url.clone());
         let mut db = DatabaseComponent::new(&config.db);
         let mut redis = RedisComponent::new(&config.redis);
-        match db.run().await {
-            Err(err) => {
-                log::debug!("Error on running the DB: {:?}", err);
-                panic!("Unable to run the DB")
-            }
-            _ => {}
+
+        if let Err(err) = db.run().await {
+            log::debug!("Error on running the DB: {:?}", err);
+            panic!("Unable to run the DB")
         }
 
-        match redis.run().await {
-            Err(err) => {
-                log::debug!("Error while connecting to redis: {:?}", err);
-                panic!("Unable connecting to redis {:?}", err)
-            }
-            _ => {}
+        if let Err(err) = redis.run().await {
+            log::debug!("Error while connecting to redis: {:?}", err);
+            panic!("Unable connecting to redis {:?}", err)
         }
 
         health.register_component(Box::new(db.clone()), "database".to_string());
