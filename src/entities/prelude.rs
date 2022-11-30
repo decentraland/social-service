@@ -3,3 +3,4 @@
 pub use super::friendship_history::Entity as FriendshipHistory;
 pub use super::friendship_history_events::Entity as FriendshipHistoryEvents;
 pub use super::friendships::Entity as Friendships;
+pub use super::user_features::Entity as UserFeatures;
