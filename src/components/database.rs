@@ -52,8 +52,6 @@ impl DatabaseComponent {
 
             log::debug!("Running Database migrations...");
 
-            SchemaManager::new(&db_connection);
-
             // Just runs the pending migrations
             Migrator::up(&db_connection, None).await?;
 
