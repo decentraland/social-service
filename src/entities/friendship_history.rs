@@ -10,6 +10,7 @@ pub struct Model {
     pub friendship_id: i32,
     pub event: i32,
     pub acting_user: String,
+    pub metadata: Option<Json>,
     pub timestamp: DateTime,
 }
 
