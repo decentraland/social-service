@@ -67,6 +67,7 @@ endif
 	@chmod +x ./m.sh
 	@$(SUCCESS) "Creating migration m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC).rs"
 	@./m.sh m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC)
+	@cargo fmt
 
 models:
 ifeq ($(SEA_ORM_CLI_EXISTS), 1)
