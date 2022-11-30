@@ -21,7 +21,6 @@ impl MigrationTrait for Migration {
                     .col(
                         ColumnDef::new(FriendshipHistory::Id)
                             .integer()
-                            .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
@@ -40,6 +39,7 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .string(),
                     )
+                    .col(ColumnDef::new(FriendshipHistory::Metadata).null().json())
                     .col(
                         ColumnDef::new(FriendshipHistory::Timestamp)
                             .not_null()
@@ -86,5 +86,6 @@ pub enum FriendshipHistory {
     FriendshipId,
     Event,
     ActingUser,
+    Metadata,
     Timestamp,
 }
