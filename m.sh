@@ -12,11 +12,19 @@ impl MigrationName for Migration {
 impl MigrationTrait for Migration {
     // Define how to apply this migration: Create the table.
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        todo!();
         manager
             .create_table(
                 Table::create()
                     .table(Model::Table)
-                    //.col() -> Columns should be defined here
+                    // > Columns should be like below:
+                    .col(
+                        ColumnDef::new(Model::Id)
+                            .integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
                     .to_owned(),
             )
             .await
@@ -31,9 +39,10 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(Iden)]
-// THIS SHOULD BE REPLACED BY YOUR TABLE
+// THIS SHOULD BE REPLACED BY YOUR TABLE NAME
 pub enum Model {
     Table,
+    Id,
 }
 " > ./src/migrator/$1.rs
 
