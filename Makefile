@@ -5,15 +5,10 @@ CARGO_RUN_WATCH = RUST_LOG=debug cargo watch -x 'run --bin social-service -- --p
 CARGO_RUN = RUST_LOG=debug cargo run -- --port 8080
 RUN_LOCAL_DB = docker-compose up -d && docker exec social_service_db bash -c "until pg_isready; do sleep 1; done" && sleep 5
 
-# Should run after migrations
-GENERATE_MODELS = sea-orm-cli generate entity -u postgres://postgres:postgres@0.0.0.0:3500/social_service -o ./src/entities
-
 WATCH_EXISTS = $(shell which cargo-watch > /dev/null && echo 1 || echo 0)
 DOCKER_COMPOSE_EXISTS = $(shell which docker-compose > /dev/null && echo 1 || echo 0)
-SEA_ORM_CLI_EXISTS = $(shell which sea-orm-cli > /dev/null && echo 1 || echo 0)
 
 INSTALL_WATCH = cargo install cargo-watch
-INSTALL_SEA_ORM_CLI = cargo install sea-orm-cli
 
 DATE = $(shell date '+%Y%m%d')
 REGEX = ".*_([0-9]{6})_.*"
@@ -68,12 +63,3 @@ endif
 	@$(SUCCESS) "Creating migration m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC).rs"
 	@./m.sh m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC)
 	@cargo fmt
-
-models:
-ifeq ($(SEA_ORM_CLI_EXISTS), 1)
-	@$(GENERATE_MODELS)
-else
-	@$(ERROR) "sea-orm-cli not found. installing..."
-	@$(INSTALL_SEA_ORM_CLI)
-	@$(GENERATE_MODELS)
-endif
