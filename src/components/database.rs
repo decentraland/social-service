@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use sea_orm::{
     ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement,
@@ -7,7 +9,22 @@ use sea_orm_migration::prelude::*;
 use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
-use crate::migrator::Migrator;
+use crate::{
+    entities::{
+        friendship_history::FriendshipHistoryRepository,
+        friendship_history_events::FriendshipHistoryEventsRepository,
+        friendships::FriendshipsRepository, user_features::UserFeaturesRepository,
+    },
+    migrator::Migrator,
+};
+
+#[derive(Clone)]
+pub struct DBRepositories {
+    pub friendships: FriendshipsRepository,
+    pub friendship_history: FriendshipHistoryRepository,
+    pub friendship_history_events: FriendshipHistoryEventsRepository,
+    pub user_features: UserFeaturesRepository,
+}
 
 #[derive(Clone)]
 pub struct DatabaseComponent {
@@ -15,7 +32,8 @@ pub struct DatabaseComponent {
     db_user: String,
     db_password: String,
     db_name: String,
-    pub db_connection: Option<DatabaseConnection>,
+    db_connection: Arc<Option<DatabaseConnection>>,
+    db_repos: Option<DBRepositories>,
 }
 
 impl DatabaseComponent {
@@ -25,7 +43,8 @@ impl DatabaseComponent {
             db_user: db_config.user.clone(),
             db_password: db_config.password.clone(),
             db_name: db_config.name.clone(),
-            db_connection: None,
+            db_connection: Arc::new(None),
+            db_repos: None,
         }
     }
 
@@ -57,13 +76,26 @@ impl DatabaseComponent {
 
             log::debug!("Migrations executed!");
 
-            self.db_connection = Some(db_connection);
+            self.db_connection = Arc::new(Some(db_connection));
+            self.db_repos = Some(DBRepositories {
+                friendships: FriendshipsRepository::new(self.db_connection.clone()),
+                friendship_history: FriendshipHistoryRepository::new(self.db_connection.clone()),
+                friendship_history_events: FriendshipHistoryEventsRepository::new(
+                    self.db_connection.clone(),
+                ),
+                user_features: UserFeaturesRepository::new(self.db_connection.clone()),
+            });
 
             Ok(())
         } else {
             log::debug!("DB Connection is already set.");
             Ok(())
         }
+    }
+
+    pub fn get_statement<V: IntoIterator<Item = Value>>(query: &str, values: V) -> Statement {
+        let sql = format!(r#"{}"#, query);
+        Statement::from_sql_and_values(DatabaseBackend::Postgres, &sql, values)
     }
 }
 
@@ -72,6 +104,7 @@ impl Healthy for DatabaseComponent {
     async fn is_healthy(&self) -> bool {
         match self
             .db_connection
+            .as_ref()
             .as_ref()
             .unwrap()
             .query_one(Statement::from_string(
