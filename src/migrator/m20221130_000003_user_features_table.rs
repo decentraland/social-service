@@ -15,8 +15,17 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(UserFeatures::Table)
-                    .col(ColumnDef::new(UserFeatures::User).string().primary_key())
-                    .col(ColumnDef::new(UserFeatures::Features).json().not_null())
+                    .col(ColumnDef::new(UserFeatures::User).string())
+                    .col(
+                        ColumnDef::new(UserFeatures::FeatureName)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(UserFeatures::FeatureValue)
+                            .string()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await
@@ -33,5 +42,6 @@ impl MigrationTrait for Migration {
 pub enum UserFeatures {
     Table,
     User,
-    Features,
+    FeatureName,
+    FeatureValue,
 }
