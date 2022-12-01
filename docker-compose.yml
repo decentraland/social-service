@@ -11,3 +11,9 @@ services:
       - POSTGRES_DB=social_service
     ports:
       - '3500:5432'
+  redis:
+    image: 'redis:latest'
+    restart: always
+    user: redis
+    ports:
+      - '6379:6379'

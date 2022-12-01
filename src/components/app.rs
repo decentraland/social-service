@@ -3,11 +3,14 @@ use crate::components::{
     synapse::SynapseComponent,
 };
 
+use super::redis::RedisComponent;
+
 pub struct AppComponents {
     pub health: HealthComponent,
     pub synapse: SynapseComponent,
     pub config: Config,
     pub db: DatabaseComponent,
+    pub redis: RedisComponent,
 }
 
 impl AppComponents {
@@ -17,12 +20,13 @@ impl AppComponents {
             _ => {}
         }
         // Initialize components
-        let config =
-            custom_config.unwrap_or_else(|| Config::new().expect("Couldn't read the configuratio"));
+        let config = custom_config
+            .unwrap_or_else(|| Config::new().expect("Couldn't read the configuration"));
 
         let mut health = HealthComponent::default();
         let synapse = SynapseComponent::new(config.synapse.url.clone());
         let mut db = DatabaseComponent::new(&config.db);
+        let mut redis = RedisComponent::new(&config.redis);
         match db.run().await {
             Err(err) => {
                 log::debug!("Error on running the DB: {:?}", err);
@@ -31,13 +35,23 @@ impl AppComponents {
             _ => {}
         }
 
+        match redis.run().await {
+            Err(err) => {
+                log::debug!("Error while connecting to redis: {:?}", err);
+                panic!("Unable connecting to redis {:?}", err)
+            }
+            _ => {}
+        }
+
         health.register_component(Box::new(db.clone()), "database".to_string());
+        health.register_component(Box::new(redis.clone()), "redis".to_string());
 
         Self {
             config,
             health,
             synapse,
             db,
+            redis,
         }
     }
 }
