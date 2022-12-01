@@ -38,6 +38,7 @@ impl AppComponents {
             panic!("Unable connecting to redis {:?}", err)
         }
 
+        // TODO: Should we refactor HealthComponent to avoid cloning structs?
         health.register_component(Box::new(db.clone()), "database".to_string());
         health.register_component(Box::new(redis.clone()), "redis".to_string());
 
