@@ -11,9 +11,8 @@ use super::health::Healthy;
 
 use crate::{
     entities::{
-        friendship_history::FriendshipHistoryRepository,
-        friendship_history_events::FriendshipHistoryEventsRepository,
-        friendships::FriendshipsRepository, user_features::UserFeaturesRepository,
+        friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
+        user_features::UserFeaturesRepository,
     },
     migrator::Migrator,
 };
@@ -22,7 +21,6 @@ use crate::{
 pub struct DBRepositories {
     pub friendships: FriendshipsRepository,
     pub friendship_history: FriendshipHistoryRepository,
-    pub friendship_history_events: FriendshipHistoryEventsRepository,
     pub user_features: UserFeaturesRepository,
 }
 
@@ -33,7 +31,7 @@ pub struct DatabaseComponent {
     db_password: String,
     db_name: String,
     db_connection: Arc<Option<DatabaseConnection>>,
-    db_repos: Option<DBRepositories>,
+    pub db_repos: Option<DBRepositories>,
 }
 
 impl DatabaseComponent {
@@ -69,6 +67,13 @@ impl DatabaseComponent {
                 }
             };
 
+            db_connection
+                .execute(Statement::from_string(
+                    DatabaseBackend::Postgres,
+                    format!("CREATE EXTENSION IF NOT EXISTS \"{}\"", "uuid-ossp").to_string(),
+                ))
+                .await?;
+
             log::debug!("Running Database migrations...");
 
             // Just runs the pending migrations
@@ -80,9 +85,6 @@ impl DatabaseComponent {
             self.db_repos = Some(DBRepositories {
                 friendships: FriendshipsRepository::new(self.db_connection.clone()),
                 friendship_history: FriendshipHistoryRepository::new(self.db_connection.clone()),
-                friendship_history_events: FriendshipHistoryEventsRepository::new(
-                    self.db_connection.clone(),
-                ),
                 user_features: UserFeaturesRepository::new(self.db_connection.clone()),
             });
 
@@ -96,6 +98,10 @@ impl DatabaseComponent {
     pub fn get_statement<V: IntoIterator<Item = Value>>(query: &str, values: V) -> Statement {
         let sql = format!(r#"{}"#, query);
         Statement::from_sql_and_values(DatabaseBackend::Postgres, &sql, values)
+    }
+
+    pub fn is_connected(&self) -> bool {
+        self.db_connection.is_some()
     }
 }
 
