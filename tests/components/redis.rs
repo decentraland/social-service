@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use deadpool_redis::redis::{cmd, RedisResult};
+    use deadpool_redis::redis::cmd;
     use social_service::components::{configuration::Redis, redis::RedisComponent};
 
     async fn create_redis_component() -> RedisComponent {
