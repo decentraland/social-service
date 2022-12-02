@@ -1,3 +1,3 @@
-mod components;
-mod helpers;
-mod routes;
+pub mod components;
+pub mod helpers;
+pub mod routes;
