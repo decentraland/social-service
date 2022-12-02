@@ -4,6 +4,7 @@ SUCCESS=echo "\033[0;32m"
 CARGO_RUN_WATCH = RUST_LOG=debug cargo watch -x 'run --bin social-service -- --port 8080'
 CARGO_RUN = RUST_LOG=debug cargo run -- --port 8080
 RUN_LOCAL_DB = docker-compose up -d && docker exec social_service_db bash -c "until pg_isready; do sleep 1; done" && sleep 5
+LOCAL_DB = $(shell docker ps | grep social_service_db > /dev/null && echo 1 || echo 0)
 
 WATCH_EXISTS = $(shell which cargo-watch > /dev/null && echo 1 || echo 0)
 DOCKER_COMPOSE_EXISTS = $(shell which docker-compose > /dev/null && echo 1 || echo 0)
@@ -63,3 +64,19 @@ endif
 	@$(SUCCESS) "Creating migration m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC).rs"
 	@./m.sh m$(DATE)_$(NEW_INDEX)_$(MIGRATION_DESC)
 	@cargo fmt
+
+# it should be used locally
+test:
+ifeq ($(LOCAL_DB), 1)
+	@docker stop social_service_db 2>/dev/null
+	@mv ./postgres_data ./postgres_data_2 2>/dev/null
+	@$(RUN_LOCAL_DB)
+	-@cargo test
+	@docker stop social_service_db
+	@rm -rf ./postgres_data
+	@mv ./postgres_data_2 ./postgres_data
+else
+	@$(RUN_LOCAL_DB)
+	-@cargo test
+	@make destroydb
+endif
