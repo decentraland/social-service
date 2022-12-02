@@ -2,12 +2,15 @@
 mod database_tests {
     use social_service::components::{configuration::Database, database::DatabaseComponent};
 
+    use crate::helpers::server::get_configuration;
+
     async fn create_db_component() -> DatabaseComponent {
+        let config = get_configuration();
         let mut db = DatabaseComponent::new(&Database {
-            host: "localhost:3500".to_string(),
-            name: "social_service".to_string(),
-            user: "postgres".to_string(),
-            password: "postgres".to_string(),
+            host: config.db.host.clone(),
+            name: config.db.name.clone(),
+            user: config.db.user.clone(),
+            password: config.db.password.clone(),
         });
         db.run().await.unwrap();
         assert!(db.is_connected());
