@@ -18,14 +18,14 @@ impl MigrationTrait for Migration {
                     .table(FriendshipHistory::Table)
                     .col(
                         ColumnDef::new(FriendshipHistory::Id)
-                            .integer()
-                            .auto_increment()
-                            .primary_key(),
+                            .uuid()
+                            .primary_key()
+                            .extra("DEFAULT uuid_generate_v4()".to_string()),
                     )
                     .col(
                         ColumnDef::new(FriendshipHistory::FriendshipId)
                             .not_null()
-                            .integer(),
+                            .uuid(),
                     )
                     .col(ColumnDef::new(FriendshipHistory::Event).not_null().string())
                     .col(
