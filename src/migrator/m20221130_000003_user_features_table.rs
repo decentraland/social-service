@@ -15,7 +15,7 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(UserFeatures::Table)
-                    .col(ColumnDef::new(UserFeatures::User).string())
+                    .col(ColumnDef::new(UserFeatures::User).string().not_null())
                     .col(
                         ColumnDef::new(UserFeatures::FeatureName)
                             .string()
