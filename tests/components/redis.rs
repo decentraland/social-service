@@ -1,21 +1,59 @@
 #[cfg(test)]
 mod tests {
+    use deadpool_redis::redis::{cmd, RedisResult};
+    use social_service::components::{configuration::Redis, redis::RedisComponent};
 
-    use crate::helpers::server::{get_app, get_configuration};
-    use actix_web::test;
+    async fn create_redis_component() -> RedisComponent {
+        let mut redis = RedisComponent::new(&Redis {
+            host: "0.0.0.0:6379".to_string(),
+        });
+
+        match redis.run().await {
+            Err(err) => {
+                log::debug!("Error while connecting to redis: {:?}", err);
+                panic!("Unable connecting to redis {:?}", err)
+            }
+            _ => {}
+        }
+
+        redis
+    }
 
     #[actix_web::test]
     async fn test_can_get_redis_connection() {
-        let config = get_configuration();
+        let mut component = create_redis_component().await;
+        let con = component.get_async_connection().await;
 
-        let app = get_app(config).await;
+        if con.is_none() {
+            panic!("Failed creating connection with Redis");
+        }
+    }
 
-        let service = test::init_service(app).await;
+    #[actix_web::test]
+    async fn test_can_store_key_in_redis() {
+        let mut component = create_redis_component().await;
 
-        let req = test::TestRequest::get().uri("/health/ready").to_request();
+        let key = "my_key";
+        let value = "value";
 
-        let response = test::call_service(&service, req).await;
+        {
+            let mut connection = component.get_async_connection().await.unwrap();
+            cmd("SET")
+                .arg(&[key, value])
+                .query_async::<_, ()>(&mut connection)
+                .await
+                .unwrap();
+        }
 
-        assert!(response.status().is_success())
+        {
+            let mut connection = component.get_async_connection().await.unwrap();
+            let res_value: String = cmd("GET")
+                .arg(&[key])
+                .query_async(&mut connection)
+                .await
+                .unwrap();
+
+            assert_eq!(res_value, value);
+        }
     }
 }

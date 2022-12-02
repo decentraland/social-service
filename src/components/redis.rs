@@ -20,6 +20,10 @@ impl RedisComponent {
         }
     }
 
+    pub async fn stop(&mut self) {
+        self.pool.as_mut().unwrap().close()
+    }
+
     pub async fn run(&mut self) -> Result<(), RedisError> {
         if self.pool.is_none() {
             let url = format!("redis://{}", self.redis_host);
