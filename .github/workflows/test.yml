@@ -42,6 +42,5 @@ jobs:
         run: cargo test --verbose
         env:
           DB_HOST: localhost:5432
-          REDIS_HOST: redis
-          REDIS_PORT: 6379
+          REDIS_HOST: localhost
 
