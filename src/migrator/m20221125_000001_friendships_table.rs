@@ -18,10 +18,9 @@ impl MigrationTrait for Migration {
                     .table(Friendships::Table)
                     .col(
                         ColumnDef::new(Friendships::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
+                            .uuid()
+                            .primary_key()
+                            .extra("DEFAULT uuid_generate_v4()".to_string()),
                     )
                     .col(ColumnDef::new(Friendships::Address1).string().not_null())
                     .col(ColumnDef::new(Friendships::Address2).string().not_null())
