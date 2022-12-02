@@ -1,9 +1,7 @@
-use crate::components::{
+use super::{
     configuration::Config, database::DatabaseComponent, health::HealthComponent,
-    synapse::SynapseComponent,
+    redis::RedisComponent, synapse::SynapseComponent,
 };
-
-use super::redis::RedisComponent;
 
 pub struct AppComponents {
     pub health: HealthComponent,
