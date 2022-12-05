@@ -1,13 +1,12 @@
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr};
 use std::sync::Arc;
 
-use crate::components::database::DatabaseComponent;
+use sqlx::{Error, Row};
 
-const TABLE: &str = "user_features";
+use crate::components::database::{DBConnection, DatabaseComponent};
 
 #[derive(Clone)]
 pub struct UserFeaturesRepository {
-    db_connection: Arc<Option<DatabaseConnection>>,
+    db_connection: Arc<Option<DBConnection>>,
 }
 
 pub struct UserFeature {
@@ -21,7 +20,7 @@ pub struct UserFeatures {
 }
 
 impl UserFeaturesRepository {
-    pub fn new(db: Arc<Option<DatabaseConnection>>) -> Self {
+    pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }
     }
 
@@ -30,17 +29,14 @@ impl UserFeaturesRepository {
         user: String,
         feature_name: String,
         feature_value: String,
-    ) -> Result<(), DbErr> {
-        let query = DatabaseComponent::get_statement(
-            format!("INSERT INTO {} VALUES ($1, $2, $3)", TABLE).as_str(),
-            vec![user.into(), feature_name.into(), feature_value.into()],
-        );
-        match self
-            .db_connection
-            .as_ref()
-            .as_ref()
-            .unwrap()
-            .execute(query)
+    ) -> Result<(), sqlx::Error> {
+        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+
+        match sqlx::query("INSERT INTO user_features VALUES ($1,$2,$3)")
+            .bind(user)
+            .bind(feature_name)
+            .bind(feature_value)
+            .execute(db_conn)
             .await
         {
             Ok(_) => Ok(()),
@@ -48,17 +44,14 @@ impl UserFeaturesRepository {
         }
     }
 
-    pub async fn get_all_user_features(&self, user: String) -> Result<Option<UserFeatures>, DbErr> {
-        let query = DatabaseComponent::get_statement(
-            format!("SELECT * FROM {} WHERE \"user\" = $1", TABLE).as_str(),
-            vec![user.clone().into()],
-        );
-        match self
-            .db_connection
-            .as_ref()
-            .as_ref()
-            .unwrap()
-            .query_all(query)
+    pub async fn get_all_user_features(
+        &self,
+        user: String,
+    ) -> Result<Option<UserFeatures>, sqlx::Error> {
+        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+        match sqlx::query("SELECT * FROM user_features WHERE \"user\" = $1")
+            .bind(user.as_str())
+            .fetch_all(db_conn)
             .await
         {
             Ok(row) => {
@@ -71,15 +64,18 @@ impl UserFeaturesRepository {
                     };
                     for result in row {
                         let current_feature = UserFeature {
-                            feature_name: result.try_get("", "feature_name").unwrap(),
-                            feature_value: result.try_get("", "feature_value").unwrap(),
+                            feature_name: result.try_get("feature_name").unwrap(),
+                            feature_value: result.try_get("feature_value").unwrap(),
                         };
                         all_user_features.features.push(current_feature)
                     }
                     Ok(Some(all_user_features))
                 }
             }
-            Err(err) => Err(err),
+            Err(err) => match err {
+                Error::RowNotFound => Ok(None),
+                _ => Err(err),
+            },
         }
     }
 }

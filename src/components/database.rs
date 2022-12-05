@@ -1,21 +1,18 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sea_orm::{
-    ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement,
-};
-use sea_orm_migration::prelude::*;
+use chrono::DateTime;
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 
 use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
-use crate::{
-    entities::{
-        friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
-        user_features::UserFeaturesRepository,
-    },
-    migrator::Migrator,
+use crate::entities::{
+    friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
+    user_features::UserFeaturesRepository,
 };
+
+pub type DBConnection = Pool<Postgres>;
 
 #[derive(Clone)]
 pub struct DBRepositories {
@@ -30,7 +27,7 @@ pub struct DatabaseComponent {
     db_user: String,
     db_password: String,
     db_name: String,
-    db_connection: Arc<Option<DatabaseConnection>>,
+    db_connection: Arc<Option<DBConnection>>,
     pub db_repos: Option<DBRepositories>,
 }
 
@@ -46,20 +43,17 @@ impl DatabaseComponent {
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), DbErr> {
-        if self.db_connection.is_none() {
+    pub async fn run(&mut self) -> Result<(), sqlx::Error> {
+        if !self.is_connected() {
             let url = format!(
                 "postgres://{}:{}@{}/{}",
                 self.db_user, self.db_password, self.db_host, self.db_name
             );
             log::debug!("DB URL: {}", url);
 
-            let mut opts = ConnectOptions::new(url);
-            // Connection Pool
-            opts.min_connections(5);
-            opts.max_connections(10);
+            let pool = PgPoolOptions::new().min_connections(5).max_connections(10);
 
-            let db_connection = match Database::connect(opts).await {
+            let db_connection = match pool.connect(url.as_str()).await {
                 Ok(db) => db,
                 Err(err) => {
                     log::debug!("Error on connecting to DB: {:?}", err);
@@ -67,19 +61,15 @@ impl DatabaseComponent {
                 }
             };
 
-            db_connection
-                .execute(Statement::from_string(
-                    DatabaseBackend::Postgres,
-                    format!("CREATE EXTENSION IF NOT EXISTS \"{}\"", "uuid-ossp").to_string(),
-                ))
-                .await?;
-
             log::debug!("Running Database migrations...");
 
             // Just runs the pending migrations
-            Migrator::up(&db_connection, None).await?;
-
-            log::debug!("Migrations executed!");
+            if let Err(err) = sqlx::migrate!("./migrations").run(&db_connection).await {
+                log::error!("Error on running DB Migrations. Err: {:?}", err);
+                panic!("Unable to run pending migrations")
+            } else {
+                log::debug!("Migrations executed!");
+            }
 
             self.db_connection = Arc::new(Some(db_connection));
             self.db_repos = Some(DBRepositories {
@@ -95,31 +85,28 @@ impl DatabaseComponent {
         }
     }
 
-    pub fn get_statement<V: IntoIterator<Item = Value>>(query: &str, values: V) -> Statement {
-        let sql = format!(r#"{}"#, query);
-        Statement::from_sql_and_values(DatabaseBackend::Postgres, &sql, values)
-    }
-
     pub fn is_connected(&self) -> bool {
         self.db_connection.is_some()
+    }
+
+    pub fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
+        db_connection.as_ref().as_ref().unwrap()
     }
 }
 
 #[async_trait]
 impl Healthy for DatabaseComponent {
     async fn is_healthy(&self) -> bool {
-        match self
-            .db_connection
-            .as_ref()
-            .as_ref()
-            .unwrap()
-            .query_one(Statement::from_string(
-                DatabaseBackend::Postgres,
-                "SELECT CURRENT_TIMESTAMP;".to_owned(),
-            ))
+        match sqlx::query("SELECT CURRENT_TIMESTAMP")
+            .fetch_one(DatabaseComponent::get_connection(&self.db_connection))
             .await
         {
-            Ok(result) => result.is_some(),
+            Ok(result) => {
+                match result.try_get::<DateTime<chrono::Utc>, &str>("current_timestamp") {
+                    Ok(_) => true,
+                    Err(_) => false,
+                }
+            }
             Err(_) => false,
         }
     }

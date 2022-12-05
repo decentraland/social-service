@@ -1,13 +1,11 @@
-use sea_orm::{prelude::Uuid, ConnectionTrait, DatabaseConnection, DbErr};
+use sqlx::{types::Uuid, Error, Row};
 use std::sync::Arc;
 
-use crate::components::database::DatabaseComponent;
-
-const TABLE: &str = "friendships";
+use crate::components::database::{DBConnection, DatabaseComponent};
 
 #[derive(Clone)]
 pub struct FriendshipsRepository {
-    db_connection: Arc<Option<DatabaseConnection>>,
+    db_connection: Arc<Option<DBConnection>>,
 }
 
 pub struct Frienship {
@@ -18,23 +16,18 @@ pub struct Frienship {
 }
 
 impl FriendshipsRepository {
-    pub fn new(db: Arc<Option<DatabaseConnection>>) -> Self {
+    pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }
     }
 
     // Example
-    pub async fn create_new_friendships(&self, addresses: (&str, &str)) -> Result<(), DbErr> {
+    pub async fn create_new_friendships(&self, addresses: (&str, &str)) -> Result<(), sqlx::Error> {
         let (address1, address2) = addresses;
-        let query = DatabaseComponent::get_statement(
-            format!("INSERT INTO {} (address1, address2) VALUES ($1, $2)", TABLE).as_str(),
-            vec![address1.into(), address2.into()],
-        );
-        match self
-            .db_connection
-            .as_ref()
-            .as_ref()
-            .unwrap()
-            .execute(query)
+        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+        match sqlx::query("INSERT INTO friendships(address_1, address_2) VALUES($1,$2);")
+            .bind(address1)
+            .bind(address2)
+            .execute(db_conn)
             .await
         {
             Ok(_) => Ok(()),
@@ -42,35 +35,31 @@ impl FriendshipsRepository {
         }
     }
 
-    pub async fn get(&self, addresses: (&str, &str)) -> Result<Option<Frienship>, DbErr> {
+    pub async fn get(&self, addresses: (&str, &str)) -> Result<Option<Frienship>, sqlx::Error> {
         let (address1, address2) = addresses;
-        let query = DatabaseComponent::get_statement(
-            format!("SELECT * FROM {} WHERE (address1 = $1 AND address2 = $2) OR (address1 = $2 AND address2 = $1)", TABLE).as_str(),
-            vec![address1.into(), address2.into()],
-        );
-        match self
-            .db_connection
-            .as_ref()
-            .as_ref()
-            .unwrap()
-            .query_one(query)
-            .await
+        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+        match sqlx::query(
+            "SELECT * FROM friendships WHERE (address_1 = $1 AND address_2 = $2) OR (address_1 = $3 AND address_2 = $4)"
+        )
+        .bind(address1)
+        .bind(address2)
+        .bind(address2)
+        .bind(address1)
+        .fetch_one(db_conn).await
         {
             Ok(row) => {
-                if row.is_none() {
-                    Ok(None)
-                } else {
-                    let row = row.unwrap();
-                    let friendship = Frienship {
-                        id: row.try_get("", "id").unwrap(),
-                        address_1: row.try_get("", "address1").unwrap(),
-                        address_2: row.try_get("", "address2").unwrap(),
-                        is_active: row.try_get("", "is_active").unwrap(),
-                    };
-                    Ok(Some(friendship))
-                }
+                let friendship = Frienship {
+                    id: row.try_get("id").unwrap(),
+                    address_1: row.try_get("address_1").unwrap(),
+                    address_2: row.try_get("address_2").unwrap(),
+                    is_active: row.try_get("is_active").unwrap(),
+                };
+                Ok(Some(friendship))
             }
-            Err(err) => Err(err),
+            Err(err) => match err {
+                Error::RowNotFound => Ok(None),
+                _ => Err(err),
+            },
         }
     }
 }
