@@ -56,6 +56,7 @@ else
 	@$(ERROR) "sqlx-cli is not installed. Installing..."
 	@$(INSTALL_SQLX)
 	@sqlx migrate add -r $(name)
+endif
 
 
 # it should be used locally
