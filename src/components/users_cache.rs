@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use deadpool_redis::redis::{cmd, RedisResult};
 
 use super::redis::RedisComponent;
@@ -6,12 +7,12 @@ fn hash_token(token: &String) -> String {
     token.to_string()
 }
 
-struct UsersCacheComponent {
-    redis_component: RedisComponent,
+struct UsersCacheComponent<T: RedisComponent> {
+    redis_component: T,
 }
 
-impl UsersCacheComponent {
-    fn new(redis: RedisComponent) -> Self {
+impl<T: RedisComponent> UsersCacheComponent<T> {
+    fn new(redis: T) -> Self {
         Self {
             redis_component: redis,
         }
@@ -65,23 +66,54 @@ impl UsersCacheComponent {
 }
 
 #[cfg(test)]
+use super::configuration::Redis as RedisConfig;
+#[cfg(test)]
+use deadpool_redis::{redis::RedisError, Connection};
+#[cfg(test)]
+use mockall::mock;
+
+#[cfg(test)]
+mock! {
+    Redis {    }
+
+    #[async_trait]
+    impl RedisComponent for Redis {
+        fn new(config: &RedisConfig) -> Self{
+            Self{}
+        }
+
+    async fn stop(&mut self){}
+    async fn run(&mut self) -> Result<(), RedisError>{
+
+    }
+    async fn get_async_connection(&mut self) -> Option<Connection>{}
+    }
+}
+
+#[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
-    fn test_divide() {
-        assert_eq!(divide_non_zero_result(10, 2), 5);
+    fn test_store_user() {
+        let redis = MockRedis::new(&RedisConfig {
+            host: "mock_host".to_string(),
+        });
+
+        let user_cache_component = UsersCacheComponent::new(redis);
+        // assert_eq!(divide_non_zero_result(10, 2), 5);
     }
 
-    #[test]
-    #[should_panic]
-    fn test_any_panic() {
-        divide_non_zero_result(1, 0);
-    }
+    // #[test]
+    // #[should_panic]
+    // fn test_any_panic() {
+    //     divide_non_zero_result(1, 0);
+    // }
 
-    #[test]
-    #[should_panic(expected = "Divide result is zero")]
-    fn test_specific_panic() {
-        divide_non_zero_result(1, 10);
-    }
+    // #[test]
+    // #[should_panic(expected = "Divide result is zero")]
+    // fn test_specific_panic() {
+    //     divide_non_zero_result(1, 10);
+    // }
 }

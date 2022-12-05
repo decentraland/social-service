@@ -3,12 +3,14 @@ use super::{
     redis::RedisComponent, synapse::SynapseComponent,
 };
 
+use super::redis::{Redis, RedisComponent};
+
 pub struct AppComponents {
     pub health: HealthComponent,
     pub synapse: SynapseComponent,
     pub config: Config,
     pub db: DatabaseComponent,
-    pub redis: RedisComponent,
+    pub redis: Redis,
 }
 
 impl AppComponents {
