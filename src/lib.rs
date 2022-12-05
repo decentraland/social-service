@@ -2,7 +2,6 @@ pub mod components;
 pub mod entities;
 mod metrics;
 pub mod middlewares;
-mod migrator;
 pub mod routes;
 
 use actix_web::body::MessageBody;
