@@ -3,7 +3,7 @@ use super::{
     redis::RedisComponent, synapse::SynapseComponent,
 };
 
-use super::redis::{Redis, RedisComponent};
+use super::redis::Redis;
 
 pub struct AppComponents {
     pub health: HealthComponent,

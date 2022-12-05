@@ -14,22 +14,22 @@ pub struct Redis {
 
 #[async_trait]
 pub trait RedisComponent {
-    fn new(config: &RedisConfig) -> Self;
-
     async fn stop(&mut self);
     async fn run(&mut self) -> Result<(), RedisError>;
     async fn get_async_connection(&mut self) -> Option<Connection>;
 }
 
-#[async_trait]
-impl RedisComponent for Redis {
-    fn new(config: &RedisConfig) -> Self {
+impl Redis {
+    pub fn new(config: &RedisConfig) -> Self {
         Self {
             redis_host: config.host.clone(),
             pool: None,
         }
     }
+}
 
+#[async_trait]
+impl RedisComponent for Redis {
     async fn stop(&mut self) {
         self.pool.as_mut().unwrap().close()
     }

@@ -7,7 +7,7 @@ mod tests {
     };
 
     async fn create_redis_component() -> Redis {
-        let mut redis: Redis = RedisComponent::new(&RedisConfig {
+        let mut redis = Redis::new(&RedisConfig {
             host: "0.0.0.0:6379".to_string(),
         });
 
