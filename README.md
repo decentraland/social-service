@@ -22,7 +22,7 @@ Running this command will run a dockerized Postgres DB and run the server on por
 
 ### Database & Migrations
 
-Migrations or pending migrations run when the server starts up programatically with the [sea-orm](https://github.com/SeaQL/sea-orm) API.
+Migrations or pending migrations run when the server starts up programatically with the [sqlx](https://github.com/launchbadge/sqlx) API.
 
 In order to create a new migration, you have to run:
 
@@ -30,15 +30,7 @@ In order to create a new migration, you have to run:
 make migration name={YOUR_MIGRATION_NAME}
 ```
 
-The above command will create a new migration file with a specific name and basic code, you should define your schema programatically based on [sea-orm](https://github.com/SeaQL/sea-orm)
-
-After your migrations run, you may want to run the following command:
-
-```
-make models
-```
-
-This command will create the entities (or models) so that you can make queries and interact with the DB via these models easily.
+This command will create the migration SQL files (up and down) with the given name
 
 ### Configuration
 
