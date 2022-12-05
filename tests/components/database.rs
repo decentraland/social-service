@@ -8,7 +8,7 @@ mod database_tests {
         let config = get_configuration();
         let mut db = DatabaseComponent::new(&Database {
             host: config.db.host.clone(),
-            name: config.db.name.clone(),
+            name: "social_service".to_string(),
             user: config.db.user.clone(),
             password: config.db.password.clone(),
         });
