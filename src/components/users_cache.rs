@@ -9,11 +9,11 @@ fn hash_token(token: &String) -> String {
     token.to_string()
 }
 
-struct UsersCacheComponent<T: RedisComponent<Connection>> {
+struct UsersCacheComponent<T: RedisComponent> {
     redis_component: T,
 }
 
-impl<T: RedisComponent<Connection>> UsersCacheComponent<T> {
+impl<T: RedisComponent> UsersCacheComponent<T> {
     fn new(redis: T) -> Self {
         Self {
             redis_component: redis,
@@ -76,11 +76,7 @@ impl<T: RedisComponent<Connection>> UsersCacheComponent<T> {
 #[cfg(test)]
 mod tests {
     use async_trait::async_trait;
-    use deadpool_redis::{
-        redis::{self, RedisError},
-        Connection,
-    };
-    use redis_test::{MockCmd, MockRedisConnection};
+    use deadpool_redis::{redis::RedisError, Connection};
 
     use mockall::mock;
 
@@ -88,7 +84,7 @@ mod tests {
         Redis {}
 
         #[async_trait]
-        impl RedisComponent<MockRedisConnection> for Redis {
+        impl RedisComponent for Redis {
             async fn stop(&mut self) {}
             async fn run(&mut self) -> Result<(), RedisError> {}
             async fn get_async_connection(&mut self) -> Option<Connection> {
@@ -129,44 +125,4 @@ mod tests {
             }
         }
     }
-
-    #[actix_web::test]
-    async fn test_should_store_the_encrypted_key() {
-        let mut redis = MockRedis::new();
-
-        let token = "my test token";
-        let user_id = "joni";
-
-        redis.expect_get_async_connection().return_once(|| {
-            Some(MockRedisConnection::new(vec![MockCmd::new(
-                redis::cmd("EXISTS").arg("foo"),
-                Ok("1"),
-            )]))
-        });
-
-        let mut user_cache_component = UsersCacheComponent::new(redis);
-
-        let res = user_cache_component
-            .add_user(token.to_string(), user_id.to_string())
-            .await;
-
-        match res {
-            Ok(_) => {}
-            Err(err) => {
-                assert_eq!(
-                    format!(
-                        "Couldn't cache user {}, redis has no connection available",
-                        user_id
-                    ),
-                    err
-                )
-            }
-        }
-    }
-
-    // #[test]
-    // #[should_panic(expected = "Divide result is zero")]
-    // fn test_specific_panic() {
-    //     divide_non_zero_result(1, 10);
-    // }
 }
