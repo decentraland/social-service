@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use deadpool_redis::{
+    redis::aio::ConnectionLike,
     redis::{cmd, RedisError, RedisResult},
-    Config, Connection, Pool, Runtime,
+    Config, Pool, Runtime, Connection,
 };
 
 use super::{configuration::Redis as RedisConfig, health::Healthy};
@@ -13,7 +14,7 @@ pub struct Redis {
 }
 
 #[async_trait]
-pub trait RedisComponent {
+pub trait RedisComponent<T: ConnectionLike> {
     async fn stop(&mut self);
     async fn run(&mut self) -> Result<(), RedisError>;
     async fn get_async_connection(&mut self) -> Option<Connection>;
@@ -29,7 +30,7 @@ impl Redis {
 }
 
 #[async_trait]
-impl RedisComponent for Redis {
+impl<T: ConnectionLike> RedisComponent<T> for Redis {
     async fn stop(&mut self) {
         self.pool.as_mut().unwrap().close()
     }

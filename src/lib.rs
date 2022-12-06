@@ -3,6 +3,7 @@ pub mod entities;
 mod metrics;
 pub mod middlewares;
 pub mod routes;
+mod utils;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};

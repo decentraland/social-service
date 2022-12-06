@@ -1,7 +1,7 @@
-use std::error::Error;
-
-use actix_web::error::HttpError;
-use deadpool_redis::redis::{cmd, RedisResult};
+use deadpool_redis::{
+    redis::{cmd, RedisResult},
+    Connection,
+};
 
 use super::redis::RedisComponent;
 
@@ -9,11 +9,11 @@ fn hash_token(token: &String) -> String {
     token.to_string()
 }
 
-struct UsersCacheComponent<T: RedisComponent> {
+struct UsersCacheComponent<T: RedisComponent<Connection>> {
     redis_component: T,
 }
 
-impl<T: RedisComponent> UsersCacheComponent<T> {
+impl<T: RedisComponent<Connection>> UsersCacheComponent<T> {
     fn new(redis: T) -> Self {
         Self {
             redis_component: redis,
@@ -74,40 +74,75 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
 }
 
 #[cfg(test)]
-use async_trait::async_trait;
-#[cfg(test)]
-use deadpool_redis::{redis::RedisError, Connection};
-
-#[cfg(test)]
-use mockall::mock;
-
-#[cfg(test)]
-mock! {
-    Redis {}
-
-    #[async_trait]
-    impl RedisComponent for Redis {
-        async fn stop(&mut self) {}
-        async fn run(&mut self) -> Result<(), RedisError> {}
-        async fn get_async_connection(&mut self) -> Option<Connection> {
-            None
-        }
-    }
-}
-
-#[cfg(test)]
 mod tests {
+    use async_trait::async_trait;
+    use deadpool_redis::{
+        redis::{self, RedisError},
+        Connection,
+    };
+    use redis_test::{MockCmd, MockRedisConnection};
+
+    use mockall::mock;
+
+    mock! {
+        Redis {}
+
+        #[async_trait]
+        impl RedisComponent<MockRedisConnection> for Redis {
+            async fn stop(&mut self) {}
+            async fn run(&mut self) -> Result<(), RedisError> {}
+            async fn get_async_connection(&mut self) -> Option<Connection> {
+                None
+            }
+        }
+
+    }
 
     use super::*;
 
     #[actix_web::test]
-    async fn test_should_return_no_connection_available() {
+    async fn test_should_return_no_connection_available() -> Result<(), String> {
         let mut redis = MockRedis::new();
 
         let token = "my test token";
         let user_id = "joni";
 
         redis.expect_get_async_connection().return_once(|| None);
+
+        let mut user_cache_component = UsersCacheComponent::new(redis);
+
+        let res = user_cache_component
+            .add_user(token.to_string(), user_id.to_string())
+            .await;
+
+        match res {
+            Ok(_) => Err("Should return the expected error".to_string()),
+            Err(err) => {
+                assert_eq!(
+                    format!(
+                        "Couldn't cache user {}, redis has no connection available",
+                        user_id
+                    ),
+                    err
+                );
+                Ok(())
+            }
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_should_store_the_encrypted_key() {
+        let mut redis = MockRedis::new();
+
+        let token = "my test token";
+        let user_id = "joni";
+
+        redis.expect_get_async_connection().return_once(|| {
+            Some(MockRedisConnection::new(vec![MockCmd::new(
+                redis::cmd("EXISTS").arg("foo"),
+                Ok("1"),
+            )]))
+        });
 
         let mut user_cache_component = UsersCacheComponent::new(redis);
 
@@ -128,12 +163,6 @@ mod tests {
             }
         }
     }
-
-    // #[test]
-    // #[should_panic]
-    // fn test_any_panic() {
-    //     divide_non_zero_result(1, 0);
-    // }
 
     // #[test]
     // #[should_panic(expected = "Divide result is zero")]
