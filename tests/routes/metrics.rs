@@ -1,7 +1,5 @@
-mod helpers;
 #[cfg(test)]
 mod metrics_endpoint_tests {
-
     use crate::helpers::server::{get_app, get_configuration};
     use actix_web::test;
 
