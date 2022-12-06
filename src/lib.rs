@@ -59,3 +59,7 @@ pub fn get_app_router(
         .service(health)
         .service(version)
 }
+
+fn generate_uuid_v4() -> String {
+    uuid::Uuid::new_v4().to_string()
+}

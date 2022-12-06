@@ -1,7 +1,10 @@
 use sqlx::{types::Uuid, Error, Row};
 use std::sync::Arc;
 
-use crate::components::database::{DBConnection, DatabaseComponent};
+use crate::{
+    components::database::{DBConnection, DatabaseComponent},
+    generate_uuid_v4,
+};
 
 #[derive(Clone)]
 pub struct FriendshipsRepository {
@@ -24,7 +27,8 @@ impl FriendshipsRepository {
     pub async fn create_new_friendships(&self, addresses: (&str, &str)) -> Result<(), sqlx::Error> {
         let (address1, address2) = addresses;
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
-        match sqlx::query("INSERT INTO friendships(address_1, address_2) VALUES($1,$2);")
+        match sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
+            .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
             .bind(address1)
             .bind(address2)
             .execute(db_conn)
