@@ -5,7 +5,10 @@ use sqlx::{
     Error, Row,
 };
 
-use crate::components::database::{DBConnection, DatabaseComponent};
+use crate::{
+    components::database::{DBConnection, DatabaseComponent},
+    generate_uuid_v4,
+};
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {
     db_connection: Arc<Option<DBConnection>>,
@@ -32,8 +35,9 @@ impl FriendshipHistoryRepository {
     ) -> Result<(), sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         match sqlx::query(
-                "INSERT INTO friendship_history (friendship_id, event, acting_user, metadata) VALUES ($1,$2,$3,$4)",
+                "INSERT INTO friendship_history (id,friendship_id, event, acting_user, metadata) VALUES ($1,$2,$3,$4,$5)",
         )
+        .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
         .bind(friendship_id)
         .bind(event)
         .bind(acting_user)

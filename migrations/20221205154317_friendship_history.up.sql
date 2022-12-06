@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS friendship_history(
-    id uuid DEFAULT uuid_generate_v4(),
+    id uuid,
     friendship_id uuid NOT NULL,
     event VARCHAR NOT NULL,
     acting_user VARCHAR NOT NULL,
