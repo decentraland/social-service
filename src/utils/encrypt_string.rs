@@ -1,32 +1,46 @@
-use ring::aead::*;
-use ring::hmac::HMAC_SHA256;
-use ring::pbkdf2::*;
-use ring::rand::SystemRandom;
+use hex::encode;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
-fn encrypt(str: String) -> String {
-    // The password will be used to generate a key
-    let password = b"nice password";
+// Create alias for HMAC-SHA256
+type HmacSha256 = Hmac<Sha256>;
 
-    // Usually the salt has some random data and something that relates to the user
-    // like an username
-    let salt = [0, 1, 2, 3, 4, 5, 6, 7];
+pub fn hash_with_key(str: String, key: String) -> String {
+    let mut mac =
+        HmacSha256::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
+    mac.update(str.as_bytes());
 
-    // Keys are sent as &[T] and must have 32 bytes
-    let mut key = [0; 32];
-    derive(&HMAC_SHA256, 100, &salt, &password[..], &mut key);
+    // `result` has type `CtOutput` which is a thin wrapper around array of
+    // bytes for providing constant time equality check
+    let result = mac.finalize();
 
-    // Ring uses the same input variable as output
-    let mut in_out = str.clone();
+    // To get underlying array use `into_bytes`, but be careful, since
+    // incorrect use of the code value may permit timing attacks which defeats
+    // the security provided by the `CtOutput`
+    let code_bytes = result.into_bytes();
 
-    // The input/output variable need some space for a suffix
-    println!("Tag len {}", CHACHA20_POLY1305.tag_len());
-    for _ in 0..CHACHA20_POLY1305.tag_len() {
-        in_out.push(0);
-    }
-
-    // Sealing key used to encrypt data
-    let sealing_key = SealingKey::new(&CHACHA20_POLY1305, &key).unwrap();
+    encode(code_bytes)
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_with_same_string() {
+        // Should be deterministic for the same string twice
+        assert_eq!(
+            hash_with_key("test string".to_string(), "test_key".to_string()),
+            hash_with_key("test string".to_string(), "test_key".to_string())
+        );
+    }
+
+    #[test]
+    fn test_hash_with_different_string() {
+        // Should be deterministic for the same string twice
+        assert_ne!(
+            hash_with_key("test string".to_string(), "test_key".to_string()),
+            hash_with_key("test2 string".to_string(), "test_key".to_string())
+        );
+    }
+}

@@ -3,14 +3,17 @@ use super::{
     redis::RedisComponent, synapse::SynapseComponent,
 };
 
-use super::redis::Redis;
+use super::{
+    redis::Redis,
+    users_cache::{self, UsersCacheComponent},
+};
 
 pub struct AppComponents {
     pub health: HealthComponent,
     pub synapse: SynapseComponent,
     pub config: Config,
     pub db: DatabaseComponent,
-    pub redis: Redis,
+    pub user_cache: UsersCacheComponent<Redis>,
 }
 
 impl AppComponents {
@@ -26,7 +29,7 @@ impl AppComponents {
         let mut health = HealthComponent::default();
         let synapse = SynapseComponent::new(config.synapse.url.clone());
         let mut db = DatabaseComponent::new(&config.db);
-        let mut redis = RedisComponent::new(&config.redis);
+        let mut redis = Redis::new(&config.redis);
 
         if let Err(err) = db.run().await {
             log::debug!("Error on running the DB: {:?}", err);
@@ -41,13 +44,15 @@ impl AppComponents {
         // TODO: Should we refactor HealthComponent to avoid cloning structs?
         health.register_component(Box::new(db.clone()), "database".to_string());
         health.register_component(Box::new(redis.clone()), "redis".to_string());
+        let users_cache_instance =
+            users_cache::UsersCacheComponent::new(redis, config.cache_hashing_key.clone());
 
         Self {
             config,
             health,
             synapse,
             db,
-            redis,
+            user_cache: users_cache_instance,
         }
     }
 }

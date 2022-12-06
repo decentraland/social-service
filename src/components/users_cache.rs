@@ -1,26 +1,23 @@
-use deadpool_redis::{
-    redis::{cmd, RedisResult},
-    Connection,
-};
+use deadpool_redis::redis::{cmd, RedisResult};
+
+use crate::utils::encrypt_string::hash_with_key;
 
 use super::redis::RedisComponent;
 
-fn hash_token(token: &String) -> String {
-    token.to_string()
-}
-
-struct UsersCacheComponent<T: RedisComponent> {
+pub struct UsersCacheComponent<T: RedisComponent> {
     redis_component: T,
+    hashing_key: String,
 }
 
 impl<T: RedisComponent> UsersCacheComponent<T> {
-    fn new(redis: T) -> Self {
+    pub fn new(redis: T, hashing_key: String) -> Self {
         Self {
             redis_component: redis,
+            hashing_key,
         }
     }
 
-    async fn add_user(&mut self, token: String, user_id: String) -> Result<(), String> {
+    pub async fn add_user(&mut self, token: String, user_id: String) -> Result<(), String> {
         let con = self.redis_component.get_async_connection().await;
 
         if con.is_none() {
@@ -32,7 +29,7 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
             return Err(error);
         }
 
-        let key = hash_token(&token);
+        let key = hash_with_key(token.clone(), self.hashing_key.clone());
 
         let mut connection = con.unwrap();
         let res = cmd("SET")
@@ -50,7 +47,7 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
         }
     }
 
-    async fn get_user(&mut self, token: String) -> Option<String> {
+    pub async fn get_user(&mut self, token: String) -> Option<String> {
         let con = self.redis_component.get_async_connection().await;
 
         if con.is_none() {
@@ -58,7 +55,7 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
             return None;
         }
 
-        let key = hash_token(&token);
+        let key = hash_with_key(token.clone(), self.hashing_key.clone());
 
         let mut connection = con.unwrap();
         let res: RedisResult<String> = cmd("GET").arg(&[key]).query_async(&mut connection).await;
@@ -105,7 +102,7 @@ mod tests {
 
         redis.expect_get_async_connection().return_once(|| None);
 
-        let mut user_cache_component = UsersCacheComponent::new(redis);
+        let mut user_cache_component = UsersCacheComponent::new(redis, "test_key".to_string());
 
         let res = user_cache_component
             .add_user(token.to_string(), user_id.to_string())
