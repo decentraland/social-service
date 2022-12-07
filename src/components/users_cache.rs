@@ -1,4 +1,6 @@
-use deadpool_redis::redis::{cmd, RedisResult};
+use std::error::Error;
+
+use deadpool_redis::redis::{cmd, RedisError, RedisResult};
 
 use crate::utils::encrypt_string::hash_with_key;
 
@@ -67,12 +69,12 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
         }
     }
 
-    pub async fn get_user(&mut self, token: &str) -> Option<String> {
+    pub async fn get_user(&mut self, token: &str) -> Result<String, String> {
         let con = self.redis_component.get_async_connection().await;
 
         if con.is_none() {
             log::error!("Couldn't obtain user redis has no connection available");
-            return None;
+            return Err("Couldn't obtain user redis has no connection available".to_string());
         }
 
         let key = hash_with_key(&token, &self.hashing_key);
@@ -81,10 +83,10 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
         let res: RedisResult<String> = cmd("GET").arg(&[key]).query_async(&mut connection).await;
 
         match res {
-            Ok(user_id) => Some(user_id),
+            Ok(user_id) => Ok(user_id),
             Err(err) => {
                 log::debug!("User not found in cache for token {}, error {}", token, err);
-                None
+                Err(err.to_string())
             }
         }
     }

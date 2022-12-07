@@ -44,11 +44,12 @@ mod tests {
 
         let res = component.get_user(token).await;
 
-        if res.is_none() {
-            panic!("Couldn't get the user {}", user_id);
+        match res {
+            Ok(_) => assert_eq!(res.unwrap(), user_id),
+            Err(err) => {
+                panic!("Couldn't get the user {} due to {}", user_id, err)
+            }
         }
-
-        assert_eq!(res.unwrap(), user_id);
     }
 
     #[actix_web::test]
@@ -72,6 +73,11 @@ mod tests {
 
         let res = component.get_user(token).await;
 
-        assert!(res.is_none(), "Got the user {}", user_id);
+        match res {
+            Ok(_) => panic!("Got the user {}", user_id),
+            Err(err) => {
+                assert!(err.contains("(response was nil)"))
+            }
+        }
     }
 }
