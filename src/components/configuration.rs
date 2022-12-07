@@ -45,7 +45,8 @@ pub struct Config {
     pub db: Database,
     pub env: String, // prd / stg / dev / biz
     pub wkc_metrics_bearer_token: String,
-    pub redis: Redis
+    pub redis: Redis,
+    pub cache_hashing_key: String,
 }
 
 const SYNAPSE_URL_ENV: &str = "SYNAPSE_URL";
@@ -57,6 +58,8 @@ const DB_PWD: &str = "DB_PASSWORD";
 const DB_NAME: &str = "DB_NAME";
 
 const REDIS_HOST: &str = "REDIS_HOST";
+
+const CACHE_HASHING_KEY: &str = "CACHE_HASHING_KEY";
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
@@ -78,6 +81,7 @@ impl Config {
             )
             .add_source(
                 config::Environment::default()
+                    .with_list_parse_key(CACHE_HASHING_KEY)
                     .with_list_parse_key(METRICS_TOKEN)
                     .with_list_parse_key(ENV_VAR)
                     .try_parsing(true),
@@ -92,6 +96,7 @@ impl Config {
             .set_default("db.password", "postgres")? // docker-compose -> local env
             .set_default("db.name", "social_service")? // docker-compose -> local env
             .set_default("redis.host", "0.0.0.0")? // docker-compose -> local env
+            .set_default("cache_hashing_key", "test_key")? // docker-compose -> local env
             .build()?;
 
         config.try_deserialize()

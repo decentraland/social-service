@@ -7,24 +7,43 @@ use deadpool_redis::{
 use super::{configuration::Redis as RedisConfig, health::Healthy};
 
 #[derive(Clone)]
-pub struct RedisComponent {
+pub struct Redis {
     redis_host: String,
     pub pool: Option<Pool>,
 }
 
-impl RedisComponent {
+impl std::fmt::Debug for Redis {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Redis")
+            .field("redis_host", &self.redis_host)
+            .field("pool", &self.pool.is_some())
+            .finish()
+    }
+}
+
+#[async_trait]
+pub trait RedisComponent {
+    async fn stop(&mut self);
+    async fn run(&mut self) -> Result<(), RedisError>;
+    async fn get_async_connection(&mut self) -> Option<Connection>;
+}
+
+impl Redis {
     pub fn new(config: &RedisConfig) -> Self {
         Self {
             redis_host: config.host.clone(),
             pool: None,
         }
     }
+}
 
-    pub async fn stop(&mut self) {
+#[async_trait]
+impl RedisComponent for Redis {
+    async fn stop(&mut self) {
         self.pool.as_mut().unwrap().close()
     }
 
-    pub async fn run(&mut self) -> Result<(), RedisError> {
+    async fn run(&mut self) -> Result<(), RedisError> {
         if self.pool.is_none() {
             let url = format!("redis://{}", self.redis_host);
             log::debug!("Redis URL: {}", url);
@@ -46,7 +65,7 @@ impl RedisComponent {
         }
     }
 
-    pub async fn get_async_connection(&mut self) -> Option<Connection> {
+    async fn get_async_connection(&mut self) -> Option<Connection> {
         match self.pool.as_mut().unwrap().get().await {
             Ok(connection) => Some(connection),
             Err(err) => {
@@ -58,7 +77,7 @@ impl RedisComponent {
 }
 
 #[async_trait]
-impl Healthy for RedisComponent {
+impl Healthy for Redis {
     async fn is_healthy(&self) -> bool {
         match self.pool.as_ref().unwrap().get().await {
             Ok(mut con) => {

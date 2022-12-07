@@ -1,10 +1,13 @@
 #[cfg(test)]
 mod tests {
     use deadpool_redis::redis::cmd;
-    use social_service::components::{configuration::Redis, redis::RedisComponent};
+    use social_service::components::{
+        configuration::Redis as RedisConfig,
+        redis::{Redis, RedisComponent},
+    };
 
-    async fn create_redis_component() -> RedisComponent {
-        let mut redis = RedisComponent::new(&Redis {
+    async fn create_redis_component() -> Redis {
+        let mut redis = Redis::new(&RedisConfig {
             host: "0.0.0.0:6379".to_string(),
         });
 
