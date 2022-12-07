@@ -4,6 +4,8 @@ use crate::utils::encrypt_string::hash_with_key;
 
 use super::redis::RedisComponent;
 
+const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 120;
+
 pub struct UsersCacheComponent<T: RedisComponent> {
     redis_component: T,
     hashing_key: String,
@@ -42,7 +44,7 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
             .arg(&[key.clone(), user_id.to_string()])
             .arg(&[
                 "EX".to_string(),
-                (custom_exipry_time.unwrap_or_else(|| 240)).to_string(),
+                (custom_exipry_time.unwrap_or_else(|| DEFAULT_EXPIRATION_TIME_SECONDS)).to_string(),
             ])
             .query_async::<_, ()>(&mut connection)
             .await;
