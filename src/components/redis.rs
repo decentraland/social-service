@@ -12,6 +12,15 @@ pub struct Redis {
     pub pool: Option<Pool>,
 }
 
+impl std::fmt::Debug for Redis {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Redis")
+            .field("redis_host", &self.redis_host)
+            .field("pool", &self.pool.is_some())
+            .finish()
+    }
+}
+
 #[async_trait]
 pub trait RedisComponent {
     async fn stop(&mut self);

@@ -6,12 +6,13 @@ use super::redis::RedisComponent;
 
 const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 120;
 
+#[derive(Debug)]
 pub struct UsersCacheComponent<T: RedisComponent> {
     redis_component: T,
     hashing_key: String,
 }
 
-impl<T: RedisComponent> UsersCacheComponent<T> {
+impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
     pub fn new(redis: T, hashing_key: String) -> Self {
         Self {
             redis_component: redis,
@@ -19,6 +20,13 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
         }
     }
 
+    #[tracing::instrument(
+        name = "Storing user in cache",
+        skip(token, custom_exipry_time),
+        fields(
+            user_id = %user_id,
+        )
+    )]
     pub async fn add_user(
         &mut self,
         token: &str,
@@ -90,6 +98,7 @@ mod tests {
     use mockall::mock;
 
     mock! {
+        #[derive(Debug)]
         Redis {}
 
         #[async_trait]
