@@ -4,7 +4,7 @@ use crate::utils::encrypt_string::hash_with_key;
 
 use super::redis::Redis;
 
-const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 120;
+const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 1800;
 
 #[cfg_attr(test, faux::create)]
 #[derive(Debug)]
