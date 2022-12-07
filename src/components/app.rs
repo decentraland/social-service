@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::{
     configuration::Config, database::DatabaseComponent, health::HealthComponent,
     redis::RedisComponent, synapse::SynapseComponent,
@@ -36,9 +38,9 @@ impl AppComponents {
             panic!("Unable connecting to redis {:?}", err)
         }
 
-        // TODO: Should we refactor HealthComponent to avoid cloning structs?
-        health.register_component(Box::new(db.clone()), "database".to_string());
-        health.register_component(Box::new(redis.clone()), "redis".to_string());
+        // TODO: Should we refactor HealthComponent to avoid cloning structs or should we refactor components for a cheapier cloning?
+        health.register_component(Arc::new(db.clone()), "database".to_string());
+        health.register_component(Arc::new(redis.clone()), "redis".to_string());
 
         Self {
             config,

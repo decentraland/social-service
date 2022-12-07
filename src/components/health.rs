@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use async_trait::async_trait;
 
@@ -13,7 +13,7 @@ pub trait Healthy {
 }
 
 struct ComponentToCheck {
-    component: Box<dyn Healthy + Send + Sync>,
+    component: Arc<dyn Healthy + Send + Sync>,
     name: String,
 }
 
@@ -31,7 +31,7 @@ pub struct HealthComponent {
 }
 
 impl HealthComponent {
-    pub fn register_component(&mut self, component: Box<dyn Healthy + Send + Sync>, name: String) {
+    pub fn register_component(&mut self, component: Arc<dyn Healthy + Send + Sync>, name: String) {
         self.components_to_check
             .push(ComponentToCheck { component, name });
     }
@@ -39,12 +39,24 @@ impl HealthComponent {
     #[tracing::instrument(name = "Calculate components status")]
     pub async fn calculate_status(&self) -> HashMap<String, ComponentHealthStatus> {
         let mut result = HashMap::new();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(self.components_to_check.len());
 
-        // TODO: Parallelize this checks
         for component in self.components_to_check.as_slice() {
-            let healthy = component.component.is_healthy().await;
+            let tx_cloned = tx.clone();
+            let component_cloned = component.component.clone();
+            let component_name = component.name.clone();
+            log::debug!("About to check: {}", component_name);
+            tokio::spawn(async move {
+                let healthy = component_cloned.is_healthy().await;
+                tx_cloned.send((component_name, healthy)).await.unwrap()
+            });
+            log::debug!("Spawned: {}", component.name);
+        }
+        drop(tx);
+
+        while let Some((name, healthy)) = rx.recv().await {
             result.insert(
-                component.name.to_string(),
+                name,
                 ComponentHealthStatus {
                     status: if healthy {
                         PASS.to_string()
@@ -54,7 +66,6 @@ impl HealthComponent {
                 },
             );
         }
-
         result
     }
 }
