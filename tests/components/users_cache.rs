@@ -67,6 +67,7 @@ mod tests {
             panic!("Couldn't store the user {} due to {}", user_id, err);
         }
 
+        // wait for the key to expire
         sleep(Duration::from_secs(2)).await;
 
         let res = component.get_user(token).await;
