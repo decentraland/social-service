@@ -5,7 +5,7 @@ use sha2::Sha256;
 // Create alias for HMAC-SHA256
 type HmacSha256 = Hmac<Sha256>;
 
-pub fn hash_with_key(str: String, key: String) -> String {
+pub fn hash_with_key(str: &str, key: &str) -> String {
     let mut mac =
         HmacSha256::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
     mac.update(str.as_bytes());
@@ -30,8 +30,8 @@ mod tests {
     fn test_hash_with_same_string() {
         // Should be deterministic for the same string twice
         assert_eq!(
-            hash_with_key("test string".to_string(), "test_key".to_string()),
-            hash_with_key("test string".to_string(), "test_key".to_string())
+            hash_with_key("test string", "test_key"),
+            hash_with_key("test string", "test_key")
         );
     }
 
@@ -39,8 +39,8 @@ mod tests {
     fn test_hash_with_different_string() {
         // Should be deterministic for the same string twice
         assert_ne!(
-            hash_with_key("test string".to_string(), "test_key".to_string()),
-            hash_with_key("test2 string".to_string(), "test_key".to_string())
+            hash_with_key("test string", "test_key"),
+            hash_with_key("test2 string", "test_key")
         );
     }
 }

@@ -17,7 +17,12 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
         }
     }
 
-    pub async fn add_user(&mut self, token: String, user_id: String) -> Result<(), String> {
+    pub async fn add_user(
+        &mut self,
+        token: &str,
+        user_id: &str,
+        custom_exipry_time: Option<i32>,
+    ) -> Result<(), String> {
         let con = self.redis_component.get_async_connection().await;
 
         if con.is_none() {
@@ -29,15 +34,20 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
             return Err(error);
         }
 
-        let key = hash_with_key(token.clone(), self.hashing_key.clone());
+        let key = hash_with_key(&token, &self.hashing_key);
 
         let mut connection = con.unwrap();
-        let res = cmd("SET")
-            .arg(&[key, user_id])
+
+        let set_res = cmd("SET")
+            .arg(&[key.clone(), user_id.to_string()])
+            .arg(&[
+                "EX".to_string(),
+                (custom_exipry_time.unwrap_or_else(|| 240)).to_string(),
+            ])
             .query_async::<_, ()>(&mut connection)
             .await;
 
-        match res {
+        match set_res {
             Ok(_) => Ok(()),
             Err(err) => {
                 let error = format!("Couldn't cache user {}", err);
@@ -47,7 +57,7 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
         }
     }
 
-    pub async fn get_user(&mut self, token: String) -> Option<String> {
+    pub async fn get_user(&mut self, token: &str) -> Option<String> {
         let con = self.redis_component.get_async_connection().await;
 
         if con.is_none() {
@@ -55,7 +65,7 @@ impl<T: RedisComponent> UsersCacheComponent<T> {
             return None;
         }
 
-        let key = hash_with_key(token.clone(), self.hashing_key.clone());
+        let key = hash_with_key(&token, &self.hashing_key);
 
         let mut connection = con.unwrap();
         let res: RedisResult<String> = cmd("GET").arg(&[key]).query_async(&mut connection).await;
@@ -104,9 +114,7 @@ mod tests {
 
         let mut user_cache_component = UsersCacheComponent::new(redis, "test_key".to_string());
 
-        let res = user_cache_component
-            .add_user(token.to_string(), user_id.to_string())
-            .await;
+        let res = user_cache_component.add_user(token, user_id, None).await;
 
         match res {
             Ok(_) => Err("Should return the expected error".to_string()),
