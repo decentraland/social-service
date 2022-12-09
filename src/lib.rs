@@ -7,9 +7,8 @@ mod utils;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
-use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
 use actix_web::{web::Data, App, HttpServer};
-use middlewares::check_auth::{CheckAuthToken, UserId};
+use middlewares::check_auth::CheckAuthToken;
 use tracing_actix_web::TracingLogger;
 
 use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
@@ -40,6 +39,8 @@ pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> 
     Data::new(app_data)
 }
 
+const ROUTES_NEED_AUTH_TOKEN: [&str; 0] = []; // should fill this array to protect routes
+
 pub fn get_app_router(
     data: &Data<AppComponents>,
 ) -> App<
@@ -58,18 +59,10 @@ pub fn get_app_router(
         .wrap(CheckMetricsToken::new(
             data.config.wkc_metrics_bearer_token.clone(),
         ))
-        .wrap(CheckAuthToken::new())
+        .wrap(CheckAuthToken::new(&ROUTES_NEED_AUTH_TOKEN))
         .service(live)
         .service(health)
         .service(version)
-        .route(
-            "/login",
-            web::get().to(|r: HttpRequest| {
-                let ext = r.extensions_mut();
-                log::debug!("User_ID stored: {:?}", ext.get::<UserId>());
-                HttpResponse::Accepted()
-            }),
-        )
 }
 
 fn generate_uuid_v4() -> String {
