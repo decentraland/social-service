@@ -14,8 +14,8 @@ pub struct ErrorResponse {
 pub enum CommonError {
     #[error("Requested user was not found")]
     UserNotFound,
-    #[error("You are forbidden to access requested resource.")]
-    Forbidden,
+    #[error("{0}")]
+    Forbidden(String),
     #[error("Unknown Internal Error")]
     Unknown,
 }
@@ -24,16 +24,16 @@ pub enum CommonError {
     pub fn name(&self) -> String {
         match self {
             Self::UserNotFound => "UserNotFound".to_string(),
-            Self::Forbidden => "Forbidden".to_string(),
+            Self::Forbidden(_str) => "Forbidden".to_string(),
             Self::Unknown => "Unknown".to_string(),
         }
     }
 }
 impl ResponseError for CommonError {
     fn status_code(&self) -> StatusCode {
-        match *self {
+        match self {
             Self::UserNotFound => StatusCode::NOT_FOUND,
-            Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::Forbidden(_str) => StatusCode::FORBIDDEN,
             Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -52,7 +52,7 @@ impl ResponseError for CommonError {
 fn map_io_error(e: std::io::Error) -> CommonError {
     match e.kind() {
         std::io::ErrorKind::NotFound => CommonError::UserNotFound,
-        std::io::ErrorKind::PermissionDenied => CommonError::Forbidden,
+        std::io::ErrorKind::PermissionDenied => CommonError::Forbidden("".to_owned()),
         _ => CommonError::Unknown,
     }
 }
