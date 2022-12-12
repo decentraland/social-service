@@ -13,17 +13,17 @@ use futures_util::future::LocalBoxFuture;
 
 use crate::components::{app::AppComponents, synapse::SynapseComponent};
 
-pub struct CheckAuthToken<'a> {
-    auth_routes: &'a [&'a str],
+pub struct CheckAuthToken {
+    auth_routes: Vec<String>,
 }
 
-impl<'a> CheckAuthToken<'a> {
-    pub fn new(auth_routes: &'a [&str]) -> Self {
+impl CheckAuthToken {
+    pub fn new(auth_routes: Vec<String>) -> Self {
         CheckAuthToken { auth_routes }
     }
 }
 
-impl<'a, S: 'static, B> Transform<S, ServiceRequest> for CheckAuthToken<'a>
+impl<S: 'static, B> Transform<S, ServiceRequest> for CheckAuthToken
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -32,31 +32,31 @@ where
     type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type InitError = ();
-    type Transform = CheckAuthTokenMiddleware<'a, S>;
+    type Transform = CheckAuthTokenMiddleware<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(CheckAuthTokenMiddleware {
             service: Rc::new(service),
-            auth_routes: &self.auth_routes,
+            auth_routes: self.auth_routes.clone(),
         }))
     }
 }
-pub struct CheckAuthTokenMiddleware<'a, S> {
+pub struct CheckAuthTokenMiddleware<S> {
     service: Rc<S>,
-    auth_routes: &'a [&'a str],
+    auth_routes: Vec<String>,
 }
 
 const AUTH_TOKEN_HEADER: &str = "authorization";
 
-fn is_auth_route(routes: &[&str], path: &str) -> bool {
+fn is_auth_route(routes: &Vec<String>, path: &str) -> bool {
     routes.iter().any(|x| x.to_owned() == path)
 }
 
 #[derive(Debug)]
 pub struct UserId(String);
 
-impl<'a, S: 'static, B> Service<ServiceRequest> for CheckAuthTokenMiddleware<'a, S>
+impl<S: 'static, B> Service<ServiceRequest> for CheckAuthTokenMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,

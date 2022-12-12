@@ -19,6 +19,11 @@ use routes::{
     synapse::handlers::version,
 };
 
+#[derive(Clone)]
+pub struct AppOptions {
+    pub auth_routes: Option<Vec<String>>,
+}
+
 pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> {
     init_telemetry();
 
@@ -27,7 +32,9 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
     let server_host = data.config.server.host.clone();
     let server_port = data.config.server.port;
 
-    let server = HttpServer::new(move || get_app_router(&data))
+    let opts = AppOptions { auth_routes: None };
+
+    let server = HttpServer::new(move || get_app_router(&data, &opts))
         .bind((server_host, server_port))?
         .run();
 
@@ -43,6 +50,7 @@ const ROUTES_NEED_AUTH_TOKEN: [&str; 0] = []; // should fill this array to prote
 
 pub fn get_app_router(
     data: &Data<AppComponents>,
+    options: &AppOptions,
 ) -> App<
     impl ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -52,6 +60,15 @@ pub fn get_app_router(
         InitError = (),
     >,
 > {
+    let protected_routes = if options.auth_routes.is_none() {
+        ROUTES_NEED_AUTH_TOKEN
+            .iter()
+            .map(|s| String::from(*s))
+            .collect::<Vec<String>>()
+    } else {
+        options.auth_routes.as_ref().unwrap().clone()
+    };
+
     App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())
@@ -59,7 +76,7 @@ pub fn get_app_router(
         .wrap(CheckMetricsToken::new(
             data.config.wkc_metrics_bearer_token.clone(),
         ))
-        .wrap(CheckAuthToken::new(&ROUTES_NEED_AUTH_TOKEN))
+        .wrap(CheckAuthToken::new(protected_routes))
         .service(live)
         .service(health)
         .service(version)
