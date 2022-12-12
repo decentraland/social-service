@@ -1,23 +1,35 @@
+use std::sync::Arc;
+
+use super::health::HealthComponent;
+use super::synapse::SynapaseComponent;
+use super::users_cache::UsersCacheComponent;
 use super::{
-    configuration::Config, database::DatabaseComponent, health::HealthComponent,
-    redis::RedisComponent, synapse::SynapseComponent,
+    configuration::Config, database::DatabaseComponent, health::Health, redis::RedisComponent,
+    synapse::Synapse,
 };
 
 use super::{
     redis::Redis,
-    users_cache::{self, UsersCacheComponent},
+    users_cache::{self, UsersCache},
 };
 
-pub struct AppComponents {
-    pub health: HealthComponent,
-    pub synapse: SynapseComponent,
-    pub config: Config,
-    pub db: DatabaseComponent,
-    pub user_cache: UsersCacheComponent<Redis>,
+pub trait AppComponents {
+    fn get_health_component(&self) -> Arc<dyn HealthComponent>;
+    fn get_synapse_component(&self) -> Arc<dyn SynapaseComponent>;
+    fn get_users_cache_component(&self) -> Arc<dyn UsersCacheComponent>;
+    fn get_config(&self) -> &Config;
 }
 
-impl AppComponents {
-    pub async fn new(custom_config: Option<Config>) -> Self {
+pub struct App {
+    pub health: Arc<Health>,
+    pub synapse: Arc<Synapse>,
+    pub config: Config,
+    pub db: DatabaseComponent,
+    pub users_cache: Arc<UsersCache<Redis>>,
+}
+
+impl App {
+    pub async fn new(custom_config: Option<Config>) -> Arc<dyn AppComponents + Send + Sync> {
         if let Err(_) = env_logger::try_init() {
             log::debug!("Logger already init")
         }
@@ -26,8 +38,8 @@ impl AppComponents {
         let config = custom_config
             .unwrap_or_else(|| Config::new().expect("Couldn't read the configuration"));
 
-        let mut health = HealthComponent::default();
-        let synapse = SynapseComponent::new(config.synapse.url.clone());
+        let mut health = Health::default();
+        let synapse = Synapse::new(config.synapse.url.clone());
         let mut db = DatabaseComponent::new(&config.db);
         let mut redis = Redis::new(&config.redis);
 
@@ -45,14 +57,29 @@ impl AppComponents {
         health.register_component(Box::new(db.clone()), "database".to_string());
         health.register_component(Box::new(redis.clone()), "redis".to_string());
         let users_cache_instance =
-            users_cache::UsersCacheComponent::new(redis, config.cache_hashing_key.clone());
+            users_cache::UsersCache::new(redis, config.cache_hashing_key.clone());
 
-        Self {
+        Arc::new(Self {
             config,
-            health,
-            synapse,
+            health: Arc::new(health), // in order to be able to mutate above (register_component)
+            synapse: Arc::new(synapse),
             db,
-            user_cache: users_cache_instance,
-        }
+            users_cache: Arc::new(users_cache_instance),
+        })
+    }
+}
+
+impl AppComponents for App {
+    fn get_health_component(&self) -> Arc<dyn HealthComponent> {
+        self.health.clone()
+    }
+    fn get_config(&self) -> &Config {
+        &self.config
+    }
+    fn get_synapse_component(&self) -> Arc<dyn SynapaseComponent> {
+        self.synapse.clone()
+    }
+    fn get_users_cache_component(&self) -> Arc<dyn UsersCacheComponent> {
+        self.users_cache.clone()
     }
 }

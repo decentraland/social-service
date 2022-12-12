@@ -1,6 +1,4 @@
-use std::error::Error;
-
-use deadpool_redis::redis::{cmd, RedisError, RedisResult};
+use deadpool_redis::redis::{cmd, RedisResult};
 
 use crate::utils::encrypt_string::hash_with_key;
 
@@ -8,20 +6,33 @@ use super::redis::RedisComponent;
 
 const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 120;
 
+#[async_trait::async_trait]
+pub trait UsersCacheComponent {
+    async fn add_user(
+        &mut self,
+        token: &str,
+        user_id: &str,
+        custom_exipry_time: Option<i32>,
+    ) -> Result<(), String>;
+    async fn get_user(&mut self, token: &str) -> Result<String, String>;
+}
+
 #[derive(Debug)]
-pub struct UsersCacheComponent<T: RedisComponent> {
+pub struct UsersCache<T: RedisComponent> {
     redis_component: T,
     hashing_key: String,
 }
 
-impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
-    pub fn new(redis: T, hashing_key: String) -> Self {
+impl<T: RedisComponent + std::fmt::Debug> UsersCache<T> {
+    pub fn new(redis_component: T, hashing_key: String) -> Self {
         Self {
-            redis_component: redis,
+            redis_component,
             hashing_key,
         }
     }
-
+}
+#[async_trait::async_trait]
+impl<T: RedisComponent + std::fmt::Debug + Sync + Send> UsersCacheComponent for UsersCache<T> {
     #[tracing::instrument(
         name = "Storing user in cache",
         skip(token, custom_exipry_time),
@@ -29,7 +40,7 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
             user_id = %user_id,
         )
     )]
-    pub async fn add_user(
+    async fn add_user(
         &mut self,
         token: &str,
         user_id: &str,
@@ -69,7 +80,7 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
         }
     }
 
-    pub async fn get_user(&mut self, token: &str) -> Result<String, String> {
+    async fn get_user(&mut self, token: &str) -> Result<String, String> {
         let con = self.redis_component.get_async_connection().await;
 
         if con.is_none() {
@@ -125,7 +136,7 @@ mod tests {
 
         redis.expect_get_async_connection().return_once(|| None);
 
-        let mut user_cache_component = UsersCacheComponent::new(redis, "test_key".to_string());
+        let mut user_cache_component = UsersCache::new(redis, "test_key".to_string());
 
         let res = user_cache_component.add_user(token, user_id, None).await;
 

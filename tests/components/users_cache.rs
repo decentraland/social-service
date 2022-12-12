@@ -6,14 +6,14 @@ mod tests {
     use social_service::components::{
         configuration::Redis as RedisConfig,
         redis::{Redis, RedisComponent},
-        users_cache::UsersCacheComponent,
+        users_cache::{UsersCache, UsersCacheComponent},
     };
 
     use actix_rt::time::sleep;
 
     const TEST_KEY: &str = "TEST KEY";
 
-    async fn create_users_cache_component() -> UsersCacheComponent<Redis> {
+    async fn create_users_cache_component() -> UsersCache<Redis> {
         let mut redis = Redis::new(&RedisConfig {
             host: "0.0.0.0:6379".to_string(),
         });
@@ -26,7 +26,7 @@ mod tests {
             _ => {}
         }
 
-        UsersCacheComponent::new(redis, TEST_KEY.to_string())
+        UsersCache::new(redis, TEST_KEY.to_string())
     }
 
     #[actix_web::test]

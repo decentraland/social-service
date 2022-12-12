@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use actix_web::{get, http::StatusCode, web::Data, HttpResponse};
+use actix_web::{get, http::StatusCode, HttpResponse};
 
 use serde::Serialize;
 
 use super::consts::{FAIL, FAILED_STATUS, SUCCESSFUL_STATUS};
-use crate::{components::app::AppComponents, routes::health::consts::MIME};
+use crate::{routes::health::consts::MIME, AppData};
 
 #[derive(Debug, Default, Serialize)]
 struct HealthStatus {
@@ -23,10 +23,10 @@ struct ReadinessResponse {
     status: String,
 }
 
-pub async fn is_app_healthy(app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn is_app_healthy(app_data: AppData) -> HttpResponse {
     let mut result = HealthStatus::default();
 
-    result.checks = app_data.health.calculate_status().await;
+    result.checks = app_data.get_health_component().calculate_status().await;
     let is_ready = !result
         .checks
         .values()
@@ -64,7 +64,7 @@ pub async fn is_app_healthy(app_data: Data<AppComponents>) -> HttpResponse {
  */
 
 #[get("/health/ready")]
-pub async fn health(app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn health(app_data: AppData) -> HttpResponse {
     is_app_healthy(app_data).await
 }
 
@@ -79,11 +79,11 @@ pub async fn health(app_data: Data<AppComponents>) -> HttpResponse {
  * res (200) for the startup probe.
  */
 #[get("/health/startup")]
-pub async fn startup(app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn startup(app_data: AppData) -> HttpResponse {
     is_app_healthy(app_data).await
 }
 
 #[get("/health/live")]
-pub async fn live(_app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn live(_app_data: AppData) -> HttpResponse {
     HttpResponse::Ok().json("alive")
 }

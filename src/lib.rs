@@ -7,10 +7,11 @@ mod utils;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
-use actix_web::{web::Data, App, HttpServer};
+use actix_web::{web::Data, App as ActixApp, HttpServer};
+use components::app::{App, AppComponents};
 use tracing_actix_web::TracingLogger;
 
-use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
+use components::{configuration::Config, tracing::init_telemetry};
 use metrics::initialize_metrics;
 use middlewares::metrics_token::CheckMetricsToken;
 use routes::{
@@ -18,13 +19,17 @@ use routes::{
     synapse::handlers::version,
 };
 
-pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> {
+pub type AppData = Data<dyn AppComponents + Send + Sync>;
+
+pub fn run_service(data: AppData) -> Result<Server, std::io::Error> {
     init_telemetry();
 
-    log::debug!("App Config: {:?}", data.config);
+    let app_config = data.get_config();
 
-    let server_host = data.config.server.host.clone();
-    let server_port = data.config.server.port;
+    log::debug!("App Config: {:?}", app_config);
+
+    let server_host = app_config.server.host.clone();
+    let server_port = app_config.server.port;
 
     let server = HttpServer::new(move || get_app_router(&data))
         .bind((server_host, server_port))?
@@ -33,14 +38,14 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
     Ok(server)
 }
 
-pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> {
-    let app_data = AppComponents::new(custom_config).await;
-    Data::new(app_data)
+pub async fn get_app_data(custom_config: Option<Config>) -> AppData {
+    let app_data = App::new(custom_config).await;
+    Data::from(app_data)
 }
 
 pub fn get_app_router(
-    data: &Data<AppComponents>,
-) -> App<
+    data: &AppData,
+) -> ActixApp<
     impl ServiceFactory<
         actix_web::dev::ServiceRequest,
         Config = (),
@@ -49,12 +54,13 @@ pub fn get_app_router(
         InitError = (),
     >,
 > {
-    App::new()
+    let app_config = data.get_config();
+    ActixApp::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())
-        .wrap(initialize_metrics(data.config.env.clone()))
+        .wrap(initialize_metrics(app_config.env.clone()))
         .wrap(CheckMetricsToken::new(
-            data.config.wkc_metrics_bearer_token.clone(),
+            app_config.wkc_metrics_bearer_token.clone(),
         ))
         .service(live)
         .service(health)
