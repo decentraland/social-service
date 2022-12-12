@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[async_trait::async_trait]
-pub trait SynapaseComponent {
+pub trait SynapseComponent {
     async fn get_version(&self) -> Result<VersionResponse, String>;
 }
 
@@ -31,7 +31,7 @@ impl Synapse {
 }
 
 #[async_trait::async_trait]
-impl SynapaseComponent for Synapse {
+impl SynapseComponent for Synapse {
     async fn get_version(&self) -> Result<VersionResponse, String> {
         let version_url = format!("{}{}", self.synapse_url, VERSION_URI);
         let result: Result<VersionResponse, String> = match reqwest::get(version_url).await {

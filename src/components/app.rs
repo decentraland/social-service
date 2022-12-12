@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::health::HealthComponent;
-use super::synapse::SynapaseComponent;
+use super::synapse::SynapseComponent;
 use super::users_cache::UsersCacheComponent;
 use super::{
     configuration::Config, database::DatabaseComponent, health::Health, redis::RedisComponent,
@@ -15,7 +15,7 @@ use super::{
 
 pub trait AppComponents {
     fn get_health_component(&self) -> Arc<dyn HealthComponent>;
-    fn get_synapse_component(&self) -> Arc<dyn SynapaseComponent>;
+    fn get_synapse_component(&self) -> Arc<dyn SynapseComponent>;
     fn get_users_cache_component(&self) -> Arc<dyn UsersCacheComponent>;
     fn get_config(&self) -> &Config;
 }
@@ -76,7 +76,7 @@ impl AppComponents for App {
     fn get_config(&self) -> &Config {
         &self.config
     }
-    fn get_synapse_component(&self) -> Arc<dyn SynapaseComponent> {
+    fn get_synapse_component(&self) -> Arc<dyn SynapseComponent> {
         self.synapse.clone()
     }
     fn get_users_cache_component(&self) -> Arc<dyn UsersCacheComponent> {
