@@ -2180,6 +2180,7 @@ dependencies = [
  "sha2",
  "social-service",
  "sqlx",
+ "thiserror",
  "tracing",
  "tracing-actix-web",
  "tracing-bunyan-formatter",

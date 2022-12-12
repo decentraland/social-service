@@ -33,6 +33,7 @@ hmac = "0.12.1"
 sha2 = "0.10.6"
 hex = "0.4.3"
 faux = { version = "^0.1", optional = true } # Workaround to be able to mock in /tests folder: https://nrxus.github.io/faux/guide/exporting-mocks.html
+thiserror = "1.0.37"
 
 [dev-dependencies]
 serial_test = "0.9.0"
