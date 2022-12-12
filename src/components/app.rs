@@ -29,8 +29,8 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new(custom_config: Option<Config>) -> Arc<dyn AppComponents + Send + Sync> {
-        if let Err(_) = env_logger::try_init() {
+    pub async fn start_app(custom_config: Option<Config>) -> Arc<dyn AppComponents + Send + Sync> {
+        if env_logger::try_init().is_err() {
             log::debug!("Logger already init")
         }
 
@@ -50,7 +50,7 @@ impl App {
 
         if let Err(err) = redis.run().await {
             log::debug!("Error while connecting to redis: {:?}", err);
-            panic!("Unable connecting to redis {:?}", err)
+            panic!("Unable connecting to redis {err:?}")
         }
 
         // TODO: Should we refactor HealthComponent to avoid cloning structs?
