@@ -25,19 +25,26 @@ impl std::fmt::Debug for ComponentToCheck {
     }
 }
 
+#[async_trait::async_trait]
+pub trait HealthComponent {
+    fn register_component(&mut self, component: Box<dyn Healthy + Send + Sync>, name: String);
+    async fn calculate_status(&self) -> HashMap<String, ComponentHealthStatus>;
+}
+
 #[derive(Default, Debug)]
-pub struct HealthComponent {
+pub struct Health {
     components_to_check: Vec<ComponentToCheck>,
 }
 
-impl HealthComponent {
-    pub fn register_component(&mut self, component: Box<dyn Healthy + Send + Sync>, name: String) {
+#[async_trait::async_trait]
+impl HealthComponent for Health {
+    fn register_component(&mut self, component: Box<dyn Healthy + Send + Sync>, name: String) {
         self.components_to_check
             .push(ComponentToCheck { component, name });
     }
 
     #[tracing::instrument(name = "Calculate components status")]
-    pub async fn calculate_status(&self) -> HashMap<String, ComponentHealthStatus> {
+    async fn calculate_status(&self) -> HashMap<String, ComponentHealthStatus> {
         let mut result = HashMap::new();
 
         // TODO: Parallelize this checks

@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
-use actix_web::{get, http::StatusCode, web::Data, HttpResponse};
+use actix_web::{http::StatusCode, HttpResponse};
 
 use serde::Serialize;
 
 use super::consts::{FAIL, FAILED_STATUS, SUCCESSFUL_STATUS};
-use crate::{components::app::AppComponents, routes::health::consts::MIME};
+use crate::{
+    components::{health::HealthComponent, synapse::SynapseComponent},
+    routes::health::consts::MIME,
+    AppData,
+};
 
 #[derive(Debug, Default, Serialize)]
 struct HealthStatus {
@@ -23,10 +27,14 @@ struct ReadinessResponse {
     status: String,
 }
 
-pub async fn is_app_healthy(app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn is_app_healthy<H: HealthComponent, S: SynapseComponent>(
+    app_data: AppData<H, S>,
+) -> HttpResponse {
     let mut result = HealthStatus::default();
 
-    result.checks = app_data.health.calculate_status().await;
+    let health_component = app_data.get_health_component();
+
+    result.checks = health_component.calculate_status().await;
     let is_ready = !result
         .checks
         .values()
@@ -63,8 +71,9 @@ pub async fn is_app_healthy(app_data: Data<AppComponents>) -> HttpResponse {
  * by marking the pod as "Unready".
  */
 
-#[get("/health/ready")]
-pub async fn health(app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn health<H: HealthComponent, S: SynapseComponent>(
+    app_data: AppData<H, S>,
+) -> HttpResponse {
     is_app_healthy(app_data).await
 }
 
@@ -78,12 +87,12 @@ pub async fn health(app_data: Data<AppComponents>) -> HttpResponse {
  * process has finished, you can switch to returning a success
  * res (200) for the startup probe.
  */
-#[get("/health/startup")]
-pub async fn startup(app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn startup<H: HealthComponent, S: SynapseComponent>(
+    app_data: AppData<H, S>,
+) -> HttpResponse {
     is_app_healthy(app_data).await
 }
 
-#[get("/health/live")]
-pub async fn live(_app_data: Data<AppComponents>) -> HttpResponse {
+pub async fn live() -> HttpResponse {
     HttpResponse::Ok().json("alive")
 }

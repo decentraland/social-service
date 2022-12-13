@@ -1,10 +1,15 @@
-use crate::components::app::AppComponents;
+use crate::{
+    components::{health::HealthComponent, synapse::SynapseComponent},
+    AppData,
+};
 
-use actix_web::{get, web::Data, HttpResponse};
+use actix_web::HttpResponse;
 
-#[get("/_matrix/client/versions")]
-pub async fn version(app_data: Data<AppComponents>) -> HttpResponse {
-    let version_response = app_data.synapse.get_version().await;
+pub async fn version<H: HealthComponent, S: SynapseComponent>(
+    app_data: AppData<H, S>,
+) -> HttpResponse {
+    let synapse_component = app_data.get_synapse_component();
+    let version_response = synapse_component.get_version().await;
 
     match version_response {
         Ok(ok_response) => HttpResponse::Ok().json(ok_response),

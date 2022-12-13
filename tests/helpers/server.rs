@@ -1,9 +1,73 @@
-use actix_web::{body::MessageBody, dev::ServiceFactory, App};
+use std::collections::HashMap;
+
+use actix_web::{body::MessageBody, dev::ServiceFactory, web::Data, App};
+use async_trait::async_trait;
+use mockall::mock;
 use social_service::{
-    components::configuration::{Config, Database},
+    components::{
+        app::new_app,
+        configuration::{Config, Database},
+        health::{HealthComponent, Healthy},
+        synapse::{SynapseComponent, VersionResponse},
+    },
     get_app_data, get_app_router,
+    routes::health::handlers::ComponentHealthStatus,
+    AppData,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
+
+mock! {
+    #[derive(Debug)]
+    pub Health {}
+
+    #[async_trait]
+    impl HealthComponent for Health {
+        fn register_component(&mut self, component: Box<dyn Healthy + Send + Sync>, name: String) {
+            self.components_to_check
+            .push(ComponentToCheck { component, name });
+        }
+        async fn calculate_status(&self) -> HashMap<String, ComponentHealthStatus> {
+            HashMap::new()
+        }
+    }
+}
+
+mock! {
+    #[derive(Debug)]
+    pub Synapse {}
+
+    #[async_trait]
+    impl SynapseComponent for Synapse {
+        fn new(url: String) -> Self {
+            Self {
+                url
+            }
+        }
+        async fn get_version(&self) -> Result<VersionResponse, String> {
+            Ok(VersionResponse{
+                versions: Vec::new(),
+                unstable_features: HashMap::new()
+            })
+        }
+    }
+
+}
+
+pub async fn get_testing_app(
+    config: Config,
+) -> App<
+    impl ServiceFactory<
+        actix_web::dev::ServiceRequest,
+        Config = (),
+        Response = actix_web::dev::ServiceResponse<impl MessageBody>,
+        Error = actix_web::Error,
+        InitError = (),
+    >,
+> {
+    create_test_db(&config.db).await;
+    let app_data = Data::from(new_app::<MockHealth, MockSynapse>(Some(config)).await);
+    get_app_router(&app_data)
+}
 
 pub fn get_configuration() -> Config {
     let mut config = Config::new().expect("Couldn't read the configuration file");
@@ -24,9 +88,7 @@ pub async fn get_app(
 > {
     create_test_db(&config.db).await;
     let app_data = get_app_data(Some(config)).await;
-    let app = get_app_router(&app_data);
-
-    app
+    get_app_router(&app_data)
 }
 
 /// We need this to avoid conccurency issues in Tests
