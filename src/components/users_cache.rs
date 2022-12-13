@@ -1,6 +1,4 @@
-use std::error::Error;
-
-use deadpool_redis::redis::{cmd, RedisError, RedisResult};
+use deadpool_redis::redis::{cmd, RedisResult};
 
 use crate::utils::encrypt_string::hash_with_key;
 
