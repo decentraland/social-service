@@ -6,12 +6,14 @@ use super::redis::Redis;
 
 const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 120;
 
+#[cfg_attr(test, faux::create)]
 #[derive(Debug)]
 pub struct UsersCacheComponent {
     redis_component: Redis,
     hashing_key: String,
 }
 
+#[cfg_attr(test, faux::methods)]
 impl UsersCacheComponent {
     pub fn new(redis: Redis, hashing_key: String) -> Self {
         Self {
