@@ -39,7 +39,7 @@ impl Redis {
                 redis.pool = Some(pool);
             }
             Err(err) => {
-                log::debug!("Error on connecting to redis: {:?}", err);
+                log::error!("Error on connecting to redis: {:?}", err);
                 panic!("Unable to connect to redis {:?}", err)
             }
         };
