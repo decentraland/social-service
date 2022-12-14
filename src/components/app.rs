@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::health::HealthComponent;
 use super::synapse::SynapseComponent;
 use super::{configuration::Config, database::DatabaseComponent, redis::RedisComponent};
@@ -9,21 +7,6 @@ use super::{
     users_cache::{self, UsersCacheComponent},
 };
 
-pub trait IAppComponents<H: HealthComponent, S: SynapseComponent> {
-    fn new(
-        health_component: H,
-        synapse_component: S,
-        config: Config,
-        db: DatabaseComponent,
-        users_cache: UsersCacheComponent<Redis>,
-    ) -> Self
-    where
-        Self: Sized;
-    fn get_health_component(&self) -> &H;
-    fn get_config_component(&self) -> &Config;
-    fn get_synapse_component(&self) -> &S;
-}
-
 pub struct AppComponents<H: HealthComponent, S: SynapseComponent> {
     pub health: H,
     pub synapse: S,
@@ -32,17 +15,14 @@ pub struct AppComponents<H: HealthComponent, S: SynapseComponent> {
     pub users_cache: UsersCacheComponent<Redis>,
 }
 
-impl<H: HealthComponent, S: SynapseComponent> IAppComponents<H, S> for AppComponents<H, S> {
+impl<H: HealthComponent, S: SynapseComponent> AppComponents<H, S> {
     fn new(
         health: H,
         synapse: S,
         config: Config,
         db: DatabaseComponent,
         users_cache: UsersCacheComponent<Redis>,
-    ) -> Self
-    where
-        Self: Sized,
-    {
+    ) -> Self {
         Self {
             health,
             synapse,
@@ -51,15 +31,6 @@ impl<H: HealthComponent, S: SynapseComponent> IAppComponents<H, S> for AppCompon
             users_cache,
         }
     }
-    fn get_health_component(&self) -> &H {
-        &self.health
-    }
-    fn get_config_component(&self) -> &Config {
-        &self.config
-    }
-    fn get_synapse_component(&self) -> &S {
-        &self.synapse
-    }
 }
 
 pub async fn new_app<
@@ -67,7 +38,7 @@ pub async fn new_app<
     S: SynapseComponent + Send + Sync + 'static,
 >(
     custom_config: Option<Config>,
-) -> Arc<dyn IAppComponents<H, S> + Send + Sync> {
+) -> AppComponents<H, S> {
     let config =
         custom_config.unwrap_or_else(|| Config::new().expect("Couldn't read the configuration"));
 
@@ -93,11 +64,5 @@ pub async fn new_app<
     let users_cache_instance =
         users_cache::UsersCacheComponent::new(redis, config.cache_hashing_key.clone());
 
-    Arc::new(AppComponents::new(
-        health,
-        synapse,
-        config,
-        db,
-        users_cache_instance,
-    ))
+    AppComponents::new(health, synapse, config, db, users_cache_instance)
 }

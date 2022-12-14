@@ -9,7 +9,7 @@ use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
 use actix_web::web;
 use actix_web::{web::Data, App, HttpServer};
-use components::app::{new_app, IAppComponents};
+use components::app::{new_app, AppComponents};
 use components::health::{Health, HealthComponent};
 use components::synapse::{Synapse, SynapseComponent};
 use tracing_actix_web::TracingLogger;
@@ -22,19 +22,15 @@ use routes::{
     synapse::handlers::version,
 };
 
-// pub type AppData<H, S> = Data<AppComponents<H, S>>;
-
-pub type AppData<H, S> = Data<dyn IAppComponents<H, S> + Send + Sync>;
+pub type AppData<H, S> = Data<AppComponents<H, S>>;
 
 pub fn run_service(data: AppData<Health, Synapse>) -> Result<Server, std::io::Error> {
     init_telemetry();
 
-    let app_config = data.get_config_component();
+    log::debug!("App Config: {:?}", data.config);
 
-    log::debug!("App Config: {:?}", app_config);
-
-    let server_host = app_config.server.host.clone();
-    let server_port = app_config.server.port;
+    let server_host = data.config.server.host.clone();
+    let server_port = data.config.server.port;
 
     let server = HttpServer::new(move || get_app_router(&data))
         .bind((server_host, server_port))?
@@ -45,7 +41,7 @@ pub fn run_service(data: AppData<Health, Synapse>) -> Result<Server, std::io::Er
 
 pub async fn get_app_data(custom_config: Option<Config>) -> AppData<Health, Synapse> {
     let app = new_app(custom_config).await;
-    Data::from(app)
+    Data::new(app)
 }
 
 pub fn get_app_router<H: HealthComponent + 'static, S: SynapseComponent + 'static>(
@@ -59,13 +55,12 @@ pub fn get_app_router<H: HealthComponent + 'static, S: SynapseComponent + 'stati
         InitError = (),
     >,
 > {
-    let app_config = data.get_config_component();
     App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())
-        .wrap(initialize_metrics(app_config.env.clone()))
+        .wrap(initialize_metrics(data.config.env.clone()))
         .wrap(CheckMetricsToken::new(
-            app_config.wkc_metrics_bearer_token.clone(),
+            data.config.wkc_metrics_bearer_token.clone(),
         ))
         .route("/_matrix/client/versions", web::get().to(version::<H, S>))
         .route("/health/live", web::get().to(live))

@@ -32,9 +32,7 @@ pub async fn is_app_healthy<H: HealthComponent, S: SynapseComponent>(
 ) -> HttpResponse {
     let mut result = HealthStatus::default();
 
-    let health_component = app_data.get_health_component();
-
-    result.checks = health_component.calculate_status().await;
+    result.checks = app_data.health.calculate_status().await;
     let is_ready = !result
         .checks
         .values()

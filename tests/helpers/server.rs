@@ -12,7 +12,6 @@ use social_service::{
     },
     get_app_data, get_app_router,
     routes::health::handlers::ComponentHealthStatus,
-    AppData,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 
@@ -65,8 +64,8 @@ pub async fn get_testing_app(
     >,
 > {
     create_test_db(&config.db).await;
-    let app_data = Data::from(new_app::<MockHealth, MockSynapse>(Some(config)).await);
-    get_app_router(&app_data)
+    let app_data = new_app::<MockHealth, MockSynapse>(Some(config)).await;
+    get_app_router(&Data::new(app_data))
 }
 
 pub fn get_configuration() -> Config {
