@@ -16,7 +16,7 @@ pub struct AppComponents<H: HealthComponent, S: SynapseComponent> {
 }
 
 impl<H: HealthComponent, S: SynapseComponent> AppComponents<H, S> {
-    fn new(
+    pub fn new(
         health: H,
         synapse: S,
         config: Config,
@@ -39,6 +39,10 @@ pub async fn new_app<
 >(
     custom_config: Option<Config>,
 ) -> AppComponents<H, S> {
+    if env_logger::try_init().is_err() {
+        log::error!("failed when trying to initialize logger")
+    }
+
     let config =
         custom_config.unwrap_or_else(|| Config::new().expect("Couldn't read the configuration"));
 
