@@ -12,9 +12,9 @@ pub trait Healthy {
     async fn is_healthy(&self) -> bool;
 }
 
-struct ComponentToCheck {
-    component: Box<dyn Healthy + Send + Sync>,
-    name: String,
+pub struct ComponentToCheck {
+    pub component: Box<dyn Healthy + Send + Sync>,
+    pub name: String,
 }
 
 impl std::fmt::Debug for ComponentToCheck {

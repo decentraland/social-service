@@ -19,8 +19,8 @@ pub const VERSION_URI: &str = "/_matrix/client/versions";
 
 #[derive(Deserialize, Serialize)]
 pub struct VersionResponse {
-    versions: Vec<String>,
-    unstable_features: HashMap<String, bool>,
+    pub versions: Vec<String>,
+    pub unstable_features: HashMap<String, bool>,
 }
 
 #[async_trait::async_trait]
