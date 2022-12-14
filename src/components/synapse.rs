@@ -39,26 +39,3 @@ impl SynapseComponent {
         result
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use faux::when;
-
-    use super::*;
-
-    #[actix_web::test]
-    async fn should_get_an_empty_response() {
-        let mut synapse_mock = SynapseComponent::faux();
-
-        when!(synapse_mock.get_version).then(|_| {
-            Ok(VersionResponse {
-                versions: vec!["holaa".to_string()],
-                unstable_features: HashMap::new(),
-            })
-        });
-
-        let response = synapse_mock.get_version().await.unwrap();
-
-        assert_eq!(response.versions[0], "holaa")
-    }
-}
