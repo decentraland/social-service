@@ -36,15 +36,12 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
         let con = self.redis_component.get_async_connection().await;
 
         if con.is_none() {
-            let error = format!(
-                "Couldn't cache user {}, redis has no connection available",
-                user_id
-            );
+            let error = format!("Couldn't cache user {user_id}, redis has no connection available");
             log::error!("{}", error);
             return Err(error);
         }
 
-        let key = hash_with_key(&token, &self.hashing_key);
+        let key = hash_with_key(token, &self.hashing_key);
 
         let mut connection = con.unwrap();
 
@@ -52,7 +49,7 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
             .arg(&[key.clone(), user_id.to_string()])
             .arg(&[
                 "EX".to_string(),
-                (custom_exipry_time.unwrap_or_else(|| DEFAULT_EXPIRATION_TIME_SECONDS)).to_string(),
+                (custom_exipry_time.unwrap_or(DEFAULT_EXPIRATION_TIME_SECONDS)).to_string(),
             ])
             .query_async::<_, ()>(&mut connection)
             .await;
@@ -60,7 +57,7 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
         match set_res {
             Ok(_) => Ok(()),
             Err(err) => {
-                let error = format!("Couldn't cache user {}", err);
+                let error = format!("Couldn't cache user {err}");
                 log::error!("{}", error);
                 Err(error)
             }
@@ -75,7 +72,7 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
             return Err("Couldn't obtain user redis has no connection available".to_string());
         }
 
-        let key = hash_with_key(&token, &self.hashing_key);
+        let key = hash_with_key(token, &self.hashing_key);
 
         let mut connection = con.unwrap();
         let res: RedisResult<String> = cmd("GET").arg(&[key]).query_async(&mut connection).await;

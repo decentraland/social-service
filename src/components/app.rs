@@ -59,7 +59,7 @@ pub async fn new_app<
 
     if let Err(err) = redis.run().await {
         log::debug!("Error while connecting to redis: {:?}", err);
-        panic!("Unable connecting to redis {:?}", err)
+        panic!("Unable connecting to redis {err:?}")
     }
 
     // TODO: Should we refactor HealthComponent to avoid cloning structs?

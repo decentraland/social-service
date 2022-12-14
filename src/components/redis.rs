@@ -54,7 +54,7 @@ impl RedisComponent for Redis {
                 }
                 Err(err) => {
                     log::debug!("Error on connecting to redis: {:?}", err);
-                    panic!("Unable to connect to redis {:?}", err)
+                    panic!("Unable to connect to redis {err:?}")
                 }
             };
 
