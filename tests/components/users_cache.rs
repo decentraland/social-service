@@ -4,27 +4,17 @@ mod tests {
     use std::time::Duration;
 
     use social_service::components::{
-        configuration::Redis as RedisConfig,
-        redis::{Redis, RedisComponent},
-        users_cache::UsersCacheComponent,
+        configuration::Redis as RedisConfig, redis::Redis, users_cache::UsersCacheComponent,
     };
 
     use actix_rt::time::sleep;
 
     const TEST_KEY: &str = "TEST KEY";
 
-    async fn create_users_cache_component() -> UsersCacheComponent<Redis> {
-        let mut redis = Redis::new(&RedisConfig {
+    async fn create_users_cache_component() -> UsersCacheComponent {
+        let redis = Redis::new_and_run(&RedisConfig {
             host: "0.0.0.0:6379".to_string(),
         });
-
-        match redis.run().await {
-            Err(err) => {
-                log::debug!("Error while connecting to redis: {:?}", err);
-                panic!("Unable connecting to redis {:?}", err)
-            }
-            _ => {}
-        }
 
         UsersCacheComponent::new(redis, TEST_KEY.to_string())
     }

@@ -1,23 +1,12 @@
 #[cfg(test)]
 mod tests {
     use deadpool_redis::redis::cmd;
-    use social_service::components::{
-        configuration::Redis as RedisConfig,
-        redis::{Redis, RedisComponent},
-    };
+    use social_service::components::{configuration::Redis as RedisConfig, redis::Redis};
 
     async fn create_redis_component() -> Redis {
-        let mut redis = Redis::new(&RedisConfig {
+        let redis = Redis::new_and_run(&RedisConfig {
             host: "0.0.0.0:6379".to_string(),
         });
-
-        match redis.run().await {
-            Err(err) => {
-                log::debug!("Error while connecting to redis: {:?}", err);
-                panic!("Unable connecting to redis {:?}", err)
-            }
-            _ => {}
-        }
 
         redis
     }
