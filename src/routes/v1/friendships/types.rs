@@ -1,13 +1,13 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FriendshipsResponse {
-    friendships: Vec<Friend>,
+    pub friendships: Vec<FriendshipFriend>,
 }
 
 impl FriendshipsResponse {
     pub fn new(addresses: Vec<&str>) -> Self {
-        let friends = addresses.iter().map(|address| Friend {
+        let friends = addresses.iter().map(|address| FriendshipFriend {
             address: address.to_string(),
         });
 
@@ -17,7 +17,7 @@ impl FriendshipsResponse {
     }
 }
 
-#[derive(Debug, Default, Serialize)]
-struct Friend {
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct FriendshipFriend {
     address: String,
 }

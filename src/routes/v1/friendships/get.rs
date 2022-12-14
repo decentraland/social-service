@@ -35,6 +35,7 @@ pub async fn get_user_friends(
     if res.is_err() {
         return Err(FriendshipsError::CommonError(CommonError::Unknown));
     }
+
     let friendships = res.unwrap();
 
     let addresses = friendships
