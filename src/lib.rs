@@ -32,9 +32,7 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
     let server_host = data.config.server.host.clone();
     let server_port = data.config.server.port;
 
-    let opts = AppOptions { auth_routes: None };
-
-    let server = HttpServer::new(move || get_app_router(&data, &opts))
+    let server = HttpServer::new(move || get_app_router(&data))
         .bind((server_host, server_port))?
         .run();
 
@@ -42,7 +40,7 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
 }
 
 pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> {
-    let app_data = AppComponents::new(custom_config).await;
+    let app_data = AppComponents::new(custom_config, None).await;
     Data::new(app_data)
 }
 
@@ -50,7 +48,6 @@ const ROUTES_NEED_AUTH_TOKEN: [&str; 0] = []; // should fill this array to prote
 
 pub fn get_app_router(
     data: &Data<AppComponents>,
-    options: &AppOptions,
 ) -> App<
     impl ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -60,14 +57,10 @@ pub fn get_app_router(
         InitError = (),
     >,
 > {
-    let protected_routes = if options.auth_routes.is_none() {
-        ROUTES_NEED_AUTH_TOKEN
-            .iter()
-            .map(|s| String::from(*s))
-            .collect::<Vec<String>>()
-    } else {
-        options.auth_routes.as_ref().unwrap().clone()
-    };
+    let protected_routes = ROUTES_NEED_AUTH_TOKEN
+        .iter()
+        .map(|s| String::from(*s))
+        .collect::<Vec<String>>();
 
     App::new()
         .app_data(data.clone())
