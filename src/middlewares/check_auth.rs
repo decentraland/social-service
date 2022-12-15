@@ -49,8 +49,8 @@ pub struct CheckAuthTokenMiddleware<S> {
 
 const AUTH_TOKEN_HEADER: &str = "authorization";
 
-fn is_auth_route(routes: &Vec<String>, path: &str) -> bool {
-    routes.iter().any(|x| x.to_owned() == path)
+fn is_auth_route(routes: &[String], path: &str) -> bool {
+    routes.iter().any(|x| *x == path)
 }
 
 #[derive(Debug)]
@@ -105,23 +105,27 @@ where
         let svc = self.service.clone();
 
         Box::pin(async move {
-            let mut user_cache = components.users_cache.lock().unwrap();
-            let user_id = match user_cache.get_user(&token).await {
-                Ok(user_id) => user_id,
-                Err(_) => match components.synapse.who_am_i(&token).await {
-                    Ok(response) => {
-                        if let Err(err) = user_cache.add_user(&token, &response.user_id, None).await
-                        {
-                            log::error!(
-                                "check_auth.rs > Error on storing token into Redis: {:?}",
-                                err
-                            )
+            let user_id = {
+                let mut user_cache = components.users_cache.lock().unwrap();
+                let user_id = match user_cache.get_user(&token).await {
+                    Ok(user_id) => user_id,
+                    Err(_) => match components.synapse.who_am_i(&token).await {
+                        Ok(response) => {
+                            if let Err(err) =
+                                user_cache.add_user(&token, &response.user_id, None).await
+                            {
+                                log::error!(
+                                    "check_auth.rs > Error on storing token into Redis: {:?}",
+                                    err
+                                )
+                            }
+                            response.user_id
                         }
-                        response.user_id
-                    }
-                    Err(_) => "".to_string(),
-                },
-            };
+                        Err(_) => "".to_string(),
+                    },
+                };
+                user_id
+            }; // drop mutex lock at the end of scope
 
             if user_id.is_empty() {
                 let (request, _pl) = request.into_parts();
@@ -130,9 +134,10 @@ where
                     .map_into_right_body();
                 Ok(ServiceResponse::new(request, response))
             } else {
-                let mut extensions = request.extensions_mut();
-                extensions.insert(UserId(user_id));
-                drop(extensions);
+                {
+                    let mut extensions = request.extensions_mut();
+                    extensions.insert(UserId(user_id));
+                } // drop extension
                 let res = svc.call(request);
                 res.await.map(ServiceResponse::map_into_left_body)
             }

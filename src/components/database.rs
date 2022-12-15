@@ -104,12 +104,9 @@ impl Healthy for DatabaseComponent {
             .fetch_one(DatabaseComponent::get_connection(&self.db_connection))
             .await
         {
-            Ok(result) => {
-                match result.try_get::<DateTime<chrono::Utc>, &str>("current_timestamp") {
-                    Ok(_) => true,
-                    Err(_) => false,
-                }
-            }
+            Ok(result) => result
+                .try_get::<DateTime<chrono::Utc>, &str>("current_timestamp")
+                .is_ok(),
             Err(_) => false,
         }
     }

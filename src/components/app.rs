@@ -43,7 +43,7 @@ impl AppComponents {
     }
 
     async fn default(config: Config) -> Self {
-        if let Err(_) = env_logger::try_init() {
+        if env_logger::try_init().is_err() {
             log::debug!("Logger already init")
         }
 
@@ -68,45 +68,37 @@ impl AppComponents {
     }
 
     async fn custom(config: Config, custom_components: CustomComponents) -> Self {
-        if let Err(_) = env_logger::try_init() {
+        if env_logger::try_init().is_err() {
             log::debug!("Logger already init")
         }
 
         let mut custom_components = custom_components;
 
-        let synapse: SynapseComponent;
-
-        if custom_components.synapse.is_some() {
-            synapse = custom_components.synapse.take().unwrap();
+        let synapse: SynapseComponent = if custom_components.synapse.is_some() {
+            custom_components.synapse.take().unwrap()
         } else {
-            synapse = AppComponents::init_synapse_component(config.synapse.url.clone());
-        }
+            AppComponents::init_synapse_component(config.synapse.url.clone())
+        };
 
-        let db: DatabaseComponent;
-
-        if custom_components.db.is_some() {
-            db = custom_components.db.take().unwrap();
+        let db: DatabaseComponent = if custom_components.db.is_some() {
+            custom_components.db.take().unwrap()
         } else {
-            db = AppComponents::init_db_component(&config.db).await;
-        }
+            AppComponents::init_db_component(&config.db).await
+        };
 
-        let redis: Redis;
-
-        if custom_components.redis.is_some() {
-            redis = custom_components.redis.take().unwrap();
+        let redis: Redis = if custom_components.redis.is_some() {
+            custom_components.redis.take().unwrap()
         } else {
-            redis = Redis::new_and_run(&config.redis);
-        }
+            Redis::new_and_run(&config.redis)
+        };
 
         let health = AppComponents::init_health_component(db.clone(), redis.clone());
 
-        let users_cache: UsersCacheComponent;
-
-        if custom_components.users_cache.is_some() {
-            users_cache = custom_components.users_cache.take().unwrap();
+        let users_cache: UsersCacheComponent = if custom_components.users_cache.is_some() {
+            custom_components.users_cache.take().unwrap()
         } else {
-            users_cache = AppComponents::init_users_cache(redis, config.cache_hashing_key.clone());
-        }
+            AppComponents::init_users_cache(redis, config.cache_hashing_key.clone())
+        };
 
         Self {
             health,
