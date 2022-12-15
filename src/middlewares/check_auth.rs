@@ -11,7 +11,7 @@ use actix_web::{
 };
 use futures_util::future::LocalBoxFuture;
 
-use crate::components::{app::AppComponents, synapse::SynapseComponent};
+use crate::components::app::AppComponents;
 
 pub struct CheckAuthToken {
     auth_routes: Vec<String>,

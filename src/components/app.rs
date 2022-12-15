@@ -8,12 +8,14 @@ use super::{
     users_cache::{self, UsersCacheComponent},
 };
 
+use std::sync::Mutex;
+
 pub struct AppComponents {
     pub health: HealthComponent,
     pub synapse: SynapseComponent,
     pub config: Config,
     pub db: DatabaseComponent,
-    pub user_cache: UsersCacheComponent,
+    pub user_cache: Mutex<UsersCacheComponent>,
 }
 
 impl AppComponents {
@@ -48,7 +50,7 @@ impl AppComponents {
             health,
             synapse,
             db,
-            user_cache: users_cache_instance,
+            user_cache: Mutex::new(users_cache_instance),
         }
     }
 }
