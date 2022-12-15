@@ -74,3 +74,18 @@ else
 	-@cargo test
 	@make destroydb
 endif
+
+test-d:
+ifeq ($(LOCAL_DB), 1)
+	@docker stop social_service_db 2>/dev/null
+	@mv ./postgres_data ./postgres_data_2 2>/dev/null
+	@$(RUN_LOCAL_DB)
+	-RUST_LOG=debug cargo test
+	@docker stop social_service_db
+	@rm -rf ./postgres_data
+	@mv ./postgres_data_2 ./postgres_data
+else
+	@$(RUN_LOCAL_DB)
+	-RUST_LOG=debug cargo test
+	@make destroydb
+endif
