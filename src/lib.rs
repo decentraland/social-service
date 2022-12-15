@@ -8,6 +8,7 @@ mod utils;
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
 use actix_web::{web::Data, App, HttpServer};
+use middlewares::check_auth::CheckAuthToken;
 use tracing_actix_web::TracingLogger;
 
 use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
@@ -17,6 +18,11 @@ use routes::{
     health::handlers::{health, live},
     synapse::handlers::version,
 };
+
+#[derive(Clone)]
+pub struct AppOptions {
+    pub auth_routes: Option<Vec<String>>,
+}
 
 pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> {
     init_telemetry();
@@ -34,9 +40,11 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
 }
 
 pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> {
-    let app_data = AppComponents::new(custom_config).await;
+    let app_data = AppComponents::new(custom_config, None).await;
     Data::new(app_data)
 }
+
+const ROUTES_NEED_AUTH_TOKEN: [&str; 0] = []; // should fill this array to protect routes
 
 pub fn get_app_router(
     data: &Data<AppComponents>,
@@ -49,6 +57,11 @@ pub fn get_app_router(
         InitError = (),
     >,
 > {
+    let protected_routes = ROUTES_NEED_AUTH_TOKEN
+        .iter()
+        .map(|s| String::from(*s))
+        .collect::<Vec<String>>();
+
     App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())
@@ -56,6 +69,7 @@ pub fn get_app_router(
         .wrap(CheckMetricsToken::new(
             data.config.wkc_metrics_bearer_token.clone(),
         ))
+        .wrap(CheckAuthToken::new(protected_routes))
         .service(live)
         .service(health)
         .service(version)

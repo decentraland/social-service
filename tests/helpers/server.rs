@@ -1,7 +1,10 @@
-use actix_web::{body::MessageBody, dev::ServiceFactory, App};
+use actix_web::{body::MessageBody, dev::ServiceFactory, web::Data, App};
 use social_service::{
-    components::configuration::{Config, Database},
-    get_app_data, get_app_router,
+    components::{
+        app::{AppComponents, CustomComponents},
+        configuration::{Config, Database},
+    },
+    get_app_router,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 
@@ -13,6 +16,7 @@ pub fn get_configuration() -> Config {
 
 pub async fn get_app(
     config: Config,
+    custom_components: Option<CustomComponents>,
 ) -> App<
     impl ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -23,7 +27,8 @@ pub async fn get_app(
     >,
 > {
     create_test_db(&config.db).await;
-    let app_data = get_app_data(Some(config)).await;
+    let app_components = AppComponents::new(Some(config), custom_components).await;
+    let app_data = Data::new(app_components);
     let app = get_app_router(&app_data);
 
     app

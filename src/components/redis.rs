@@ -40,13 +40,13 @@ impl Redis {
             }
             Err(err) => {
                 log::error!("Error on connecting to redis: {:?}", err);
-                panic!("Unable to connect to redis {:?}", err)
+                panic!("Unable to connect to redis {err:?}")
             }
         };
 
         redis
     }
-    pub async fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.pool.as_mut().unwrap().close()
     }
 

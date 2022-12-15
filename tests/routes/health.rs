@@ -8,7 +8,7 @@ mod tests {
     async fn test_index_get() {
         let config = get_configuration();
 
-        let app = test::init_service(get_app(config).await).await;
+        let app = test::init_service(get_app(config, None).await).await;
 
         let req = test::TestRequest::get().uri("/health/ready").to_request();
 

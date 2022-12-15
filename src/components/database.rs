@@ -21,6 +21,7 @@ pub struct DBRepositories {
     pub user_features: UserFeaturesRepository,
 }
 
+#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct DatabaseComponent {
     db_host: String,
@@ -31,6 +32,7 @@ pub struct DatabaseComponent {
     pub db_repos: Option<DBRepositories>,
 }
 
+#[cfg_attr(test, faux::methods)]
 impl DatabaseComponent {
     pub fn new(db_config: &DatabaseConfig) -> Self {
         Self {
@@ -94,6 +96,7 @@ impl DatabaseComponent {
     }
 }
 
+#[cfg_attr(test, faux::methods)]
 #[async_trait]
 impl Healthy for DatabaseComponent {
     async fn is_healthy(&self) -> bool {
@@ -101,12 +104,9 @@ impl Healthy for DatabaseComponent {
             .fetch_one(DatabaseComponent::get_connection(&self.db_connection))
             .await
         {
-            Ok(result) => {
-                match result.try_get::<DateTime<chrono::Utc>, &str>("current_timestamp") {
-                    Ok(_) => true,
-                    Err(_) => false,
-                }
-            }
+            Ok(result) => result
+                .try_get::<DateTime<chrono::Utc>, &str>("current_timestamp")
+                .is_ok(),
             Err(_) => false,
         }
     }

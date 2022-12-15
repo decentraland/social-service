@@ -11,7 +11,7 @@ mod metrics_endpoint_tests {
         config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
         let token = config.wkc_metrics_bearer_token.clone();
 
-        let app = test::init_service(get_app(config).await).await;
+        let app = test::init_service(get_app(config, None).await).await;
 
         let header = ("authorization", format!("Bearer {}", token));
 
@@ -30,7 +30,7 @@ mod metrics_endpoint_tests {
         let mut config = get_configuration();
         config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
 
-        let app = test::init_service(get_app(config).await).await;
+        let app = test::init_service(get_app(config, None).await).await;
 
         let header = ("authorization", format!("Bearer {}", ""));
 
@@ -49,7 +49,7 @@ mod metrics_endpoint_tests {
         let mut config = get_configuration();
         config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
 
-        let app = test::init_service(get_app(config).await).await;
+        let app = test::init_service(get_app(config, None).await).await;
 
         let req = test::TestRequest::get().uri(METRICS_URI).to_request();
 
@@ -62,7 +62,7 @@ mod metrics_endpoint_tests {
     async fn metrics_endpoint_should_fail_500() {
         let config = get_configuration();
 
-        let app = test::init_service(get_app(config).await).await;
+        let app = test::init_service(get_app(config, None).await).await;
 
         let req = test::TestRequest::get().uri(METRICS_URI).to_request();
 
