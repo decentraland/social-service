@@ -1,7 +1,7 @@
 use actix_web::{
     get,
     web::{self, Data},
-    HttpResponse,
+    HttpMessage, HttpRequest, HttpResponse,
 };
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
@@ -9,10 +9,22 @@ use crate::{components::app::AppComponents, routes::v1::error::CommonError};
 
 #[get("/v1/friendships/{userId}")]
 pub async fn get_user_friends(
+    req: HttpRequest,
     user_id: web::Path<String>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
-    let permissions = true;
+    get_user_friends_handler(req, user_id, app_data).await
+}
+
+async fn get_user_friends_handler(
+    req: HttpRequest,
+    user_id: web::Path<String>,
+    app_data: Data<AppComponents>,
+) -> Result<HttpResponse, FriendshipsError> {
+    let extensions = req.extensions_mut();
+    let logged_in_user = extensions.get::<String>().unwrap();
+
+    let permissions = user_id.as_str().eq_ignore_ascii_case(&logged_in_user);
 
     if !permissions {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
@@ -51,4 +63,24 @@ pub async fn get_user_friends(
     let response: FriendshipsResponse = FriendshipsResponse::new(addresses);
 
     return Ok(HttpResponse::Ok().json(response));
+}
+
+#[cfg(test)]
+mod tests {
+    use actix_web::{test, HttpRequest};
+
+    use super::get_user_friends_handler;
+
+    // use super::get_user_friends;
+
+    #[actix_web::test]
+    async fn test_get_user_friends() {
+        let other_user_id = "test";
+
+        let req = test::TestRequest::default()
+            .uri(format!("/v1/friendships/{other_user_id}").as_str())
+            .to_http_request();
+
+        // let response = get_user_friends_handler(req, req.path(), "asd").await;
+    }
 }
