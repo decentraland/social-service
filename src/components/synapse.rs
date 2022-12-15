@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-#[cfg_attr(test, faux::create)]
+#[cfg_attr(any(test, feature = "faux"), faux::create)]
 #[derive(Debug)]
 pub struct SynapseComponent {
     synapse_url: String,
@@ -22,7 +22,7 @@ pub struct WhoAmIResponse {
     pub user_id: String,
 }
 
-#[cfg_attr(test, faux::methods)]
+#[cfg_attr(any(test, feature = "faux"), faux::methods)]
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
