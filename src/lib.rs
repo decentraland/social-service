@@ -45,7 +45,7 @@ pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> 
     Data::new(app_data)
 }
 
-const ROUTES_NEED_AUTH_TOKEN: [&str; 0] = []; // should fill this array to protect routes
+const ROUTES_NEED_AUTH_TOKEN: [&str; 1] = ["/v1/friendships/{userId}"]; // should fill this array to protect routes
 
 pub fn get_app_router(
     data: &Data<AppComponents>,

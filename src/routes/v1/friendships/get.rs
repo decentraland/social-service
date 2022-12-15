@@ -5,7 +5,9 @@ use actix_web::{
 };
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
-use crate::{components::app::AppComponents, routes::v1::error::CommonError};
+use crate::{
+    components::app::AppComponents, middlewares::check_auth::UserId, routes::v1::error::CommonError,
+};
 
 #[get("/v1/friendships/{userId}")]
 pub async fn get_user_friends(
@@ -22,9 +24,12 @@ async fn get_user_friends_handler(
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
     let extensions = req.extensions_mut();
-    let logged_in_user = extensions.get::<String>().unwrap();
+    let logged_in_user = extensions.get::<UserId>().unwrap();
 
-    let permissions = user_id.as_str().eq_ignore_ascii_case(&logged_in_user);
+    // for the moment allow only for users to query their own friends
+    let permissions = user_id
+        .as_str()
+        .eq_ignore_ascii_case(logged_in_user.0.as_str());
 
     if !permissions {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(

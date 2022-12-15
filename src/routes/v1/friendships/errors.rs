@@ -39,10 +39,3 @@ impl ResponseError for FriendshipsError {
         HttpResponse::build(status_code).json(error_response)
     }
 }
-
-fn map_io_error(e: std::io::Error) -> FriendshipsError {
-    match e.kind() {
-        std::io::ErrorKind::NotFound => FriendshipsError::FriendshipNotFound,
-        _ => FriendshipsError::CommonError(CommonError::Unknown),
-    }
-}

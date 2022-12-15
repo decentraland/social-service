@@ -18,12 +18,18 @@ pub enum CommonError {
     Forbidden(String),
     #[error("Unknown Internal Error")]
     Unknown,
+    #[error("Unauthorized")]
+    Unauthorized,
+    #[error("Too many requests")]
+    TooManyRequests,
 }
 
- impl CommonError {
+impl CommonError {
     pub fn name(&self) -> String {
         match self {
             Self::UserNotFound => "UserNotFound".to_string(),
+            Self::Unauthorized => "Unauthorized".to_string(),
+            Self::TooManyRequests => "TooManyRequests".to_string(),
             Self::Forbidden(_str) => "Forbidden".to_string(),
             Self::Unknown => "Unknown".to_string(),
         }
@@ -32,7 +38,9 @@ pub enum CommonError {
 impl ResponseError for CommonError {
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::UserNotFound => StatusCode::NOT_FOUND,
+            Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
             Self::Forbidden(_str) => StatusCode::FORBIDDEN,
             Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -46,13 +54,5 @@ impl ResponseError for CommonError {
             error: self.name(),
         };
         HttpResponse::build(status_code).json(error_response)
-    }
-}
-
-fn map_io_error(e: std::io::Error) -> CommonError {
-    match e.kind() {
-        std::io::ErrorKind::NotFound => CommonError::UserNotFound,
-        std::io::ErrorKind::PermissionDenied => CommonError::Forbidden("".to_owned()),
-        _ => CommonError::Unknown,
     }
 }
