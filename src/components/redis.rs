@@ -46,7 +46,7 @@ impl Redis {
 
         redis
     }
-    pub async fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.pool.as_mut().unwrap().close()
     }
 
