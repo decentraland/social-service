@@ -1,21 +1,21 @@
-use std::error::Error;
-
-use deadpool_redis::redis::{cmd, RedisError, RedisResult};
+use deadpool_redis::redis::{cmd, RedisResult};
 
 use crate::utils::encrypt_string::hash_with_key;
 
-use super::redis::RedisComponent;
+use super::redis::Redis;
 
 const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 120;
 
+#[cfg_attr(test, faux::create)]
 #[derive(Debug)]
-pub struct UsersCacheComponent<T: RedisComponent> {
-    redis_component: T,
+pub struct UsersCacheComponent {
+    redis_component: Redis,
     hashing_key: String,
 }
 
-impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
-    pub fn new(redis: T, hashing_key: String) -> Self {
+#[cfg_attr(test, faux::methods)]
+impl UsersCacheComponent {
+    pub fn new(redis: Redis, hashing_key: String) -> Self {
         Self {
             redis_component: redis,
             hashing_key,
@@ -94,38 +94,21 @@ impl<T: RedisComponent + std::fmt::Debug> UsersCacheComponent<T> {
 
 #[cfg(test)]
 mod tests {
-    use async_trait::async_trait;
-    use deadpool_redis::{redis::RedisError, Connection};
 
-    use mockall::mock;
-
-    mock! {
-        #[derive(Debug)]
-        Redis {}
-
-        #[async_trait]
-        impl RedisComponent for Redis {
-            async fn stop(&mut self) {}
-            async fn run(&mut self) -> Result<(), RedisError> {}
-            async fn get_async_connection(&mut self) -> Option<Connection> {
-                None
-            }
-        }
-
-    }
+    use crate::components::redis::Redis;
 
     use super::*;
 
     #[actix_web::test]
     async fn test_should_return_no_connection_available() -> Result<(), String> {
-        let mut redis = MockRedis::new();
+        let mut redis_mock = Redis::faux();
 
         let token = "my test token";
         let user_id = "joni";
 
-        redis.expect_get_async_connection().return_once(|| None);
+        faux::when!(redis_mock.get_async_connection).then(|_| None);
 
-        let mut user_cache_component = UsersCacheComponent::new(redis, "test_key".to_string());
+        let mut user_cache_component = UsersCacheComponent::new(redis_mock, "test_key".to_string());
 
         let res = user_cache_component.add_user(token, user_id, None).await;
 

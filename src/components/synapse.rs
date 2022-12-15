@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(test, faux::create)]
 #[derive(Debug)]
 pub struct SynapseComponent {
     synapse_url: String,
@@ -11,10 +12,11 @@ pub const VERSION_URI: &str = "/_matrix/client/versions";
 
 #[derive(Deserialize, Serialize)]
 pub struct VersionResponse {
-    versions: Vec<String>,
-    unstable_features: HashMap<String, bool>,
+    pub versions: Vec<String>,
+    pub unstable_features: HashMap<String, bool>,
 }
 
+#[cfg_attr(test, faux::methods)]
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
