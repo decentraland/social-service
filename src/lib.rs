@@ -14,6 +14,7 @@ use tracing_actix_web::TracingLogger;
 use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
 use metrics::initialize_metrics;
 use middlewares::metrics_token::CheckMetricsToken;
+use routes::v1::friendships::get::get_user_friends;
 use routes::{
     health::handlers::{health, live},
     synapse::handlers::version,
@@ -44,7 +45,7 @@ pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> 
     Data::new(app_data)
 }
 
-const ROUTES_NEED_AUTH_TOKEN: [&str; 0] = []; // should fill this array to protect routes
+const ROUTES_NEED_AUTH_TOKEN: [&str; 1] = ["/v1/friendships/{userId}"]; // should fill this array to protect routes
 
 pub fn get_app_router(
     data: &Data<AppComponents>,
@@ -73,6 +74,7 @@ pub fn get_app_router(
         .service(live)
         .service(health)
         .service(version)
+        .service(get_user_friends)
 }
 
 fn generate_uuid_v4() -> String {
