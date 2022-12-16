@@ -140,19 +140,19 @@ where
                 }
             }; // drop mutex lock at the end of scope
 
-            if user_id.is_err() {
-                let (request, _pl) = request.into_parts();
-                let response =
-                    HttpResponse::from_error(user_id.err().unwrap()).map_into_right_body();
-                Ok(ServiceResponse::new(request, response))
-            } else {
+            if let Ok(user_id) = user_id {
                 {
                     let mut extensions = request.extensions_mut();
-                    extensions.insert(UserId(user_id.unwrap()));
+                    extensions.insert(UserId(user_id));
                 } // drop extension
 
                 let res = svc.call(request);
                 res.await.map(ServiceResponse::map_into_left_body)
+            } else {
+                let (request, _pl) = request.into_parts();
+                let response =
+                    HttpResponse::from_error(user_id.err().unwrap()).map_into_right_body();
+                Ok(ServiceResponse::new(request, response))
             }
         })
     }

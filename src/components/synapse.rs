@@ -70,7 +70,7 @@ impl SynapseComponent {
         let client = reqwest::Client::new();
         match client
             .get(who_am_i_url)
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", format!("Bearer {token}"))
             .send()
             .await
         {
@@ -98,7 +98,7 @@ impl SynapseComponent {
     }
 
     fn parse_and_return_error(text: &str) -> CommonError {
-        let error_response = serde_json::from_str::<SynapseErrorResponse>(&text);
+        let error_response = serde_json::from_str::<SynapseErrorResponse>(text);
 
         match error_response {
             Ok(error) => match error.errcode.as_str() {
