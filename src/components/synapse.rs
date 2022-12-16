@@ -53,10 +53,8 @@ impl SynapseComponent {
 
                 let text = text.unwrap();
                 let get_version_response = serde_json::from_str::<VersionResponse>(&text);
-                match get_version_response {
-                    Ok(json) => Ok(json),
-                    Err(_) => Err(SynapseComponent::parse_and_return_error(&text)),
-                }
+
+                get_version_response.map_err(|_| Self::parse_and_return_error(&text))
             }
             Err(err) => {
                 log::warn!("error connecting to synapse {}", err);
@@ -85,10 +83,7 @@ impl SynapseComponent {
 
                 let who_am_i_response = serde_json::from_str::<WhoAmIResponse>(&text);
 
-                match who_am_i_response {
-                    Ok(who_am_i) => Ok(who_am_i),
-                    Err(_) => Err(SynapseComponent::parse_and_return_error(&text)),
-                }
+                who_am_i_response.map_err(|_| Self::parse_and_return_error(&text))
             }
             Err(err) => {
                 log::warn!("error connecting to synapse {}", err);

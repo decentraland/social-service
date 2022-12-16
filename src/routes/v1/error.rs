@@ -30,15 +30,7 @@ pub enum CommonError {
 
 impl CommonError {
     pub fn name(&self) -> String {
-        match self {
-            Self::NotFound => "Not found".to_string(),
-            Self::BadRequest(_str) => "Bad request".to_string(),
-            Self::UserNotFound => "UserNotFound".to_string(),
-            Self::Unauthorized => "Unauthorized".to_string(),
-            Self::TooManyRequests => "TooManyRequests".to_string(),
-            Self::Forbidden(_str) => "Forbidden".to_string(),
-            Self::Unknown => "Unknown".to_string(),
-        }
+        format!("{:?}", self)
     }
 }
 impl ResponseError for CommonError {
