@@ -30,7 +30,7 @@ pub enum CommonError {
 
 impl CommonError {
     pub fn name(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 }
 impl ResponseError for CommonError {
