@@ -116,7 +116,7 @@ where
                 let mut user_cache = components.users_cache.lock().unwrap();
                 match user_cache.get_user(&token).await {
                     Ok(user_id) => Ok(user_id),
-                    Err(err) => match components.synapse.who_am_i(&token).await {
+                    Err(_) => match components.synapse.who_am_i(&token).await {
                         Ok(response) => {
                             if let Err(err) =
                                 user_cache.add_user(&token, &response.user_id, None).await

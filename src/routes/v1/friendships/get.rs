@@ -82,10 +82,26 @@ mod tests {
     async fn test_get_user_friends() {
         let other_user_id = "test";
 
+        let cfg = Config::new().unwrap();
+
+        let mocked_synapse = SynapseComponent::faux();
+        let mocked_db = DatabaseComponent::faux();
+        let mocked_users_cache = UsersCacheComponent::faux();
+        let mocked_redis = Redis::faux();
+
+        let mocked_components = CustomComponents {
+            synapse: Some(mocked_synapse),
+            db: Some(mocked_db),
+            users_cache: Some(mocked_users_cache),
+            redis: Some(mocked_redis),
+        };
+
+        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_components)).await);
+
         let req = test::TestRequest::default()
             .uri(format!("/v1/friendships/{other_user_id}").as_str())
             .to_http_request();
 
-        // let response = get_user_friends_handler(req, req.path(), "asd").await;
+        // let response = get_user_friends_handler(req, req.path(), app_data).await;
     }
 }

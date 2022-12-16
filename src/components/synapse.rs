@@ -31,6 +31,7 @@ pub struct SynapseErrorResponse {
     pub soft_logout: bool,
 }
 
+#[cfg_attr(any(test, feature = "faux"), faux::methods)]
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
