@@ -11,7 +11,7 @@ use actix_web::{
 };
 use futures_util::future::LocalBoxFuture;
 
-use crate::components::app::AppComponents;
+use crate::{components::app::AppComponents, routes::v1::error::CommonError};
 
 pub struct CheckAuthToken {
     auth_routes: Vec<String>,
@@ -72,7 +72,7 @@ where
         let matched_route = request.match_pattern();
         if matched_route.is_none() {
             let (request, _pl) = request.into_parts();
-            let response = HttpResponse::NotFound().finish().map_into_right_body();
+            let response = HttpResponse::from_error(CommonError::NotFound).map_into_right_body();
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }
 
@@ -101,7 +101,10 @@ where
         if token.is_empty() {
             let (request, _pl) = request.into_parts();
 
-            let response = HttpResponse::BadRequest().finish().map_into_right_body();
+            let response = HttpResponse::from_error(CommonError::BadRequest(
+                "Missing authorization token".to_string(),
+            ))
+            .map_into_right_body();
 
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }

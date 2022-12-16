@@ -12,6 +12,10 @@ pub struct ErrorResponse {
 
 #[derive(Error, Debug)]
 pub enum CommonError {
+    #[error("Not found")]
+    NotFound,
+    #[error("Bad request {0}")]
+    BadRequest(String),
     #[error("Requested user was not found")]
     UserNotFound,
     #[error("{0}")]
@@ -27,6 +31,8 @@ pub enum CommonError {
 impl CommonError {
     pub fn name(&self) -> String {
         match self {
+            Self::NotFound => "Not found".to_string(),
+            Self::BadRequest(_str) => "Bad request".to_string(),
             Self::UserNotFound => "UserNotFound".to_string(),
             Self::Unauthorized => "Unauthorized".to_string(),
             Self::TooManyRequests => "TooManyRequests".to_string(),
@@ -38,6 +44,8 @@ impl CommonError {
 impl ResponseError for CommonError {
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::NotFound => StatusCode::NOT_FOUND,
+            Self::BadRequest(_str) => StatusCode::BAD_REQUEST,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::UserNotFound => StatusCode::NOT_FOUND,
             Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
