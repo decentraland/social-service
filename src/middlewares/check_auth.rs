@@ -70,13 +70,16 @@ where
 
     fn call(&self, request: ServiceRequest) -> Self::Future {
         let matched_route = request.match_pattern();
-        if matched_route.is_none() {
+        let is_metrics_call = request.path().eq_ignore_ascii_case("/metrics");
+        if matched_route.is_none() && !is_metrics_call {
             let (request, _pl) = request.into_parts();
             let response = HttpResponse::from_error(CommonError::NotFound).map_into_right_body();
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }
 
-        if !is_auth_route(&self.auth_routes, request.match_pattern().unwrap().as_str()) {
+        if is_metrics_call
+            || !is_auth_route(&self.auth_routes, request.match_pattern().unwrap().as_str())
+        {
             let res = self.service.call(request);
             return Box::pin(async { res.await.map(ServiceResponse::map_into_left_body) });
         }
