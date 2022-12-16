@@ -12,6 +12,7 @@ pub struct SynapseComponent {
 
 pub const VERSION_URI: &str = "/_matrix/client/versions";
 pub const WHO_AM_I_URI: &str = "/_matrix/client/v3/account/whoami";
+pub const LOGIN_URI: &str = "/_matrix/client/r0/login";
 
 #[derive(Deserialize, Serialize)]
 pub struct VersionResponse {
@@ -29,6 +30,38 @@ pub struct SynapseErrorResponse {
     pub errcode: String,
     pub error: String,
     pub soft_logout: bool,
+}
+#[derive(Serialize, Deserialize)]
+pub struct LoginIdentifier {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub user: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AuthChain {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub payload: String,
+    pub signature: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SynapseLoginRequest {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub identifier: LoginIdentifier,
+    pub timestamp: String,
+    pub auth_chain: Vec<AuthChain>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SynapseLoginResponse {
+    pub user_id: String,
+    pub access_token: String,
+    pub device_id: String,
+    pub home_server: String,
+    pub well_known: HashMap<String, String>,
 }
 
 #[cfg_attr(any(test, feature = "faux"), faux::methods)]
@@ -107,5 +140,27 @@ impl SynapseComponent {
                 CommonError::Unknown
             }
         }
+    }
+
+    pub async fn login(
+        &self,
+        request: SynapseLoginRequest,
+    ) -> Result<SynapseLoginResponse, String> {
+        let login_url = format!("{}{}", self.synapse_url, LOGIN_URI);
+        let client = reqwest::Client::new();
+        let result = match client
+            .post(login_url)
+            .json::<SynapseLoginRequest>(&request)
+            .send()
+            .await
+        {
+            Ok(response) => match response.json::<SynapseLoginResponse>().await {
+                Ok(json) => Ok(json),
+                Err(err) => Err(err.to_string()),
+            },
+            Err(err) => Err(err.to_string()),
+        };
+
+        result
     }
 }
