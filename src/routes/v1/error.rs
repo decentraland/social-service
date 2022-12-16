@@ -1,0 +1,58 @@
+use actix_web::{HttpResponse, ResponseError};
+use reqwest::StatusCode;
+use serde::Serialize;
+use thiserror::Error;
+
+#[derive(Serialize)]
+pub struct ErrorResponse {
+    pub code: u16,
+    pub error: String,
+    pub message: String,
+}
+
+#[derive(Error, Debug)]
+pub enum CommonError {
+    #[error("Requested user was not found")]
+    UserNotFound,
+    #[error("{0}")]
+    Forbidden(String),
+    #[error("Unknown Internal Error")]
+    Unknown,
+    #[error("Unauthorized")]
+    Unauthorized,
+    #[error("Too many requests")]
+    TooManyRequests,
+}
+
+impl CommonError {
+    pub fn name(&self) -> String {
+        match self {
+            Self::UserNotFound => "UserNotFound".to_string(),
+            Self::Unauthorized => "Unauthorized".to_string(),
+            Self::TooManyRequests => "TooManyRequests".to_string(),
+            Self::Forbidden(_str) => "Forbidden".to_string(),
+            Self::Unknown => "Unknown".to_string(),
+        }
+    }
+}
+impl ResponseError for CommonError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::UserNotFound => StatusCode::NOT_FOUND,
+            Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
+            Self::Forbidden(_str) => StatusCode::FORBIDDEN,
+            Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        let status_code = self.status_code();
+        let error_response = ErrorResponse {
+            code: status_code.as_u16(),
+            message: self.to_string(),
+            error: self.name(),
+        };
+        HttpResponse::build(status_code).json(error_response)
+    }
+}
