@@ -119,7 +119,7 @@ where
 
         Box::pin(async move {
             let user_id = {
-                let mut user_cache = components.users_cache.lock().unwrap();
+                let mut user_cache = components.users_cache.lock().await;
                 match user_cache.get_user(&token).await {
                     Ok(user_id) => Ok(user_id),
                     Err(_) => match components.synapse.who_am_i(&token).await {

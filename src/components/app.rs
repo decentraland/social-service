@@ -1,3 +1,5 @@
+use futures_util::lock::Mutex;
+
 use super::configuration::Database;
 use super::{
     configuration::Config, database::DatabaseComponent, health::HealthComponent,
@@ -8,8 +10,6 @@ use super::{
     redis::Redis,
     users_cache::{self, UsersCacheComponent},
 };
-
-use std::sync::Mutex;
 
 pub struct AppComponents {
     pub health: HealthComponent,
