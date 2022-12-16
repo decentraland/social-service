@@ -41,17 +41,28 @@ impl SynapseComponent {
         Self { synapse_url: url }
     }
 
-    pub async fn get_version(&self) -> Result<VersionResponse, String> {
+    pub async fn get_version(&self) -> Result<VersionResponse, CommonError> {
         let version_url = format!("{}{}", self.synapse_url, VERSION_URI);
-        let result: Result<VersionResponse, String> = match reqwest::get(version_url).await {
-            Ok(response) => match response.json::<VersionResponse>().await {
-                Ok(json) => Ok(json),
-                Err(err) => Err(err.to_string()),
-            },
-            Err(err) => Err(err.to_string()),
-        };
+        match reqwest::get(version_url).await {
+            Ok(response) => {
+                let text = response.text().await;
+                if let Err(err) = text {
+                    log::warn!("error reading synapse response {}", err);
+                    return Err(CommonError::Unknown);
+                }
 
-        result
+                let text = text.unwrap();
+                let get_version_response = serde_json::from_str::<VersionResponse>(&text);
+                match get_version_response {
+                    Ok(json) => Ok(json),
+                    Err(_) => Err(SynapseComponent::parse_and_return_error(&text)),
+                }
+            }
+            Err(err) => {
+                log::warn!("error connecting to synapse {}", err);
+                Err(CommonError::Unknown)
+            }
+        }
     }
 
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
