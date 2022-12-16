@@ -11,7 +11,7 @@ use actix_web::{
 };
 use futures_util::future::LocalBoxFuture;
 
-use crate::components::app::AppComponents;
+use crate::{components::app::AppComponents, routes::v1::error::CommonError};
 
 pub struct CheckAuthToken {
     auth_routes: Vec<String>,
@@ -54,7 +54,7 @@ fn is_auth_route(routes: &[String], path: &str) -> bool {
 }
 
 #[derive(Debug)]
-pub struct UserId(String);
+pub struct UserId(pub String);
 
 impl<S: 'static, B> Service<ServiceRequest> for CheckAuthTokenMiddleware<S>
 where
@@ -69,7 +69,17 @@ where
     dev::forward_ready!(service);
 
     fn call(&self, request: ServiceRequest) -> Self::Future {
-        if !is_auth_route(&self.auth_routes, request.path()) {
+        let matched_route = request.match_pattern();
+        let is_metrics_call = request.path().eq_ignore_ascii_case("/metrics");
+        if matched_route.is_none() && !is_metrics_call {
+            let (request, _pl) = request.into_parts();
+            let response = HttpResponse::from_error(CommonError::NotFound).map_into_right_body();
+            return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
+        }
+
+        if is_metrics_call
+            || !is_auth_route(&self.auth_routes, request.match_pattern().unwrap().as_str())
+        {
             let res = self.service.call(request);
             return Box::pin(async { res.await.map(ServiceResponse::map_into_left_body) });
         }
@@ -94,7 +104,10 @@ where
         if token.is_empty() {
             let (request, _pl) = request.into_parts();
 
-            let response = HttpResponse::BadRequest().finish().map_into_right_body();
+            let response = HttpResponse::from_error(CommonError::BadRequest(
+                "Missing authorization token".to_string(),
+            ))
+            .map_into_right_body();
 
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }
@@ -107,8 +120,8 @@ where
         Box::pin(async move {
             let user_id = {
                 let mut user_cache = components.users_cache.lock().unwrap();
-                let user_id = match user_cache.get_user(&token).await {
-                    Ok(user_id) => user_id,
+                match user_cache.get_user(&token).await {
+                    Ok(user_id) => Ok(user_id),
                     Err(_) => match components.synapse.who_am_i(&token).await {
                         Ok(response) => {
                             if let Err(err) =
@@ -119,27 +132,27 @@ where
                                     err
                                 )
                             }
-                            response.user_id
+
+                            Ok(response.user_id)
                         }
-                        Err(_) => "".to_string(),
+                        Err(err) => Err(err),
                     },
-                };
-                user_id
+                }
             }; // drop mutex lock at the end of scope
 
-            if user_id.is_empty() {
-                let (request, _pl) = request.into_parts();
-                let response = HttpResponse::InternalServerError()
-                    .finish()
-                    .map_into_right_body();
-                Ok(ServiceResponse::new(request, response))
-            } else {
+            if let Ok(user_id) = user_id {
                 {
                     let mut extensions = request.extensions_mut();
                     extensions.insert(UserId(user_id));
                 } // drop extension
+
                 let res = svc.call(request);
                 res.await.map(ServiceResponse::map_into_left_body)
+            } else {
+                let (request, _pl) = request.into_parts();
+                let response =
+                    HttpResponse::from_error(user_id.err().unwrap()).map_into_right_body();
+                Ok(ServiceResponse::new(request, response))
             }
         })
     }

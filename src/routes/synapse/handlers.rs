@@ -8,6 +8,6 @@ pub async fn version(app_data: Data<AppComponents>) -> HttpResponse {
 
     match version_response {
         Ok(ok_response) => HttpResponse::Ok().json(ok_response),
-        Err(err_response) => HttpResponse::InternalServerError().json(err_response),
+        Err(err_response) => HttpResponse::from_error(err_response),
     }
 }
