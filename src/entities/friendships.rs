@@ -105,22 +105,18 @@ impl FriendshipsRepository {
         }
 
         match sqlx::query(&query).bind(address).fetch_all(db_conn).await {
-            Ok(rows) => {
-                let friendships = rows
-                    .iter()
-                    .map(|row| -> Friendship {
-                        let friendship = Friendship {
-                            id: row.try_get("id").unwrap(),
-                            address_1: row.try_get("address_1").unwrap(),
-                            address_2: row.try_get("address_2").unwrap(),
-                            is_active: row.try_get("is_active").unwrap(),
-                        };
-                        friendship
-                    })
-                    .collect::<Vec<Friendship>>();
-
-                Ok(friendships)
-            }
+            Ok(rows) => Ok(rows
+                .iter()
+                .map(|row| -> Friendship {
+                    let friendship = Friendship {
+                        id: row.try_get("id").unwrap(),
+                        address_1: row.try_get("address_1").unwrap(),
+                        address_2: row.try_get("address_2").unwrap(),
+                        is_active: row.try_get("is_active").unwrap(),
+                    };
+                    friendship
+                })
+                .collect::<Vec<Friendship>>()),
             Err(err) => match err {
                 Error::RowNotFound => Ok(vec![]),
                 _ => {

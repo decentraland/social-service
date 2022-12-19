@@ -16,10 +16,9 @@ pub async fn get_user_friends(
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
     let extensions = req.extensions_mut();
-    let logged_in_user = extensions.get::<UserId>().unwrap();
+    let logged_in_user = extensions.get::<UserId>().unwrap().0.as_str();
 
-    let response =
-        get_user_friends_handler(logged_in_user.0.as_str(), user_id.as_str(), app_data).await;
+    let response = get_user_friends_handler(logged_in_user, user_id.as_str(), app_data).await;
 
     match response {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
@@ -37,7 +36,7 @@ async fn get_user_friends_handler(
 
     if !permissions {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
-            format!("You don't have permission to view {} friends", user_id),
+            format!("You don't have permission to view {user_id} friends"),
         )));
     }
 
@@ -71,7 +70,7 @@ async fn get_user_friends_handler(
 
 #[cfg(test)]
 mod tests {
-    use actix_web::{test, web::Data};
+    use actix_web::web::Data;
     use uuid::Uuid;
 
     use crate::{
