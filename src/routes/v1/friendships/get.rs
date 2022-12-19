@@ -122,7 +122,6 @@ mod tests {
 
     use super::get_user_friends_handler;
 
-    // use super::get_user_friends;
 
     #[actix_web::test]
     async fn test_get_user_friends() {
