@@ -14,11 +14,27 @@ use crate::entities::{
 
 pub type DBConnection = Pool<Postgres>;
 
+#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct DBRepositories {
     pub friendships: FriendshipsRepository,
     pub friendship_history: FriendshipHistoryRepository,
     pub user_features: UserFeaturesRepository,
+}
+
+#[cfg_attr(test, faux::methods)]
+impl DBRepositories {
+    pub fn get_friendships(&self) -> FriendshipsRepository {
+        self.friendships.clone()
+    }
+
+    pub fn get_friendship_history(&self) -> FriendshipHistoryRepository {
+        self.friendship_history.clone()
+    }
+
+    pub fn get_user_features(&self) -> UserFeaturesRepository {
+        self.user_features.clone()
+    }
 }
 
 #[cfg_attr(test, faux::create)]
@@ -43,6 +59,10 @@ impl DatabaseComponent {
             db_connection: Arc::new(None),
             db_repos: None,
         }
+    }
+
+    pub fn get_repos(&self) -> Option<DBRepositories> {
+        self.db_repos.clone()
     }
 
     pub async fn run(&mut self) -> Result<(), sqlx::Error> {

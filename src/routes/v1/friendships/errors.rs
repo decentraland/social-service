@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use super::super::error::{CommonError, ErrorResponse};
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum FriendshipsError {
     #[error("")]
     CommonError(CommonError),
