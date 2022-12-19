@@ -61,7 +61,7 @@ pub struct SynapseLoginResponse {
     pub access_token: String,
     pub device_id: String,
     pub home_server: String,
-    pub well_known: HashMap<String, String>,
+    pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
 #[cfg_attr(any(test, feature = "faux"), faux::methods)]
@@ -145,7 +145,7 @@ impl SynapseComponent {
     pub async fn login(
         &self,
         request: SynapseLoginRequest,
-    ) -> Result<SynapseLoginResponse, String> {
+    ) -> Result<SynapseLoginResponse, CommonError> {
         let login_url = format!("{}{}", self.synapse_url, LOGIN_URI);
         let client = reqwest::Client::new();
         let result = match client
@@ -154,11 +154,26 @@ impl SynapseComponent {
             .send()
             .await
         {
-            Ok(response) => match response.json::<SynapseLoginResponse>().await {
-                Ok(json) => Ok(json),
-                Err(err) => Err(err.to_string()),
-            },
-            Err(err) => Err(err.to_string()),
+            Ok(response) => {
+                let text = response.text().await;
+                if let Err(err) = text {
+                    log::warn!("error reading synapse response {}", err);
+                    return Err(CommonError::Unknown);
+                }
+
+                let text = text.unwrap();
+
+                let login_response = serde_json::from_str::<SynapseLoginResponse>(&text);
+
+                match login_response {
+                    Ok(res) => Ok(res),
+                    Err(_) => Err(SynapseComponent::parse_and_return_error(&text)),
+                }
+            }
+            Err(err) => {
+                log::warn!("error connecting to synapse {}", err);
+                Err(CommonError::Unknown)
+            }
         };
 
         result
