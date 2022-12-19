@@ -24,6 +24,18 @@ pub struct DBRepositories {
 
 #[cfg_attr(test, faux::methods)]
 impl DBRepositories {
+    pub fn new(
+        friendships: FriendshipsRepository,
+        friendship_history: FriendshipHistoryRepository,
+        user_features: UserFeaturesRepository,
+    ) -> Self {
+        Self {
+            friendships,
+            friendship_history,
+            user_features,
+        }
+    }
+
     pub fn get_friendships(&self) -> FriendshipsRepository {
         self.friendships.clone()
     }
@@ -94,11 +106,11 @@ impl DatabaseComponent {
             }
 
             self.db_connection = Arc::new(Some(db_connection));
-            self.db_repos = Some(DBRepositories {
-                friendships: FriendshipsRepository::new(self.db_connection.clone()),
-                friendship_history: FriendshipHistoryRepository::new(self.db_connection.clone()),
-                user_features: UserFeaturesRepository::new(self.db_connection.clone()),
-            });
+            self.db_repos = Some(DBRepositories::new(
+                FriendshipsRepository::new(self.db_connection.clone()),
+                FriendshipHistoryRepository::new(self.db_connection.clone()),
+                UserFeaturesRepository::new(self.db_connection.clone()),
+            ));
 
             Ok(())
         } else {

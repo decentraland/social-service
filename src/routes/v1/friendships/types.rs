@@ -17,7 +17,7 @@ impl FriendshipsResponse {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct FriendshipFriend {
-    address: String,
+    pub address: String,
 }

@@ -20,9 +20,25 @@ pub struct Friendship {
 }
 
 #[cfg_attr(test, faux::methods)]
+impl fmt::Debug for FriendshipsRepository {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FriendshipsRepository")
+            .field(
+                "db_connection has value",
+                &self.get_db_connection().is_some(),
+            )
+            .finish()
+    }
+}
+
+#[cfg_attr(test, faux::methods)]
 impl FriendshipsRepository {
     pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }
+    }
+
+    fn get_db_connection(&self) -> Arc<Option<DBConnection>> {
+        self.db_connection.clone()
     }
 
     // Example
@@ -71,7 +87,7 @@ impl FriendshipsRepository {
 
     /// Fetches the friendships of a given user
     /// if include inactive is true, this will also return all addresses for users
-    /// that this user has been friends in the past
+    /// that this user has been friends in the past]
     #[tracing::instrument(name = "Get user friends from DB")]
     pub async fn get_user_friends(
         &self,
@@ -113,13 +129,5 @@ impl FriendshipsRepository {
                 }
             },
         }
-    }
-}
-
-impl fmt::Debug for FriendshipsRepository {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FriendshipsRepository")
-            .field("db_connection has value", &self.db_connection.is_some())
-            .finish()
     }
 }

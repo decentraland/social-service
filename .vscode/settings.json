@@ -1,4 +1,3 @@
 {
   "cSpell.words": ["actix", "mockall"],
-  "rust-analyzer.checkOnSave.allTargets": false
 }
