@@ -15,7 +15,7 @@ pub async fn get_user_friends(
     user_id: web::Path<String>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
-    let extensions = req.extensions_mut();
+    let extensions = req.extensions();
     let logged_in_user = extensions.get::<UserId>().unwrap().0.as_str();
 
     let response = get_user_friends_handler(logged_in_user, user_id.as_str(), app_data).await;
