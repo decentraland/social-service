@@ -31,14 +31,14 @@ pub struct SynapseErrorResponse {
     pub error: String,
     pub soft_logout: bool,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LoginIdentifier {
     #[serde(rename = "type")]
     pub _type: String,
     pub user: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AuthChain {
     #[serde(rename = "type")]
     pub _type: String,
@@ -46,7 +46,7 @@ pub struct AuthChain {
     pub signature: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SynapseLoginRequest {
     #[serde(rename = "type")]
     pub _type: String,
@@ -96,6 +96,7 @@ impl SynapseComponent {
         }
     }
 
+    #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
         let who_am_i_url = format!("{}{}", self.synapse_url, WHO_AM_I_URI);
         let client = reqwest::Client::new();
@@ -142,6 +143,7 @@ impl SynapseComponent {
         }
     }
 
+    #[tracing::instrument(name = "login function > Synapse components")]
     pub async fn login(
         &self,
         request: SynapseLoginRequest,
