@@ -12,6 +12,8 @@ pub struct FriendshipsRepository {
     db_connection: Arc<Option<DBConnection>>,
 }
 
+
+#[derive(Clone)]
 pub struct Friendship {
     pub id: Uuid,
     pub address_1: String,
@@ -37,8 +39,8 @@ impl FriendshipsRepository {
         Self { db_connection: db }
     }
 
-    fn get_db_connection(&self) -> Arc<Option<DBConnection>> {
-        self.db_connection.clone()
+    fn get_db_connection(&self) -> &Arc<Option<DBConnection>> {
+        &self.db_connection
     }
 
     // Example

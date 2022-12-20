@@ -73,8 +73,8 @@ impl DatabaseComponent {
         }
     }
 
-    pub fn get_repos(&self) -> Option<DBRepositories> {
-        self.db_repos.clone()
+    pub fn get_repos(&self) -> &Option<DBRepositories> {
+        &self.db_repos
     }
 
     pub async fn run(&mut self) -> Result<(), sqlx::Error> {

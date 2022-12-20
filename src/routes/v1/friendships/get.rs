@@ -44,6 +44,7 @@ async fn get_user_friends_handler(
         .as_ref()
         .db
         .get_repos()
+        .as_ref()
         .unwrap()
         .get_friendships()
         .get_user_friends(user_id, false)
@@ -122,13 +123,14 @@ mod tests {
 
     use super::get_user_friends_handler;
 
-
     #[actix_web::test]
     async fn test_get_user_friends() {
         let (cfg, mocked_synapse, mocked_users_cache, mocked_redis, mut mocked_db, _, __) =
             get_mocked_components().await;
 
-        faux::when!(mocked_db.get_repos).then(|_| None);
+        unsafe {
+            faux::when!(mocked_db.get_repos).then_unchecked_return(&None);
+        }
 
         let mocked_components = CustomComponents {
             synapse: Some(mocked_synapse),
@@ -163,9 +165,13 @@ mod tests {
             mut mocked_friendship,
         ) = get_mocked_components().await;
 
-        faux::when!(mocked_friendship.get_user_friends).then(|_| Err(sqlx::Error::RowNotFound));
-        faux::when!(mocked_repos.get_friendships).then(move |_| mocked_friendship.clone());
-        faux::when!(mocked_db.get_repos).then(move |_| Some(mocked_repos.clone()));
+        unsafe {
+            faux::when!(mocked_friendship.get_user_friends)
+                .then_unchecked(|_| Err(sqlx::Error::RowNotFound));
+            faux::when!(mocked_repos.get_friendships)
+                .then_unchecked(move |_| mocked_friendship.clone());
+            faux::when!(mocked_db.get_repos).then_unchecked_return(&Some(mocked_repos.clone()));
+        }
 
         let mocked_components = CustomComponents {
             synapse: Some(mocked_synapse),
@@ -201,24 +207,28 @@ mod tests {
             mut mocked_friendship,
         ) = get_mocked_components().await;
 
-        faux::when!(mocked_friendship.get_user_friends).then(|_| {
-            Ok(vec![
-                Friendship {
-                    id: Uuid::parse_str(generate_uuid_v4().as_str()).unwrap(),
-                    address_1: user_id.to_string(),
-                    address_2: other_user.to_string(),
-                    is_active: true,
-                },
-                Friendship {
-                    id: Uuid::parse_str(generate_uuid_v4().as_str()).unwrap(),
-                    address_1: other_user_2.to_string(),
-                    address_2: user_id.to_string(),
-                    is_active: true,
-                },
-            ])
-        });
-        faux::when!(mocked_repos.get_friendships).then(move |_| mocked_friendship.clone());
-        faux::when!(mocked_db.get_repos).then(move |_| Some(mocked_repos.clone()));
+        unsafe {
+            faux::when!(mocked_friendship.get_user_friends).then_unchecked(|_| {
+                Ok(vec![
+                    Friendship {
+                        id: Uuid::parse_str(generate_uuid_v4().as_str()).unwrap(),
+                        address_1: user_id.to_string(),
+                        address_2: other_user.to_string(),
+                        is_active: true,
+                    },
+                    Friendship {
+                        id: Uuid::parse_str(generate_uuid_v4().as_str()).unwrap(),
+                        address_1: other_user_2.to_string(),
+                        address_2: user_id.to_string(),
+                        is_active: true,
+                    },
+                ])
+            });
+
+            faux::when!(mocked_repos.get_friendships)
+                .then_unchecked_return(mocked_friendship.clone());
+            faux::when!(mocked_db.get_repos).then_unchecked_return(&Some(mocked_repos.clone()));
+        }
 
         let mocked_components = CustomComponents {
             synapse: Some(mocked_synapse),
