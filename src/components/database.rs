@@ -36,16 +36,16 @@ impl DBRepositories {
         }
     }
 
-    pub fn get_friendships(&self) -> FriendshipsRepository {
-        self.friendships.clone()
+    pub fn get_friendships(&self) -> &FriendshipsRepository {
+        &self.friendships
     }
 
-    pub fn get_friendship_history(&self) -> FriendshipHistoryRepository {
-        self.friendship_history.clone()
+    pub fn get_friendship_history(&self) -> &FriendshipHistoryRepository {
+        &self.friendship_history
     }
 
-    pub fn get_user_features(&self) -> UserFeaturesRepository {
-        self.user_features.clone()
+    pub fn get_user_features(&self) -> &UserFeaturesRepository {
+        &self.user_features
     }
 }
 

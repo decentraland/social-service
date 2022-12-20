@@ -168,8 +168,7 @@ mod tests {
         unsafe {
             faux::when!(mocked_friendship.get_user_friends)
                 .then_unchecked(|_| Err(sqlx::Error::RowNotFound));
-            faux::when!(mocked_repos.get_friendships)
-                .then_unchecked(move |_| mocked_friendship.clone());
+            faux::when!(mocked_repos.get_friendships).then_unchecked_return(&mocked_friendship);
             faux::when!(mocked_db.get_repos).then_unchecked_return(&Some(mocked_repos.clone()));
         }
 
@@ -225,8 +224,7 @@ mod tests {
                 ])
             });
 
-            faux::when!(mocked_repos.get_friendships)
-                .then_unchecked_return(mocked_friendship.clone());
+            faux::when!(mocked_repos.get_friendships).then_unchecked_return(&mocked_friendship);
             faux::when!(mocked_db.get_repos).then_unchecked_return(&Some(mocked_repos.clone()));
         }
 
