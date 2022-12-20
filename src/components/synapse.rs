@@ -165,10 +165,7 @@ impl SynapseComponent {
 
                 let login_response = serde_json::from_str::<SynapseLoginResponse>(&text);
 
-                match login_response {
-                    Ok(res) => Ok(res),
-                    Err(_) => Err(SynapseComponent::parse_and_return_error(&text)),
-                }
+                login_response.map_err(|_| SynapseComponent::parse_and_return_error(&text))
             }
             Err(err) => {
                 log::warn!("error connecting to synapse {}", err);
