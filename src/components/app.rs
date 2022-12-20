@@ -26,30 +26,48 @@ pub struct CustomComponents {
     pub redis: Option<Redis>,
 }
 
-impl CustomComponents {
-    pub fn builder() -> Self {
-        Self {
-            synapse: None,
-            db: None,
-            users_cache: None,
-            redis: None,
+#[derive(Default)]
+pub struct CustomComponentsBuilder {
+    synapse: Option<SynapseComponent>,
+    db: Option<DatabaseComponent>,
+    users_cache: Option<UsersCacheComponent>,
+    redis: Option<Redis>,
+}
+
+impl CustomComponentsBuilder {
+    pub fn with_synapse(mut self, synapse: SynapseComponent) -> Self {
+        self.synapse = Some(synapse);
+        self
+    }
+
+    pub fn with_db(mut self, db: DatabaseComponent) -> Self {
+        self.db = Some(db);
+        self
+    }
+
+    pub fn with_users_cache(mut self, users_cache: UsersCacheComponent) -> Self {
+        self.users_cache = Some(users_cache);
+        self
+    }
+
+    pub fn with_redis(mut self, redis: Redis) -> Self {
+        self.redis = Some(redis);
+        self
+    }
+
+    pub fn build(self) -> CustomComponents {
+        CustomComponents {
+            synapse: self.synapse,
+            db: self.db,
+            users_cache: self.users_cache,
+            redis: self.redis,
         }
     }
+}
 
-    pub fn with_synapse(&mut self, synapse: SynapseComponent) {
-        self.synapse = Some(synapse);
-    }
-
-    pub fn with_db(&mut self, db: DatabaseComponent) {
-        self.db = Some(db);
-    }
-
-    pub fn with_users_cache(&mut self, users_cache: UsersCacheComponent) {
-        self.users_cache = Some(users_cache);
-    }
-
-    pub fn with_redis(&mut self, redis: Redis) {
-        self.redis = Some(redis);
+impl CustomComponents {
+    pub fn builder() -> CustomComponentsBuilder {
+        CustomComponentsBuilder::default()
     }
 }
 

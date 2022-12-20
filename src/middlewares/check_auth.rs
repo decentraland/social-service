@@ -228,11 +228,12 @@ mod tests {
         when!(mocked_users_cache.add_user).times(0);
         when!(mocked_synapse.who_am_i).times(0);
 
-        let mut mocked_comps = CustomComponents::builder();
-        mocked_comps.with_synapse(mocked_synapse);
-        mocked_comps.with_db(mocked_db);
-        mocked_comps.with_redis(mocked_redis);
-        mocked_comps.with_users_cache(mocked_users_cache);
+        let mocked_comps = CustomComponents::builder()
+            .with_db(mocked_db)
+            .with_redis(mocked_redis)
+            .with_synapse(mocked_synapse)
+            .with_users_cache(mocked_users_cache)
+            .build();
 
         let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_comps)).await);
         let opts = vec!["/need-auth".to_string()];
@@ -281,11 +282,12 @@ mod tests {
         });
         when!(mocked_synapse.who_am_i).once();
 
-        let mut mocked_comps = CustomComponents::builder();
-        mocked_comps.with_synapse(mocked_synapse);
-        mocked_comps.with_db(mocked_db);
-        mocked_comps.with_redis(mocked_redis);
-        mocked_comps.with_users_cache(mocked_users_cache);
+        let mocked_comps = CustomComponents::builder()
+            .with_db(mocked_db)
+            .with_redis(mocked_redis)
+            .with_synapse(mocked_synapse)
+            .with_users_cache(mocked_users_cache)
+            .build();
 
         let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_comps)).await);
         let opts = vec!["/need-auth".to_string()];
