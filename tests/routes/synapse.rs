@@ -45,12 +45,8 @@ mod synapse_sniff {
                 })
             });
 
-            let mocked_comps = CustomComponents {
-                synapse: Some(mocked_synapse),
-                db: None,
-                users_cache: None,
-                redis: None,
-            };
+            let mut mocked_comps = CustomComponents::builder();
+            mocked_comps.with_synapse(mocked_synapse);
 
             // Manual Setup
             create_test_db(&config.db).await;
@@ -112,12 +108,8 @@ mod synapse_sniff {
 
             when!(mocked_synapse.login).then(|_| Err(CommonError::Unknown));
 
-            let mocked_comps = CustomComponents {
-                synapse: Some(mocked_synapse),
-                db: None,
-                users_cache: None,
-                redis: None,
-            };
+            let mut mocked_comps = CustomComponents::builder();
+            mocked_comps.with_synapse(mocked_synapse);
 
             // Manual Setup
             create_test_db(&config.db).await;

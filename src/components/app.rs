@@ -26,6 +26,33 @@ pub struct CustomComponents {
     pub redis: Option<Redis>,
 }
 
+impl CustomComponents {
+    pub fn builder() -> Self {
+        Self {
+            synapse: None,
+            db: None,
+            users_cache: None,
+            redis: None,
+        }
+    }
+
+    pub fn with_synapse(&mut self, synapse: SynapseComponent) {
+        self.synapse = Some(synapse);
+    }
+
+    pub fn with_db(&mut self, db: DatabaseComponent) {
+        self.db = Some(db);
+    }
+
+    pub fn with_users_cache(&mut self, users_cache: UsersCacheComponent) {
+        self.users_cache = Some(users_cache);
+    }
+
+    pub fn with_redis(&mut self, redis: Redis) {
+        self.redis = Some(redis);
+    }
+}
+
 impl AppComponents {
     pub async fn new(
         custom_config: Option<Config>,
