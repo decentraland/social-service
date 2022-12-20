@@ -28,11 +28,18 @@ pub enum CommonError {
     TooManyRequests,
 }
 
+impl PartialEq for CommonError {
+    fn eq(&self, other: &Self) -> bool {
+        core::mem::discriminant(self) == core::mem::discriminant(other)
+    }
+}
+
 impl CommonError {
     pub fn name(&self) -> String {
         format!("{self:?}")
     }
 }
+
 impl ResponseError for CommonError {
     fn status_code(&self) -> StatusCode {
         match self {

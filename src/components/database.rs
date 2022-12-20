@@ -14,11 +14,39 @@ use crate::entities::{
 
 pub type DBConnection = Pool<Postgres>;
 
+#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct DBRepositories {
     pub friendships: FriendshipsRepository,
     pub friendship_history: FriendshipHistoryRepository,
     pub user_features: UserFeaturesRepository,
+}
+
+#[cfg_attr(test, faux::methods)]
+impl DBRepositories {
+    pub fn new(
+        friendships: FriendshipsRepository,
+        friendship_history: FriendshipHistoryRepository,
+        user_features: UserFeaturesRepository,
+    ) -> Self {
+        Self {
+            friendships,
+            friendship_history,
+            user_features,
+        }
+    }
+
+    pub fn get_friendships(&self) -> &FriendshipsRepository {
+        &self.friendships
+    }
+
+    pub fn get_friendship_history(&self) -> &FriendshipHistoryRepository {
+        &self.friendship_history
+    }
+
+    pub fn get_user_features(&self) -> &UserFeaturesRepository {
+        &self.user_features
+    }
 }
 
 #[cfg_attr(test, faux::create)]
@@ -43,6 +71,10 @@ impl DatabaseComponent {
             db_connection: Arc::new(None),
             db_repos: None,
         }
+    }
+
+    pub fn get_repos(&self) -> &Option<DBRepositories> {
+        &self.db_repos
     }
 
     pub async fn run(&mut self) -> Result<(), sqlx::Error> {
@@ -74,11 +106,11 @@ impl DatabaseComponent {
             }
 
             self.db_connection = Arc::new(Some(db_connection));
-            self.db_repos = Some(DBRepositories {
-                friendships: FriendshipsRepository::new(self.db_connection.clone()),
-                friendship_history: FriendshipHistoryRepository::new(self.db_connection.clone()),
-                user_features: UserFeaturesRepository::new(self.db_connection.clone()),
-            });
+            self.db_repos = Some(DBRepositories::new(
+                FriendshipsRepository::new(self.db_connection.clone()),
+                FriendshipHistoryRepository::new(self.db_connection.clone()),
+                UserFeaturesRepository::new(self.db_connection.clone()),
+            ));
 
             Ok(())
         } else {
