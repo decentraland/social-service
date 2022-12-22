@@ -4,7 +4,10 @@ use actix_web::{
     HttpMessage, HttpRequest, HttpResponse,
 };
 
-use crate::{components::app::AppComponents, middlewares::check_auth::UserId};
+use crate::{
+    components::{app::AppComponents, database::DatabaseComponent, synapse::SynapseComponent},
+    middlewares::check_auth::UserId,
+};
 
 #[put("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship")]
 pub async fn room_event_handler(
@@ -18,4 +21,25 @@ pub async fn room_event_handler(
     HttpResponse::Ok().finish()
 }
 
-// async fn process_room_event(user_id:&str, room_id:&str, )
+async fn process_room_event(
+    user_id: &str,
+    room_id: &str,
+    db: &DatabaseComponent,
+    synapse: &SynapseComponent,
+) {
+}
+
+#[derive(Debug)]
+enum FriendshipEvent {
+    REQUEST, // Send a friendship request
+    CANCEL,  // Cancel a friendship request
+    ACCEPT,  // Accept a friendship request
+    REJECT,  // Reject a friendship request
+    DELETE,  // Delete an existing friendship
+}
+
+impl FriendshipEvent {
+    fn as_str(&self) -> String {
+        format!("{self:?}").to_lowercase()
+    }
+}
