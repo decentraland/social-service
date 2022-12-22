@@ -17,7 +17,7 @@ use middlewares::metrics_token::CheckMetricsToken;
 use routes::v1::friendships::get::get_user_friends;
 use routes::{
     health::handlers::{health, live},
-    synapse::handlers::version,
+    synapse::handlers::{login, version},
 };
 
 #[derive(Clone)]
@@ -75,6 +75,7 @@ pub fn get_app_router(
         .service(health)
         .service(version)
         .service(get_user_friends)
+        .service(login)
 }
 
 fn generate_uuid_v4() -> String {

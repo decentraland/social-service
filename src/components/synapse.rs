@@ -12,6 +12,7 @@ pub struct SynapseComponent {
 
 pub const VERSION_URI: &str = "/_matrix/client/versions";
 pub const WHO_AM_I_URI: &str = "/_matrix/client/v3/account/whoami";
+pub const LOGIN_URI: &str = "/_matrix/client/r0/login";
 
 #[derive(Deserialize, Serialize)]
 pub struct VersionResponse {
@@ -29,6 +30,38 @@ pub struct SynapseErrorResponse {
     pub errcode: String,
     pub error: String,
     pub soft_logout: bool,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LoginIdentifier {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub user: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AuthChain {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub payload: String,
+    pub signature: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SynapseLoginRequest {
+    #[serde(rename = "type")]
+    pub _type: String,
+    pub identifier: LoginIdentifier,
+    pub timestamp: String,
+    pub auth_chain: Vec<AuthChain>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SynapseLoginResponse {
+    pub user_id: String,
+    pub access_token: String,
+    pub device_id: String,
+    pub home_server: String,
+    pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
 #[cfg_attr(any(test, feature = "faux"), faux::methods)]
@@ -63,6 +96,7 @@ impl SynapseComponent {
         }
     }
 
+    #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
         let who_am_i_url = format!("{}{}", self.synapse_url, WHO_AM_I_URI);
         let client = reqwest::Client::new();
@@ -107,5 +141,40 @@ impl SynapseComponent {
                 CommonError::Unknown
             }
         }
+    }
+
+    #[tracing::instrument(name = "login function > Synapse components")]
+    pub async fn login(
+        &self,
+        request: SynapseLoginRequest,
+    ) -> Result<SynapseLoginResponse, CommonError> {
+        let login_url = format!("{}{}", self.synapse_url, LOGIN_URI);
+        let client = reqwest::Client::new();
+        let result = match client
+            .post(login_url)
+            .json::<SynapseLoginRequest>(&request)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let text = response.text().await;
+                if let Err(err) = text {
+                    log::warn!("error reading synapse response {}", err);
+                    return Err(CommonError::Unknown);
+                }
+
+                let text = text.unwrap();
+
+                let login_response = serde_json::from_str::<SynapseLoginResponse>(&text);
+
+                login_response.map_err(|_| SynapseComponent::parse_and_return_error(&text))
+            }
+            Err(err) => {
+                log::warn!("error connecting to synapse {}", err);
+                Err(CommonError::Unknown)
+            }
+        };
+
+        result
     }
 }

@@ -119,7 +119,7 @@ where
 
         Box::pin(async move {
             let user_id = {
-                let mut user_cache = components.users_cache.lock().unwrap();
+                let mut user_cache = components.users_cache.lock().await;
                 match user_cache.get_user(&token).await {
                     Ok(user_id) => Ok(user_id),
                     Err(_) => match components.synapse.who_am_i(&token).await {
@@ -228,14 +228,14 @@ mod tests {
         when!(mocked_users_cache.add_user).times(0);
         when!(mocked_synapse.who_am_i).times(0);
 
-        let mocked_components = CustomComponents {
-            synapse: Some(mocked_synapse),
-            db: Some(mocked_db),
-            users_cache: Some(mocked_users_cache),
-            redis: Some(mocked_redis),
-        };
+        let mocked_comps = CustomComponents::builder()
+            .with_db(mocked_db)
+            .with_redis(mocked_redis)
+            .with_synapse(mocked_synapse)
+            .with_users_cache(mocked_users_cache)
+            .build();
 
-        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_components)).await);
+        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_comps)).await);
         let opts = vec!["/need-auth".to_string()];
         // unit app to unit test middleware
         let app = actix_web::test::init_service(
@@ -282,14 +282,14 @@ mod tests {
         });
         when!(mocked_synapse.who_am_i).once();
 
-        let mocked_components = CustomComponents {
-            synapse: Some(mocked_synapse),
-            db: Some(mocked_db),
-            users_cache: Some(mocked_users_cache),
-            redis: Some(mocked_redis),
-        };
+        let mocked_comps = CustomComponents::builder()
+            .with_db(mocked_db)
+            .with_redis(mocked_redis)
+            .with_synapse(mocked_synapse)
+            .with_users_cache(mocked_users_cache)
+            .build();
 
-        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_components)).await);
+        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_comps)).await);
         let opts = vec!["/need-auth".to_string()];
         // unit app to unit test middleware
         let app = actix_web::test::init_service(
