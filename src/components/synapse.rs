@@ -126,7 +126,7 @@ impl SynapseComponent {
             .send()
             .await;
 
-        Self::process_synapse_response(response).await
+        Self::process_synapse_response::<T>(response).await
     }
 
     async fn process_synapse_response<T: DeserializeOwned>(
