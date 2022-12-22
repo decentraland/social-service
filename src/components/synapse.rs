@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::routes::v1::error::CommonError;
 
@@ -98,10 +98,19 @@ impl SynapseComponent {
 
     #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
-        let who_am_i_url = format!("{}{}", self.synapse_url, WHO_AM_I_URI);
+        self.perform_authenticated_request::<WhoAmIResponse>(WHO_AM_I_URI, token)
+            .await
+    }
+
+    pub async fn perform_authenticated_request<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        token: &str,
+    ) -> Result<T, CommonError> {
+        let url = format!("{}{}", self.synapse_url, path);
         let client = reqwest::Client::new();
         match client
-            .get(who_am_i_url)
+            .get(url)
             .header("Authorization", format!("Bearer {token}"))
             .send()
             .await
@@ -115,9 +124,9 @@ impl SynapseComponent {
 
                 let text = text.unwrap();
 
-                let who_am_i_response = serde_json::from_str::<WhoAmIResponse>(&text);
+                let response = serde_json::from_str::<T>(&text);
 
-                who_am_i_response.map_err(|_| Self::parse_and_return_error(&text))
+                response.map_err(|_| Self::parse_and_return_error(&text))
             }
             Err(err) => {
                 log::warn!("error connecting to synapse {}", err);
