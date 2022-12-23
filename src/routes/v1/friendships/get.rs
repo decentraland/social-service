@@ -6,7 +6,9 @@ use actix_web::{
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
-    components::app::AppComponents, middlewares::check_auth::UserId, routes::v1::error::CommonError,
+    components::{app::AppComponents, database::DatabaseComponent},
+    middlewares::check_auth::UserId,
+    routes::v1::error::CommonError,
 };
 
 #[get("/v1/friendships/{userId}")]
@@ -15,10 +17,14 @@ pub async fn get_user_friends(
     user_id: web::Path<String>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
-    let extensions = req.extensions();
-    let logged_in_user = extensions.get::<UserId>().unwrap().0.as_str();
+    let logged_in_user = {
+        let extensions = req.extensions_mut();
+        let user_id = extensions.get::<UserId>();
+        let res = user_id.unwrap();
+        res.0.clone()
+    };
 
-    let response = get_user_friends_handler(logged_in_user, user_id.as_str(), app_data).await;
+    let response = get_user_friends_handler(logged_in_user.as_str(), user_id.as_str(), &app_data.db).await;
 
     match response {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
@@ -29,7 +35,7 @@ pub async fn get_user_friends(
 async fn get_user_friends_handler(
     logged_in_user: &str,
     user_id: &str,
-    app_data: Data<AppComponents>,
+    db: &DatabaseComponent,
 ) -> Result<FriendshipsResponse, FriendshipsError> {
     // for the moment allow only for users to query their own friends
     let permissions = user_id.eq_ignore_ascii_case(logged_in_user);
@@ -40,9 +46,7 @@ async fn get_user_friends_handler(
         )));
     }
 
-    let res = app_data
-        .as_ref()
-        .db
+    let res = db
         .get_repos()
         .as_ref()
         .unwrap()
@@ -71,18 +75,11 @@ async fn get_user_friends_handler(
 
 #[cfg(test)]
 mod tests {
-    use actix_web::web::Data;
+
     use uuid::Uuid;
 
     use crate::{
-        components::{
-            app::{AppComponents, CustomComponents},
-            configuration::Config,
-            database::{DBRepositories, DatabaseComponent},
-            redis::Redis,
-            synapse::SynapseComponent,
-            users_cache::UsersCacheComponent,
-        },
+        components::database::{DBRepositories, DatabaseComponent},
         entities::friendships::{Friendship, FriendshipsRepository},
         generate_uuid_v4,
         routes::v1::{
@@ -91,57 +88,17 @@ mod tests {
         },
     };
 
-    async fn get_mocked_components() -> (
-        Config,
-        SynapseComponent,
-        UsersCacheComponent,
-        Redis,
-        DatabaseComponent,
-        DBRepositories,
-        FriendshipsRepository,
-    ) {
-        let cfg = Config::new().unwrap();
-
-        let mocked_synapse = SynapseComponent::faux();
-        let mocked_db = DatabaseComponent::faux();
-        let mocked_users_cache = UsersCacheComponent::faux();
-        let mocked_redis = Redis::faux();
-
-        let mocked_repos = DBRepositories::faux();
-        let mocked_friendship = FriendshipsRepository::faux();
-
-        (
-            cfg,
-            mocked_synapse,
-            mocked_users_cache,
-            mocked_redis,
-            mocked_db,
-            mocked_repos,
-            mocked_friendship,
-        )
-    }
-
     use super::get_user_friends_handler;
 
     #[actix_web::test]
     async fn test_get_user_friends() {
-        let (cfg, mocked_synapse, mocked_users_cache, mocked_redis, mut mocked_db, _, __) =
-            get_mocked_components().await;
+        let mut mocked_db = DatabaseComponent::faux();
 
         unsafe {
             faux::when!(mocked_db.get_repos).then_unchecked_return(&None);
         }
 
-        let mocked_components = CustomComponents {
-            synapse: Some(mocked_synapse),
-            db: Some(mocked_db),
-            users_cache: Some(mocked_users_cache),
-            redis: Some(mocked_redis),
-        };
-
-        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_components)).await);
-
-        let response = get_user_friends_handler("user1", "user2", app_data).await;
+        let response = get_user_friends_handler("user1", "user2", &mocked_db).await;
 
         assert!(response.is_err());
 
@@ -155,15 +112,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_user_friends_database_error_should_return_unknown_error() {
-        let (
-            cfg,
-            mocked_synapse,
-            mocked_users_cache,
-            mocked_redis,
-            mut mocked_db,
-            mut mocked_repos,
-            mut mocked_friendship,
-        ) = get_mocked_components().await;
+        let mut mocked_db = DatabaseComponent::faux();
+        let mut mocked_repos = DBRepositories::faux();
+        let mut mocked_friendship = FriendshipsRepository::faux();
 
         unsafe {
             faux::when!(mocked_friendship.get_user_friends)
@@ -172,16 +123,7 @@ mod tests {
             faux::when!(mocked_db.get_repos).then_unchecked_return(&Some(mocked_repos.clone()));
         }
 
-        let mocked_components = CustomComponents {
-            synapse: Some(mocked_synapse),
-            db: Some(mocked_db),
-            users_cache: Some(mocked_users_cache),
-            redis: Some(mocked_redis),
-        };
-
-        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_components)).await);
-
-        let response = get_user_friends_handler("user1", "user1", app_data).await;
+        let response = get_user_friends_handler("user1", "user1", &mocked_db).await;
 
         assert!(response.is_err());
 
@@ -196,15 +138,9 @@ mod tests {
         let other_user = "another id";
         let other_user_2 = "another id 2";
 
-        let (
-            cfg,
-            mocked_synapse,
-            mocked_users_cache,
-            mocked_redis,
-            mut mocked_db,
-            mut mocked_repos,
-            mut mocked_friendship,
-        ) = get_mocked_components().await;
+        let mut mocked_db = DatabaseComponent::faux();
+        let mut mocked_repos = DBRepositories::faux();
+        let mut mocked_friendship = FriendshipsRepository::faux();
 
         unsafe {
             faux::when!(mocked_friendship.get_user_friends).then_unchecked(|_| {
@@ -228,16 +164,7 @@ mod tests {
             faux::when!(mocked_db.get_repos).then_unchecked_return(&Some(mocked_repos.clone()));
         }
 
-        let mocked_components = CustomComponents {
-            synapse: Some(mocked_synapse),
-            db: Some(mocked_db),
-            users_cache: Some(mocked_users_cache),
-            redis: Some(mocked_redis),
-        };
-
-        let app_data = Data::new(AppComponents::new(Some(cfg), Some(mocked_components)).await);
-
-        let response = get_user_friends_handler(user_id, user_id, app_data).await;
+        let response = get_user_friends_handler(user_id, user_id, &mocked_db).await;
 
         assert!(response.is_ok());
 
