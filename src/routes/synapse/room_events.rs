@@ -3,7 +3,10 @@ use actix_web::{
     web::{self, Data},
     HttpMessage, HttpRequest, HttpResponse,
 };
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{
+    de::{DeserializeOwned, Visitor},
+    Deserialize, Serialize,
+};
 
 use crate::{
     components::{app::AppComponents, database::DatabaseComponent, synapse::SynapseComponent},
@@ -22,21 +25,17 @@ pub struct RoomEventRequestBody {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
-// #[serde(rename_all = "lowercase")]
 pub enum FriendshipEvent {
-    // #[serde(rename = "request")]
+    #[serde(rename = "request")]
     REQUEST, // Send a friendship request
     #[serde(rename = "cancel")]
     CANCEL, // Cancel a friendship request
-    ACCEPT,  // Accept a friendship request
-    REJECT,  // Reject a friendship request
-    DELETE,  // Delete an existing friendship
-}
-
-impl FriendshipEvent {
-    fn as_str(&self) -> String {
-        format!("{self:?}").to_lowercase()
-    }
+    #[serde(rename = "accept")]
+    ACCEPT, // Accept a friendship request
+    #[serde(rename = "reject")]
+    REJECT, // Reject a friendship request
+    #[serde(rename = "delete")]
+    DELETE, // Delete an existing friendship
 }
 
 #[put("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship")]
@@ -75,7 +74,7 @@ async fn process_room_event(
     token: &str,
     room_id: &str,
     room_event: FriendshipEvent,
-    _db: &DatabaseComponent,
+    db: &DatabaseComponent,
     synapse: &SynapseComponent,
 ) -> Result<RoomEventResponse, CommonError> {
     synapse.store_room_event(token, room_id, room_event).await
