@@ -98,16 +98,20 @@ impl SynapseComponent {
 
     #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
-        self.perform_authenticated_request::<WhoAmIResponse>(WHO_AM_I_URI, token)
-            .await
+        Self::perform_authenticated_request::<WhoAmIResponse>(
+            WHO_AM_I_URI,
+            token,
+            self.synapse_url.as_str(),
+        )
+        .await
     }
 
     pub async fn perform_authenticated_request<T: DeserializeOwned>(
-        &self,
         path: &str,
         token: &str,
+        synapse_url: &str,
     ) -> Result<T, CommonError> {
-        let url = format!("{}{}", self.synapse_url, path);
+        let url = format!("{}{}", synapse_url, path);
         let client = reqwest::Client::new();
         match client
             .get(url)
