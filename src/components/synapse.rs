@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::routes::v1::error::CommonError;
+use crate::routes::{
+    synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
+    v1::error::CommonError,
+};
 
 #[derive(Debug)]
 pub struct SynapseComponent {
@@ -11,6 +14,8 @@ pub struct SynapseComponent {
 
 pub const VERSION_URI: &str = "/_matrix/client/versions";
 pub const WHO_AM_I_URI: &str = "/_matrix/client/v3/account/whoami";
+pub const STORE_ROOM_EVENT_URI: &str =
+    "/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship";
 pub const LOGIN_URI: &str = "/_matrix/client/r0/login";
 
 #[derive(Deserialize, Serialize)]
@@ -27,8 +32,8 @@ pub struct WhoAmIResponse {
 #[derive(Deserialize, Serialize)]
 pub struct SynapseErrorResponse {
     pub errcode: String,
-    pub error: String,
-    pub soft_logout: bool,
+    pub error: Option<String>,
+    pub soft_logout: Option<bool>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginIdentifier {
@@ -102,6 +107,45 @@ impl SynapseComponent {
         Self::process_synapse_response::<SynapseLoginResponse>(result).await
     }
 
+    #[tracing::instrument(name = "put room event > Synapse components")]
+    pub async fn store_room_event(
+        &self,
+        token: &str,
+        room_id: &str,
+        room_event: FriendshipEvent,
+    ) -> Result<RoomEventResponse, CommonError> {
+        let store_room_event_url = format!(
+            "{}/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship",
+            self.synapse_url
+        );
+
+        let client = reqwest::Client::new();
+        match client
+            .put(store_room_event_url)
+            .header("Authorization", format!("Bearer {token}"))
+            .json(&RoomEventRequestBody { r#type: room_event })
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let text = response.text().await;
+                if let Err(err) = text {
+                    log::warn!("error reading synapse response {}", err);
+                    return Err(CommonError::Unknown);
+                }
+
+                let text = text.unwrap();
+                let store_room_event_response = serde_json::from_str::<RoomEventResponse>(&text);
+
+                store_room_event_response.map_err(|_| Self::parse_and_return_error(&text))
+            }
+            Err(err) => {
+                log::warn!("error connecting to synapse {}", err);
+                Err(CommonError::Unknown)
+            }
+        }
+    }
+
     async fn get_request<T: DeserializeOwned>(
         path: &str,
         synapse_url: &str,
@@ -158,6 +202,9 @@ impl SynapseComponent {
 
         match error_response {
             Ok(error) => match error.errcode.as_str() {
+                "M_FORBIDDEN" => {
+                    CommonError::Forbidden(error.error.unwrap_or_else(|| "Forbidden".to_string()))
+                }
                 "M_UNKNOWN_TOKEN" => CommonError::Unauthorized,
                 "M_MISSING_TOKEN" => CommonError::Unauthorized,
                 "M_LIMIT_EXCEEDED" => CommonError::TooManyRequests,

@@ -9,6 +9,7 @@ use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
 use actix_web::{web::Data, App, HttpServer};
 use middlewares::check_auth::CheckAuthToken;
+use routes::synapse::room_events::room_event_handler;
 use tracing_actix_web::TracingLogger;
 
 use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
@@ -45,7 +46,10 @@ pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> 
     Data::new(app_data)
 }
 
-const ROUTES_NEED_AUTH_TOKEN: [&str; 1] = ["/v1/friendships/{userId}"]; // should fill this array to protect routes
+const ROUTES_NEED_AUTH_TOKEN: [&str; 2] = [
+    "/v1/friendships/{userId}",
+    "/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship",
+]; // should fill this array to protect routes
 
 pub fn get_app_router(
     data: &Data<AppComponents>,
@@ -76,6 +80,7 @@ pub fn get_app_router(
         .service(version)
         .service(get_user_friends)
         .service(login)
+        .service(room_event_handler)
 }
 
 fn generate_uuid_v4() -> String {
