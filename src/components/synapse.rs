@@ -111,7 +111,7 @@ impl SynapseComponent {
         token: &str,
         synapse_url: &str,
     ) -> Result<T, CommonError> {
-        let url = format!("{}{}", synapse_url, path);
+        let url = format!("{synapse_url}{path}");
         let client = reqwest::Client::new();
         match client
             .get(url)
