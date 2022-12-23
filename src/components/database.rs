@@ -14,7 +14,6 @@ use crate::entities::{
 
 pub type DBConnection = Pool<Postgres>;
 
-#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct DBRepositories {
     pub friendships: FriendshipsRepository,
@@ -22,7 +21,6 @@ pub struct DBRepositories {
     pub user_features: UserFeaturesRepository,
 }
 
-#[cfg_attr(test, faux::methods)]
 impl DBRepositories {
     pub fn new(
         friendships: FriendshipsRepository,
@@ -35,21 +33,8 @@ impl DBRepositories {
             user_features,
         }
     }
-
-    pub fn get_friendships(&self) -> &FriendshipsRepository {
-        &self.friendships
-    }
-
-    pub fn get_friendship_history(&self) -> &FriendshipHistoryRepository {
-        &self.friendship_history
-    }
-
-    pub fn get_user_features(&self) -> &UserFeaturesRepository {
-        &self.user_features
-    }
 }
 
-#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct DatabaseComponent {
     db_host: String,
@@ -60,7 +45,6 @@ pub struct DatabaseComponent {
     pub db_repos: Option<DBRepositories>,
 }
 
-#[cfg_attr(test, faux::methods)]
 impl DatabaseComponent {
     pub fn new(db_config: &DatabaseConfig) -> Self {
         Self {
@@ -128,7 +112,6 @@ impl DatabaseComponent {
     }
 }
 
-#[cfg_attr(test, faux::methods)]
 #[async_trait]
 impl Healthy for DatabaseComponent {
     async fn is_healthy(&self) -> bool {

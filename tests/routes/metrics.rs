@@ -7,7 +7,7 @@ mod metrics_endpoint_tests {
 
     #[actix_web::test]
     async fn metrics_endpoint_should_work() {
-        let mut config = get_configuration();
+        let mut config = get_configuration().await;
         config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
         let token = config.wkc_metrics_bearer_token.clone();
 
@@ -27,7 +27,7 @@ mod metrics_endpoint_tests {
 
     #[actix_web::test]
     async fn metrics_endpoint_should_fail_401_when_no_token() {
-        let mut config = get_configuration();
+        let mut config = get_configuration().await;
         config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
 
         let app = test::init_service(get_app(config, None).await).await;
@@ -46,7 +46,7 @@ mod metrics_endpoint_tests {
 
     #[actix_web::test]
     async fn metrics_endpoint_should_fail_401_when_no_header() {
-        let mut config = get_configuration();
+        let mut config = get_configuration().await;
         config.wkc_metrics_bearer_token = String::from("TEST_TOKEN");
 
         let app = test::init_service(get_app(config, None).await).await;
@@ -60,7 +60,7 @@ mod metrics_endpoint_tests {
 
     #[actix_web::test]
     async fn metrics_endpoint_should_fail_500() {
-        let config = get_configuration();
+        let config = get_configuration().await;
 
         let app = test::init_service(get_app(config, None).await).await;
 

@@ -6,7 +6,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_index_get() {
-        let config = get_configuration();
+        let config = get_configuration().await;
 
         let app = test::init_service(get_app(config, None).await).await;
 

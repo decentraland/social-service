@@ -20,6 +20,29 @@ mod tests {
     }
 
     #[actix_web::test]
+    async fn test_should_return_no_connection_available() -> Result<(), String> {
+        let token = "my test token";
+        let user_id = "joni";
+
+        let mut user_cache_component = create_users_cache_component().await;
+        let res = user_cache_component.add_user(token, user_id, None).await;
+
+        match res {
+            Ok(_) => Err("Should return the expected error".to_string()),
+            Err(err) => {
+                assert_eq!(
+                    format!(
+                        "Couldn't cache user {}, redis has no connection available",
+                        user_id
+                    ),
+                    err
+                );
+                Ok(())
+            }
+        }
+    }
+
+    #[actix_web::test]
     async fn test_can_store_and_get_user() {
         let mut component = create_users_cache_component().await;
 

@@ -1,22 +1,23 @@
 use actix_web::{body::MessageBody, dev::ServiceFactory, web::Data, App};
 use social_service::{
     components::{
-        app::{AppComponents, CustomComponents},
+        app::AppComponents,
         configuration::{Config, Database},
     },
     get_app_router,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 
-pub fn get_configuration() -> Config {
+pub async fn get_configuration() -> Config {
     let mut config = Config::new().expect("Couldn't read the configuration file");
     config.db.name = uuid::Uuid::new_v4().to_string();
+    create_test_db(&config.db).await;
     config
 }
 
 pub async fn get_app(
     config: Config,
-    custom_components: Option<CustomComponents>,
+    components: Option<AppComponents>,
 ) -> App<
     impl ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -26,12 +27,9 @@ pub async fn get_app(
         InitError = (),
     >,
 > {
-    create_test_db(&config.db).await;
-    let app_components = AppComponents::new(Some(config), custom_components).await;
+    let app_components = components.unwrap_or(AppComponents::new(Some(config)).await);
     let app_data = Data::new(app_components);
-    let app = get_app_router(&app_data);
-
-    app
+    get_app_router(&app_data)
 }
 
 /// We need this to avoid conccurency issues in Tests

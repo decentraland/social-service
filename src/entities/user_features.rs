@@ -4,7 +4,6 @@ use sqlx::{Error, Row};
 
 use crate::components::database::{DBConnection, DatabaseComponent};
 
-#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct UserFeaturesRepository {
     db_connection: Arc<Option<DBConnection>>,
@@ -20,7 +19,6 @@ pub struct UserFeatures {
     pub features: Vec<UserFeature>,
 }
 
-#[cfg_attr(test, faux::methods)]
 impl UserFeaturesRepository {
     pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }

@@ -10,7 +10,6 @@ use crate::{
     generate_uuid_v4,
 };
 
-#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {
     db_connection: Arc<Option<DBConnection>>,
@@ -23,7 +22,6 @@ pub struct FriendshipHistory {
     pub metadata: Option<Json<HashMap<String, String>>>,
 }
 
-#[cfg_attr(test, faux::methods)]
 impl FriendshipHistoryRepository {
     pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }

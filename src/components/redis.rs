@@ -6,14 +6,12 @@ use deadpool_redis::{
 
 use super::{configuration::Redis as RedisConfig, health::Healthy};
 
-#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct Redis {
     redis_host: String,
     pub pool: Option<Pool>,
 }
 
-#[cfg_attr(test, faux::methods)]
 impl std::fmt::Debug for Redis {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Redis")
@@ -23,7 +21,6 @@ impl std::fmt::Debug for Redis {
     }
 }
 
-#[cfg_attr(test, faux::methods)]
 impl Redis {
     pub fn new_and_run(config: &RedisConfig) -> Self {
         let mut redis = Self {
@@ -61,7 +58,6 @@ impl Redis {
     }
 }
 
-#[cfg_attr(test, faux::methods)]
 #[async_trait]
 impl Healthy for Redis {
     async fn is_healthy(&self) -> bool {

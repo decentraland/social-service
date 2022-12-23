@@ -6,7 +6,6 @@ use crate::{
     generate_uuid_v4,
 };
 
-#[cfg_attr(test, faux::create)]
 #[derive(Clone)]
 pub struct FriendshipsRepository {
     db_connection: Arc<Option<DBConnection>>,
@@ -19,7 +18,6 @@ pub struct Friendship {
     pub is_active: bool,
 }
 
-#[cfg_attr(test, faux::methods)]
 impl fmt::Debug for FriendshipsRepository {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FriendshipsRepository")
@@ -31,7 +29,6 @@ impl fmt::Debug for FriendshipsRepository {
     }
 }
 
-#[cfg_attr(test, faux::methods)]
 impl FriendshipsRepository {
     pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }

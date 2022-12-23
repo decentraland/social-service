@@ -5,7 +5,7 @@ mod database_tests {
     use crate::helpers::server::get_configuration;
 
     async fn create_db_component() -> DatabaseComponent {
-        let config = get_configuration();
+        let config = get_configuration().await;
         let mut db = DatabaseComponent::new(&Database {
             host: config.db.host.clone(),
             name: "social_service".to_string(),
