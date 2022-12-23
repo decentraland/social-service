@@ -75,30 +75,12 @@ impl SynapseComponent {
     }
 
     pub async fn get_version(&self) -> Result<VersionResponse, CommonError> {
-        let version_url = format!("{}{}", self.synapse_url, VERSION_URI);
-        match reqwest::get(version_url).await {
-            Ok(response) => {
-                let text = response.text().await;
-                if let Err(err) = text {
-                    log::warn!("error reading synapse response {}", err);
-                    return Err(CommonError::Unknown);
-                }
-
-                let text = text.unwrap();
-                let get_version_response = serde_json::from_str::<VersionResponse>(&text);
-
-                get_version_response.map_err(|_| Self::parse_and_return_error(&text))
-            }
-            Err(err) => {
-                log::warn!("error connecting to synapse {}", err);
-                Err(CommonError::Unknown)
-            }
-        }
+        Self::get_request::<VersionResponse>(VERSION_URI, &self.synapse_url).await
     }
 
     #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
-        Self::perform_authenticated_request::<WhoAmIResponse>(
+        Self::authenticated_get_request::<WhoAmIResponse>(
             WHO_AM_I_URI,
             token,
             self.synapse_url.as_str(),
@@ -106,19 +88,53 @@ impl SynapseComponent {
         .await
     }
 
-    pub async fn perform_authenticated_request<T: DeserializeOwned>(
+    #[tracing::instrument(name = "login function > Synapse components")]
+    pub async fn login(
+        &self,
+        request: SynapseLoginRequest,
+    ) -> Result<SynapseLoginResponse, CommonError> {
+        let login_url = format!("{}{}", self.synapse_url, LOGIN_URI);
+        let client = reqwest::Client::new();
+        let result = client
+            .post(login_url)
+            .json::<SynapseLoginRequest>(&request)
+            .send()
+            .await;
+
+        Self::process_synapse_response::<SynapseLoginResponse>(result).await
+    }
+
+    async fn get_request<T: DeserializeOwned>(
+        path: &str,
+        synapse_url: &str,
+    ) -> Result<T, CommonError> {
+        let url = format!("{synapse_url}{path}");
+        let client = reqwest::Client::new();
+        let response = client.get(url).send().await;
+
+        Self::process_synapse_response(response).await
+    }
+
+    async fn authenticated_get_request<T: DeserializeOwned>(
         path: &str,
         token: &str,
         synapse_url: &str,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
         let client = reqwest::Client::new();
-        match client
+        let response = client
             .get(url)
             .header("Authorization", format!("Bearer {token}"))
             .send()
-            .await
-        {
+            .await;
+
+        Self::process_synapse_response(response).await
+    }
+
+    async fn process_synapse_response<T: DeserializeOwned>(
+        response: Result<reqwest::Response, reqwest::Error>,
+    ) -> Result<T, CommonError> {
+        match response {
             Ok(response) => {
                 let text = response.text().await;
                 if let Err(err) = text {
@@ -154,40 +170,5 @@ impl SynapseComponent {
                 CommonError::Unknown
             }
         }
-    }
-
-    #[tracing::instrument(name = "login function > Synapse components")]
-    pub async fn login(
-        &self,
-        request: SynapseLoginRequest,
-    ) -> Result<SynapseLoginResponse, CommonError> {
-        let login_url = format!("{}{}", self.synapse_url, LOGIN_URI);
-        let client = reqwest::Client::new();
-        let result = match client
-            .post(login_url)
-            .json::<SynapseLoginRequest>(&request)
-            .send()
-            .await
-        {
-            Ok(response) => {
-                let text = response.text().await;
-                if let Err(err) = text {
-                    log::warn!("error reading synapse response {}", err);
-                    return Err(CommonError::Unknown);
-                }
-
-                let text = text.unwrap();
-
-                let login_response = serde_json::from_str::<SynapseLoginResponse>(&text);
-
-                login_response.map_err(|_| SynapseComponent::parse_and_return_error(&text))
-            }
-            Err(err) => {
-                log::warn!("error connecting to synapse {}", err);
-                Err(CommonError::Unknown)
-            }
-        };
-
-        result
     }
 }

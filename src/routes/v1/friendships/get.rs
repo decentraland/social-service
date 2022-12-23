@@ -17,10 +17,14 @@ pub async fn get_user_friends(
     user_id: web::Path<String>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
-    let extensions = req.extensions();
-    let logged_in_user = extensions.get::<UserId>().unwrap().0.as_str();
+    let logged_in_user = {
+        let extensions = req.extensions_mut();
+        let user_id = extensions.get::<UserId>();
+        let res = user_id.unwrap();
+        res.0.clone()
+    };
 
-    let response = get_user_friends_handler(logged_in_user, user_id.as_str(), &app_data.db).await;
+    let response = get_user_friends_handler(logged_in_user.as_str(), user_id.as_str(), &app_data.db).await;
 
     match response {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
