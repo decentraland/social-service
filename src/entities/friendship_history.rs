@@ -24,6 +24,7 @@ pub struct FriendshipHistory {
     pub friendship_id: Uuid,
     pub event: String,
     pub acting_user: String,
+    pub timestamp: i64,
     pub metadata: Option<Json<HashMap<String, String>>>,
 }
 
@@ -77,7 +78,7 @@ impl FriendshipHistoryRepository {
         Option<Transaction<'a, Postgres>>,
     ) {
         let executor = self.get_executor(transaction);
-        let query = sqlx::query("SELECT * FROM friendship_history where friendship_id = $1")
+        let query = sqlx::query("SELECT * FROM friendship_history where friendship_id = $1 ORDER BY timestamp DESC LIMIT 1")
             .bind(friendship_id);
 
         let (res, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
@@ -90,6 +91,7 @@ impl FriendshipHistoryRepository {
                     friendship_id: row.try_get("friendship_id").unwrap(),
                     event: row.try_get("event").unwrap(),
                     acting_user: row.try_get("acting_user").unwrap(),
+                    timestamp: row.try_get("timestamp").unwrap(),
                     metadata: row.try_get("metadata").unwrap(),
                 };
                 (Ok(Some(history)), transaction_to_return)

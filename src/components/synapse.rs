@@ -14,8 +14,6 @@ pub struct SynapseComponent {
 
 pub const VERSION_URI: &str = "/_matrix/client/versions";
 pub const WHO_AM_I_URI: &str = "/_matrix/client/v3/account/whoami";
-pub const STORE_ROOM_EVENT_URI: &str =
-    "/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship";
 pub const LOGIN_URI: &str = "/_matrix/client/r0/login";
 
 #[derive(Deserialize, Serialize)]
@@ -68,6 +66,32 @@ pub struct SynapseLoginResponse {
     pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
+#[derive(Deserialize)]
+pub struct RoomMember {
+    pub user_id: String,
+    pub room_id: String,
+    pub r#type: String,
+    // content: {
+    //     avatar_url: String,
+    //     displayname: String,
+    //     membership: String,
+    // },
+    // origin_server_ts: u32,
+    // sender: String,
+    // state_key: String,
+    // unsigned: {
+    //     age: u32
+    // },
+    // event_id: String,
+    // age: u32,
+}
+
+#[derive(Deserialize)]
+pub struct RoomMembersResponse {
+    pub chunk: Vec<RoomMember>,
+}
+
+#[cfg_attr(any(test, feature = "faux"), faux::methods)]
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
@@ -114,36 +138,30 @@ impl SynapseComponent {
         room_id: &str,
         room_event: FriendshipEvent,
     ) -> Result<RoomEventResponse, CommonError> {
-        let store_room_event_url = format!(
-            "{}/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship",
-            self.synapse_url
-        );
+        let path = format!("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship");
 
-        let client = reqwest::Client::new();
-        match client
-            .put(store_room_event_url)
-            .header("Authorization", format!("Bearer {token}"))
-            .json(&RoomEventRequestBody { r#type: room_event })
-            .send()
-            .await
-        {
-            Ok(response) => {
-                let text = response.text().await;
-                if let Err(err) = text {
-                    log::warn!("error reading synapse response {}", err);
-                    return Err(CommonError::Unknown);
-                }
+        Self::authenticated_put_request(
+            &path,
+            token,
+            &self.synapse_url,
+            &RoomEventRequestBody { r#type: room_event },
+        )
+        .await
+    }
 
-                let text = text.unwrap();
-                let store_room_event_response = serde_json::from_str::<RoomEventResponse>(&text);
-
-                store_room_event_response.map_err(|_| Self::parse_and_return_error(&text))
-            }
-            Err(err) => {
-                log::warn!("error connecting to synapse {}", err);
-                Err(CommonError::Unknown)
-            }
-        }
+    #[tracing::instrument(name = "get_room_members > Synapse components")]
+    pub async fn get_room_members(
+        &self,
+        token: &str,
+        room_id: &str,
+    ) -> Result<RoomMembersResponse, CommonError> {
+        let path = format!("/_matrix/client/r0/rooms/{room_id}/members");
+        Self::authenticated_get_request::<RoomMembersResponse>(
+            &path,
+            token,
+            self.synapse_url.as_str(),
+        )
+        .await
     }
 
     async fn get_request<T: DeserializeOwned>(
@@ -155,6 +173,24 @@ impl SynapseComponent {
         let response = client.get(url).send().await;
 
         Self::process_synapse_response(response).await
+    }
+
+    async fn authenticated_put_request<T: DeserializeOwned, S: Serialize>(
+        path: &str,
+        token: &str,
+        synapse_url: &str,
+        body: S,
+    ) -> Result<T, CommonError> {
+        let url = format!("{synapse_url}{path}");
+        let client = reqwest::Client::new();
+        let response = client
+            .put(url)
+            .json(&body)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await;
+
+        Self::process_synapse_response::<T>(response).await
     }
 
     async fn authenticated_get_request<T: DeserializeOwned>(
@@ -185,7 +221,6 @@ impl SynapseComponent {
                 }
 
                 let text = text.unwrap();
-
                 let response = serde_json::from_str::<T>(&text);
 
                 response.map_err(|_| Self::parse_and_return_error(&text))
