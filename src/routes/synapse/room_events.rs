@@ -9,13 +9,14 @@ use crate::{
     components::{
         app::AppComponents,
         database::{DBRepositories, DatabaseComponent},
-        synapse::SynapseComponent,
+        synapse::{RoomMembersResponse, SynapseComponent},
     },
     entities::{
-        friendship_history::{self, FriendshipHistory},
-        friendships::Friendship,
+        friendship_history::{self, FriendshipHistory, FriendshipHistoryRepository},
+        friendships::{Friendship, FriendshipsRepository},
     },
     middlewares::check_auth::{Token, UserId},
+    routes::v1::error::CommonError,
 };
 
 use super::errors::SynapseError;
@@ -44,6 +45,7 @@ pub enum FriendshipEvent {
     DELETE, // Delete an existing friendship
 }
 
+#[derive(Clone)]
 pub enum FriendshipStatus {
     Friends,
     Requested(String),
@@ -118,34 +120,30 @@ async fn process_room_event(
 ) -> Result<RoomEventResponse, SynapseError> {
     // GET MEMBERS FROM SYNAPSE
     let members_result = synapse.get_room_members(token, room_id).await;
-    let mut members: Vec<String> = vec![];
-    match members_result {
-        Ok(response) => {
-            members = response
-                .chunk
-                .iter()
-                .map(|member| member.user_id.clone())
-                .collect::<Vec<String>>()
-        }
-        Err(err) => return Err(SynapseError::CommonError(err)),
-    }
-
-    if members.len() != 2 {
-        return Err(SynapseError::FriendshipNotFound);
-    }
+    let members = get_room_members(members_result).await?;
+    // let members_result =
 
     // GET LAST STATUS FROM DB
     let repos = db.get_repos().as_ref().unwrap();
 
-    let friendship =
-        get_friendship_from_db(repos, (members.get(0).unwrap(), members.get(1).unwrap())).await?;
+    let friendship = get_friendship_from_db(repos.get_friendships(), members).await?;
 
-    let current_status = get_friendship_status_from_db(friendship, repos).await?;
+    let current_status =
+        get_friendship_status_from_db(friendship, repos.get_friendship_history()).await?;
 
     // PROCESS NEW STATUS OF FRIENDSHIP
-    let new_status = process_friendship_status(acting_user.to_string(), current_status, room_event);
+    let new_status =
+        process_friendship_status(acting_user.to_string(), &current_status, room_event);
 
-    // UPDATE FRIENDSHIP IN DB
+    // UPDATE FRIENDSHIP ACCORDINGLY IN DB
+    update_friendship_status(
+        current_status,
+        new_status,
+        room_event,
+        repos.get_friendships(),
+        repos.get_friendship_history(),
+    )
+    .await?;
 
     let res = synapse.store_room_event(token, room_id, room_event).await;
 
@@ -155,11 +153,35 @@ async fn process_room_event(
     }
 }
 
+async fn get_room_members(
+    room_members_response: Result<RoomMembersResponse, CommonError>,
+) -> Result<(String, String), SynapseError> {
+    match room_members_response {
+        Ok(response) => {
+            let members = response
+                .chunk
+                .iter()
+                .map(|member| member.user_id.clone())
+                .collect::<Vec<String>>();
+
+            if members.len() != 2 {
+                return Err(SynapseError::FriendshipNotFound);
+            }
+
+            Ok((
+                members.get(0).unwrap().to_string(),
+                members.get(1).unwrap().to_string(),
+            ))
+        }
+        Err(err) => return Err(SynapseError::CommonError(err)),
+    }
+}
+
 async fn get_friendship_from_db(
-    repos: &DBRepositories,
-    members: (&String, &String),
+    friendships_repository: &FriendshipsRepository,
+    members: (String, String),
 ) -> Result<Option<Friendship>, SynapseError> {
-    let friendship_result = repos.get_friendships().get((&members.0, &members.1)).await;
+    let friendship_result = friendships_repository.get((&members.0, &members.1)).await;
 
     if friendship_result.is_err() {
         let err = friendship_result.err().unwrap();
@@ -175,7 +197,7 @@ async fn get_friendship_from_db(
 
 async fn get_friendship_status_from_db(
     friendship: Option<Friendship>,
-    repos: &DBRepositories,
+    friendship_history_repository: &FriendshipHistoryRepository,
 ) -> Result<FriendshipStatus, SynapseError> {
     if friendship.is_none() {
         return Ok(FriendshipStatus::NotFriends);
@@ -183,7 +205,7 @@ async fn get_friendship_status_from_db(
 
     let friendship = friendship.unwrap();
 
-    let friendship_history_result = repos.get_friendship_history().get(friendship.id).await;
+    let friendship_history_result = friendship_history_repository.get(friendship.id).await;
 
     if friendship_history_result.is_err() {
         let err = friendship_history_result.err().unwrap();
@@ -213,7 +235,7 @@ fn calculate_current_friendship_status(
 
 fn process_friendship_status(
     acting_user: String,
-    current_status: FriendshipStatus,
+    current_status: &FriendshipStatus,
     room_event: FriendshipEvent,
 ) -> FriendshipStatus {
     match room_event {
@@ -227,14 +249,14 @@ fn process_friendship_status(
 
 fn verify_if_friends(
     acting_user: String,
-    current_status: FriendshipStatus,
+    current_status: &FriendshipStatus,
     room_event: FriendshipEvent,
 ) -> FriendshipStatus {
     // if someone accepts or requests a friendship without an existing or a new one, the status shouldn't change
-    if current_status != FriendshipStatus::Requested("".to_string())
+    if *current_status != FriendshipStatus::Requested("".to_string())
         && room_event != FriendshipEvent::REQUEST
     {
-        return current_status;
+        return (*current_status).clone();
     }
 
     match current_status {
@@ -259,4 +281,23 @@ fn verify_if_friends(
             FriendshipStatus::NotFriends
         }
     }
+}
+
+async fn update_friendship_status(
+    current_status: FriendshipStatus,
+    new_status: FriendshipStatus,
+    room_event: FriendshipEvent,
+    friendships_repository: &FriendshipsRepository,
+    friendship_history_repository: &FriendshipHistoryRepository,
+) -> Result<(), SynapseError> {
+    if current_status == new_status {
+        return Ok(());
+    }
+
+    // start transaction
+        // store friendship update
+        // store history
+    // end transaction
+
+    Ok(())
 }
