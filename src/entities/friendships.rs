@@ -1,4 +1,4 @@
-use sqlx::{types::Uuid, Error, Row};
+use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, sync::Arc};
 
 use crate::{
@@ -90,6 +90,7 @@ impl FriendshipsRepository {
         &self,
         address: &str,
         include_inactive: bool,
+        transaction: Option<&Transaction<'_, Postgres>>,
     ) -> Result<Vec<Friendship>, sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let active_only_clause = " AND is_active";

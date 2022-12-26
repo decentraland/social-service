@@ -123,24 +123,23 @@ where
                 match user_cache.get_user(&token).await {
                     Ok(user_id) => Ok(user_id),
                     Err(e) => {
-
                         println!("trying to get user {} but {}", token, e);
                         match components.synapse.who_am_i(&token).await {
-                        Ok(response) => {
-                            if let Err(err) =
-                                user_cache.add_user(&token, &response.user_id, None).await
-                            {
-                                log::error!(
-                                    "check_auth.rs > Error on storing token into Redis: {:?}",
-                                    err
-                                )
-                            }
+                            Ok(response) => {
+                                if let Err(err) =
+                                    user_cache.add_user(&token, &response.user_id, None).await
+                                {
+                                    log::error!(
+                                        "check_auth.rs > Error on storing token into Redis: {:?}",
+                                        err
+                                    )
+                                }
 
-                            Ok(response.user_id)
+                                Ok(response.user_id)
+                            }
+                            Err(err) => Err(err),
                         }
-                        Err(err) => Err(err),
-                        }
-                    },
+                    }
                 }
             }; // drop mutex lock at the end of scope
 

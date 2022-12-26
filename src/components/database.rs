@@ -1,15 +1,19 @@
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::DateTime;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
+use futures_util::Future;
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row, Transaction};
 
 use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
-use crate::entities::{
-    friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
-    user_features::UserFeaturesRepository,
+use crate::{
+    entities::{
+        friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
+        user_features::UserFeaturesRepository,
+    },
+    routes::v1::error::CommonError,
 };
 
 pub type DBConnection = Pool<Postgres>;
