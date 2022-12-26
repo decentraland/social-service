@@ -1,4 +1,5 @@
 mod common;
+pub use common::*;
 
 use actix_web::test;
 use common::{get_app, get_configuration};

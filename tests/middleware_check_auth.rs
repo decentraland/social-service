@@ -1,11 +1,11 @@
 mod common;
+pub use common::*;
 
 use actix_web::{
     test,
     web::{self, Data},
     App, HttpMessage, HttpResponse,
 };
-use common::*;
 use social_service::{
     components::app::AppComponents,
     middlewares::check_auth::{CheckAuthToken, UserId},
@@ -80,11 +80,11 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
 }
 
 #[actix_web::test]
-async fn should_call_synapse_when_token_not_available_in_redis_and_store_userid_into_redis() { 
+async fn should_call_synapse_when_token_not_available_in_redis_and_store_userid_into_redis() {
     let user_id = "0xa";
     let synapse_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
     let mut config = get_configuration().await;
-    config.synapse.url = synapse_server.uri(); 
+    config.synapse.url = synapse_server.uri();
 
     let app = test::init_service(get_app(config, None).await).await;
 

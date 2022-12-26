@@ -1,13 +1,23 @@
 mod common;
+pub use common::*;
 
 use actix_web::{test, web::Data};
 use reqwest::StatusCode;
 use social_service::{
-    components::app::AppComponents, get_app_router,
+    components::{app::AppComponents, database::DatabaseComponent},
+    get_app_router,
     routes::v1::friendships::types::FriendshipsResponse,
 };
 
-use common::{get_app, get_configuration, who_am_i_synapse_mock_server};
+async fn add_friendship(db: &DatabaseComponent, friendship: (&str, &str)) {
+    db.db_repos
+        .as_ref()
+        .expect("repos to be present")
+        .friendships
+        .create_new_friendships(friendship)
+        .await
+        .expect("can create friendship");
+}
 
 // Get friends should return list of friends
 #[actix_web::test]
@@ -26,15 +36,7 @@ async fn test_get_friends() {
 
     let app = test::init_service(router).await;
 
-    app_data
-        .db
-        .db_repos
-        .as_ref()
-        .expect("repos to be present")
-        .friendships
-        .create_new_friendships((user_id, other_user_id))
-        .await
-        .expect("can create friendship");
+    add_friendship(&app_data.db, (user_id, other_user_id)).await;
 
     let token = "my-token";
 
@@ -119,8 +121,41 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
 
 #[actix_web::test]
 async fn test_get_user_friends_should_return_the_address_list() {
-    let user_id = "custom id";
-    let other_user = "another id";
-    let other_user_2 = "another id 2";
-    // let app_data = Data::new(AppComponents::new(Some(cfg)).await);
+    let user_id = "a_user_id";
+    let other_user = "another_id";
+    let other_user_2 = "another_id_2";
+
+    let mock_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+    let mut config = get_configuration().await;
+    config.synapse.url = mock_server.uri();
+
+    let app_components = AppComponents::new(Some(config)).await;
+    let app_data = Data::new(app_components);
+
+    let router = get_app_router(&app_data);
+
+    let app = test::init_service(router).await;
+
+    add_friendship(&app_data.db, (user_id, other_user)).await;
+    add_friendship(&app_data.db, (user_id, other_user_2)).await;
+
+    let token = "my-token";
+
+    let url = format!("/v1/friendships/{user_id}");
+
+    let header = ("authorization", format!("Bearer {}", token));
+    let req = test::TestRequest::get()
+        .uri(url.as_str())
+        .append_header(header)
+        .to_request();
+
+    let response = test::call_service(&app, req).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Should parse correctly
+    let friendships_response: FriendshipsResponse = test::read_body_json(response).await;
+    let addresses: Vec<&str> = friendships_response.friendships.iter().map(|friendship| friendship.address.as_str()).collect();
+    assert!(addresses.contains(&other_user));
+    assert!(addresses.contains(&other_user_2));
 }

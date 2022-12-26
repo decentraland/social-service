@@ -1,7 +1,7 @@
 mod common;
+pub use common::*;
 
 use actix_web::test;
-use common::*;
 
 const METRICS_URI: &str = "/metrics";
 

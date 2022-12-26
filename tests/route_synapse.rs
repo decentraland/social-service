@@ -1,6 +1,6 @@
 mod common;
+pub use common::*;
 
-use common::*;
 use std::collections::HashMap;
 use wiremock::{
     matchers::{method, path},
@@ -8,13 +8,10 @@ use wiremock::{
 };
 
 use actix_web::{test, web::Data};
-use common::get_configuration;
 use social_service::{
     components::{
         app::AppComponents,
-        synapse::{
-            AuthChain, LoginIdentifier, SynapseLoginRequest, SynapseLoginResponse,
-        },
+        synapse::{AuthChain, LoginIdentifier, SynapseLoginRequest, SynapseLoginResponse},
     },
     get_app_router,
 };
@@ -102,9 +99,17 @@ async fn should_be_200_and_has_user_in_cache() {
 
 #[actix_web::test]
 async fn should_be_500_and_not_user_in_cache() {
-    let config = get_configuration().await;
+    let synapse_server = create_synapse_mock_server().await;
 
-    //when!(mocked_synapse.login).then(|_| Err(CommonError::Unknown));
+    Mock::given(method("GET"))
+        .and(path(URL))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&synapse_server)
+        .await;
+
+    let mut config = get_configuration().await;
+    config.synapse.url = synapse_server.uri();
+
     // Manual Setup
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);

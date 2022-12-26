@@ -1,4 +1,5 @@
 mod common;
+pub use common::*;
 
 use social_service::components::{configuration::Database, database::DatabaseComponent};
 
