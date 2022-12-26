@@ -25,7 +25,7 @@ pub async fn get_user_friends(
             .clone()
     };
 
-    // Return error when DB is not available
+    // Return error when user has no permission
     if !has_permission(logged_in_user.as_str(), user_id.as_str()) {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
             format!("You don't have permission to view {user_id} friends"),
@@ -49,7 +49,6 @@ pub async fn get_user_friends(
 }
 
 fn has_permission(logged_user_id: &str, user_id: &str) -> bool {
-    println!("checking permission for logged user: {logged_user_id} to be user: {user_id}");
     user_id.eq_ignore_ascii_case(logged_user_id)
 }
 
