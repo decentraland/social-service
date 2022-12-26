@@ -122,7 +122,10 @@ where
                 let mut user_cache = components.users_cache.lock().await;
                 match user_cache.get_user(&token).await {
                     Ok(user_id) => Ok(user_id),
-                    Err(_) => match components.synapse.who_am_i(&token).await {
+                    Err(e) => {
+
+                        println!("trying to get user {} but {}", token, e);
+                        match components.synapse.who_am_i(&token).await {
                         Ok(response) => {
                             if let Err(err) =
                                 user_cache.add_user(&token, &response.user_id, None).await
@@ -136,6 +139,7 @@ where
                             Ok(response.user_id)
                         }
                         Err(err) => Err(err),
+                        }
                     },
                 }
             }; // drop mutex lock at the end of scope

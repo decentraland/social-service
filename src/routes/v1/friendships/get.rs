@@ -18,7 +18,11 @@ pub async fn get_user_friends(
 ) -> Result<HttpResponse, FriendshipsError> {
     let logged_in_user = {
         let extensions = req.extensions();
-        extensions.get::<UserId>().unwrap().0.clone()
+        extensions
+            .get::<UserId>()
+            .expect("to have a UserId")
+            .0
+            .clone()
     };
 
     // Return error when DB is not available
@@ -31,10 +35,7 @@ pub async fn get_user_friends(
     // Look for friendships and build friend addresses list
     match &app_data.db.db_repos {
         Some(repos) => {
-            let friendships = repos
-                .friendships
-                .get_user_friends(&user_id, false)
-                .await;
+            let friendships = repos.friendships.get_user_friends(&user_id, false).await;
             match friendships {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 Ok(friendships) => {
@@ -43,24 +44,23 @@ pub async fn get_user_friends(
                 }
             }
         }
-        None => Err(FriendshipsError::CommonError(CommonError::Unknown)),
+        None => Err(FriendshipsError::CommonError(CommonError::NotFound)),
     }
 }
 
 fn has_permission(logged_user_id: &str, user_id: &str) -> bool {
+    println!("checking permission for logged user: {logged_user_id} to be user: {user_id}");
     user_id.eq_ignore_ascii_case(logged_user_id)
 }
 
 fn get_friends(user_id: &str, friendships: Vec<Friendship>) -> Vec<String> {
     friendships
         .iter()
-        .map(|friendship| {
-            match friendship.address_1.eq_ignore_ascii_case(user_id) {
+        .map(
+            |friendship| match friendship.address_1.eq_ignore_ascii_case(user_id) {
                 true => friendship.address_2.to_string(),
-                false => friendship.address_1.to_string()
-            }
-        })
+                false => friendship.address_1.to_string(),
+            },
+        )
         .collect()
 }
-
-

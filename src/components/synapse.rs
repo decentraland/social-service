@@ -96,6 +96,7 @@ impl SynapseComponent {
 
     #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
+        println!("asking for who_am_i");
         let who_am_i_url = format!("{}{}", self.synapse_url, WHO_AM_I_URI);
         let client = reqwest::Client::new();
         match client

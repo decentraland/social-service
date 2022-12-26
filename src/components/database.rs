@@ -110,6 +110,12 @@ impl DatabaseComponent {
     pub fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
         db_connection.as_ref().as_ref().unwrap()
     }
+
+    pub async fn close(&self) {
+        if let Some(connection) = &self.db_connection.as_ref() {
+            connection.close().await;
+        }
+    }
 }
 
 #[async_trait]

@@ -3,10 +3,15 @@ use social_service::{
     components::{
         app::AppComponents,
         configuration::{Config, Database},
+        synapse::{WhoAmIResponse, WHO_AM_I_URI},
     },
     get_app_router,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
+use wiremock::{
+    matchers::{method, path},
+    MockServer, ResponseTemplate, Mock,
+};
 
 pub async fn get_configuration() -> Config {
     let mut config = Config::new().expect("Couldn't read the configuration file");
@@ -62,4 +67,34 @@ pub async fn create_test_db(db_config: &Database) -> PgPool {
         .expect("Failed to migrate DB");
 
     pool
+}
+
+pub async fn create_synapse_mock_server() -> MockServer {
+    MockServer::start().await
+}
+
+pub async fn mock_server_expect_no_calls() -> MockServer {
+    let server = create_synapse_mock_server().await;
+    Mock::given(method("GET"))
+        .and(path(WHO_AM_I_URI))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .named("No calls to who am I")
+        .mount(&server)
+        .await;
+
+    server
+}
+
+/// Creates a synapse mocked server which respond with the given user ID to who am I endpoint.
+pub async fn who_am_i_synapse_mock_server(user_id: String) -> MockServer {
+    let server = create_synapse_mock_server().await;
+    let response = WhoAmIResponse { user_id };
+    Mock::given(method("GET"))
+        .and(path(WHO_AM_I_URI))
+        .respond_with(ResponseTemplate::new(200).set_body_json(response))
+        .mount(&server)
+        .await;
+
+    server
 }
