@@ -1,4 +1,4 @@
-use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
+use sqlx::{query::Query, types::Uuid, Error, Executor, Postgres, Row, Transaction};
 use std::{fmt, sync::Arc};
 
 use crate::{
@@ -38,34 +38,57 @@ impl FriendshipsRepository {
         &self.db_connection
     }
 
-    // Example
-    pub async fn create_new_friendships(&self, addresses: (&str, &str)) -> Result<(), sqlx::Error> {
+    pub fn create_new_friendships_query<'a>(
+        &self,
+        addresses: (&'a str, &'a str),
+    ) -> Query<'a, Postgres, sqlx::postgres::PgArguments> {
         let (address1, address2) = addresses;
-        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
-        match sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
+        sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
             .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
             .bind(address1)
             .bind(address2)
-            .execute(db_conn)
-            .await
-        {
+    }
+
+    pub async fn create_new_friendships(
+        &self,
+        addresses: (&str, &str),
+        transaction: Option<Transaction<'_, Postgres>>,
+    ) -> Result<(), sqlx::Error> {
+        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+        let query = self.create_new_friendships_query(addresses);
+        let res = DatabaseComponent::execute_query(query, transaction, db_conn).await;
+        match res {
             Ok(_) => Ok(()),
             Err(err) => Err(err),
         }
     }
 
-    pub async fn get(&self, addresses: (&str, &str)) -> Result<Option<Friendship>, sqlx::Error> {
+    pub async fn get(
+        &self,
+        addresses: (&str, &str),
+        transaction: Option<Transaction<'_, Postgres>>,
+    ) -> Result<Option<Friendship>, sqlx::Error> {
         let (address1, address2) = addresses;
-        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
-        match sqlx::query(
+
+        let query = sqlx::query(
             "SELECT * FROM friendships WHERE (address_1 = $1 AND address_2 = $2) OR (address_1 = $3 AND address_2 = $4)"
         )
         .bind(address1)
         .bind(address2)
         .bind(address2)
-        .bind(address1)
-        .fetch_one(db_conn).await
-        {
+        .bind(address1);
+
+        let result = {
+            if let Some(mut transaction) = transaction {
+                query.fetch_one(&mut transaction).await
+            } else {
+                query
+                    .fetch_one(DatabaseComponent::get_connection(&self.db_connection))
+                    .await
+            }
+        };
+
+        match result {
             Ok(row) => {
                 let friendship = Friendship {
                     id: row.try_get("id").unwrap(),

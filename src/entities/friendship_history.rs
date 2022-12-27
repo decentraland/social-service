@@ -1,6 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use sqlx::{
+    postgres::Postgres,
+    query::Query,
     types::{Json, Uuid},
     Error, Row,
 };
@@ -27,6 +29,23 @@ impl FriendshipHistoryRepository {
         Self { db_connection: db }
     }
 
+    pub fn create_query<'a>(
+        &self,
+        friendship_id: Uuid,
+        event: &'a str,
+        acting_user: &'a str,
+        metadata: Option<Json<HashMap<String, String>>>,
+    ) -> Query<'a, Postgres, sqlx::postgres::PgArguments> {
+        sqlx::query(
+                "INSERT INTO friendship_history (id,friendship_id, event, acting_user, metadata) VALUES ($1,$2,$3,$4,$5)",
+        )
+        .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
+        .bind(friendship_id)
+        .bind(event)
+        .bind(acting_user)
+        .bind(metadata)
+    }
+
     pub async fn create(
         &self,
         friendship_id: Uuid,
@@ -35,16 +54,10 @@ impl FriendshipHistoryRepository {
         metadata: Option<Json<HashMap<String, String>>>,
     ) -> Result<(), sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
-        match sqlx::query(
-                "INSERT INTO friendship_history (id,friendship_id, event, acting_user, metadata) VALUES ($1,$2,$3,$4,$5)",
-        )
-        .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
-        .bind(friendship_id)
-        .bind(event)
-        .bind(acting_user)
-        .bind(metadata)
-        .execute(db_conn)
-        .await
+        match self
+            .create_query(friendship_id, event, acting_user, metadata)
+            .execute(db_conn)
+            .await
         {
             Ok(_) => Ok(()),
             Err(err) => Err(err),

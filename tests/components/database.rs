@@ -7,7 +7,7 @@ mod database_tests {
         components::{configuration::Database, database::DatabaseComponent},
         routes::v1::error::CommonError,
     };
-    use sqlx::{Postgres, Transaction};
+    use sqlx::{postgres::PgArguments, query::Query, Postgres, Transaction};
 
     use crate::helpers::server::get_configuration;
 
@@ -118,37 +118,26 @@ mod database_tests {
         let db = create_db_component().await;
         let dbrepos = db.db_repos.as_ref().unwrap();
         let addresses = ("1", "2");
-        let mut queries: Vec<
-            Box<
-                dyn FnMut(
-                    &Transaction<Postgres>,
-                )
-                    -> Pin<Box<dyn Future<Output = Result<(), CommonError>>>>,
-            >,
-        > = vec![];
+        let mut queries: Vec<Query<'_, Postgres, PgArguments>> = vec![];
 
-        queries.push(Box::new(|_trans| {
-            Box::pin(async move {
-                dbrepos
-                    .friendships
-                    .create_new_friendships(addresses)
-                    .await
-                    .unwrap();
+        queries.push(
+            dbrepos
+                .get_friendships()
+                .create_new_friendships_query(addresses),
+        );
 
-                Ok(())
-            })
-        }));
+        // queries.push(Box::new(|trans| {
+        //     Box::pin(async move {
+        //         dbrepos
+        //             .friendships
+        //             .get_user_friends(addresses.0, false, Some(&trans))
+        //             .await
+        //             .unwrap();
 
-        queries.push(Box::new(|trans| {
-            Box::pin(async move {
-                dbrepos
-                    .friendships
-                    .get_user_friends(addresses.0, false, Some(&trans))
-                    .await
-                    .unwrap();
+        //         Ok(())
+        //     })
+        // }));
 
-                Ok(())
-            })
-        }));
+        db.execute_transaction(queries).await;
     }
 }

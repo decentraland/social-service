@@ -1,9 +1,13 @@
-use std::{pin::Pin, sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::DateTime;
-use futures_util::Future;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row, Transaction};
+
+use sqlx::{
+    postgres::{PgArguments, PgPoolOptions, PgQueryResult},
+    query::Query,
+    Error, Pool, Postgres, Row, Transaction,
+};
 
 use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
