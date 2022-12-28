@@ -41,22 +41,25 @@ impl fmt::Debug for FriendshipsRepository {
 pub trait FriendshipRepositoryImplementation {
     fn get_db_connection(&self) -> &Arc<Option<DBConnection>>;
 
-    fn create_new_friendships_query(
+    fn create_new_friendships_query<'a>(
         &self,
-        addresses: (String, String),
-    ) -> Query<'static, Postgres, sqlx::postgres::PgArguments>;
+        addresses: (&'a str, &'a str),
+    ) -> Query<'a, Postgres, sqlx::postgres::PgArguments>;
 
     async fn create_new_friendships<'a>(
-        &self,
-        addresses: (String, String),
-        transaction: Option<Arc<Transaction<'a, Postgres>>>,
-    ) -> Result<(), sqlx::Error>;
+        &'a self,
+        addresses: (&'a str, &'a str),
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>);
 
     async fn get<'a>(
         &self,
-        addresses: (String, String),
-        transaction: &'a mut Option<Transaction<'a, Postgres>>,
-    ) -> Result<Option<Friendship>, sqlx::Error>;
+        addresses: (&'a str, &'a str),
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (
+        Result<Option<Friendship>, sqlx::Error>,
+        Option<Transaction<'a, Postgres>>,
+    );
 
     async fn get_user_friends<'a>(
         &self,
@@ -66,17 +69,17 @@ pub trait FriendshipRepositoryImplementation {
     ) -> Result<Vec<Friendship>, sqlx::Error>;
 }
 
-#[automock]
+// #[automock]
 #[async_trait]
 impl FriendshipRepositoryImplementation for FriendshipsRepository {
     fn get_db_connection(&self) -> &Arc<Option<DBConnection>> {
         &self.db_connection
     }
 
-    fn create_new_friendships_query(
+    fn create_new_friendships_query<'a>(
         &self,
-        addresses: (String, String),
-    ) -> Query<'static, Postgres, sqlx::postgres::PgArguments> {
+        addresses: (&'a str, &'a str),
+    ) -> Query<'a, Postgres, sqlx::postgres::PgArguments> {
         let (address1, address2) = addresses;
         sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
             .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
@@ -85,24 +88,28 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     }
 
     async fn create_new_friendships<'a>(
-        &self,
-        addresses: (String, String),
-        transaction: Option<Arc<Transaction<'a, Postgres>>>,
-    ) -> Result<(), sqlx::Error> {
+        &'a self,
+        addresses: (&'a str, &'a str),
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let query = self.create_new_friendships_query(addresses);
-        let res = DatabaseComponent::execute_query(query, transaction, db_conn).await;
+        let (res, transaction) =
+            DatabaseComponent::execute_query(query, transaction, db_conn).await;
         match res {
-            Ok(_) => Ok(()),
-            Err(err) => Err(err),
+            Ok(_) => (Ok(()), transaction),
+            Err(err) => (Err(err), transaction),
         }
     }
 
     async fn get<'a>(
         &self,
-        addresses: (String, String),
-        transaction: &'a mut Option<Transaction<'a, Postgres>>,
-    ) -> Result<Option<Friendship>, sqlx::Error> {
+        addresses: (&'a str, &'a str),
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (
+        Result<Option<Friendship>, sqlx::Error>,
+        Option<Transaction<'a, Postgres>>,
+    ) {
         let (address1, address2) = addresses;
 
         let query = sqlx::query(
@@ -115,7 +122,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
 
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
 
-        let result = DatabaseComponent::fetch_one(query, transaction, db_conn).await;
+        let (result, transaction) = DatabaseComponent::fetch_one(query, transaction, db_conn).await;
 
         match result {
             Ok(row) => {
@@ -125,11 +132,11 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                     address_2: row.try_get("address_2").unwrap(),
                     is_active: row.try_get("is_active").unwrap(),
                 };
-                Ok(Some(friendship))
+                (Ok(Some(friendship)), transaction)
             }
             Err(err) => match err {
-                Error::RowNotFound => Ok(None),
-                _ => Err(err),
+                Error::RowNotFound => (Ok(None), transaction),
+                _ => (Err(err), transaction),
             },
         }
     }

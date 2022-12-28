@@ -67,28 +67,30 @@ impl DatabaseComponent {
         db_connection.as_ref().as_ref().unwrap()
     }
 
-    pub async fn execute_query(
-        query: Query<'_, Postgres, PgArguments>,
-        transaction: Option<Arc<Transaction<'_, Postgres>>>,
-        pool: &Pool<Postgres>,
-    ) -> Result<PgQueryResult, Error> {
-        if let Some(mut transaction) = transaction {
-            let transaction = Arc::get_mut(&mut transaction);
-            query.execute(transaction.unwrap()).await
+    pub async fn execute_query<'a>(
+        query: Query<'a, Postgres, PgArguments>,
+        transaction: Option<Transaction<'a, Postgres>>,
+        pool: &'a Pool<Postgres>,
+    ) -> (
+        Result<PgQueryResult, Error>,
+        Option<Transaction<'a, Postgres>>,
+    ) {
+        if let Some(mut executor) = transaction {
+            (query.execute(&mut executor).await, Some(executor))
         } else {
-            query.execute(pool).await
+            (query.execute(pool).await, transaction)
         }
     }
 
-    pub async fn fetch_one(
+    pub async fn fetch_one<'a>(
         query: Query<'_, Postgres, PgArguments>,
-        transaction: &mut Option<Transaction<'_, Postgres>>,
+        transaction: Option<Transaction<'a, Postgres>>,
         pool: &Pool<Postgres>,
-    ) -> Result<PgRow, Error> {
-        if let Some(transaction) = transaction {
-            query.fetch_one(transaction).await
+    ) -> (Result<PgRow, Error>, Option<Transaction<'a, Postgres>>) {
+        if let Some(mut executor) = transaction {
+            (query.fetch_one(&mut executor).await, Some(executor))
         } else {
-            query.fetch_one(pool).await
+            (query.fetch_one(pool).await, transaction)
         }
     }
 
@@ -110,7 +112,7 @@ pub trait DatabaseComponentImplementation {
     fn get_repos(&self) -> &Option<DBRepositories>;
     async fn run(&mut self) -> Result<(), sqlx::Error>;
     fn is_connected(&self) -> bool;
-    async fn start_transaction<'a>(&self) -> Result<Arc<Transaction<'a, Postgres>>, Error>;
+    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error>;
 }
 
 #[automock]
@@ -179,10 +181,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
     async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error> {
         let db_connection = self.db_connection.as_ref().as_ref().unwrap();
 
-        match db_connection.begin().await {
-            Ok(trans) => Ok(Arc::new(trans)),
-            Err(err) => Err(err),
-        }
+        db_connection.begin().await
     }
 }
 

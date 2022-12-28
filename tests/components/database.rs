@@ -134,25 +134,49 @@ mod database_tests {
     async fn should_run_transaction_succesfully() {
         let db = create_db_component().await;
         let dbrepos = db.db_repos.as_ref().unwrap();
-        let addresses = ("1".to_string(), "2".to_string());
-        let addresses_2 = ("2".to_string(), "2".to_string());
+        let addresses = ("1", "2");
+        let addresses_2 = ("2", "3");
 
         let trans = db.start_transaction().await.unwrap();
 
-        dbrepos
+        let (_res, trans) = dbrepos
             .get_friendships()
-            .create_new_friendships(addresses, Some(trans.clone()))
-            .await
-            .unwrap();
+            .create_new_friendships(addresses, Some(trans))
+            .await;
 
-        dbrepos
+        let (_res, trans) = dbrepos
             .get_friendships()
-            .create_new_friendships(addresses_2, Some(trans.clone()))
-            .await
-            .unwrap();
+            .create_new_friendships(addresses_2, trans)
+            .await;
 
-        let t = trans.as_ref();
+        // Read from pre transaction status
+        let (read, _) = dbrepos.get_friendships().get(addresses, None).await;
 
-        t.commit().await.unwrap();
+        match read {
+            Ok(read) => {
+                assert!(read.is_none())
+            }
+            Err(err) => panic!("Failed while reading from db {}", err),
+        }
+
+        let (read, trans) = dbrepos.get_friendships().get(addresses, trans).await;
+
+        match read {
+            Ok(read) => {
+                assert!(read.is_some())
+            }
+            Err(err) => panic!("Failed while reading from db {}", err),
+        }
+
+        trans.unwrap().commit().await.unwrap();
+
+        let (read, _) = dbrepos.get_friendships().get(addresses, None).await;
+
+        match read {
+            Ok(read) => {
+                assert!(read.is_some())
+            }
+            Err(err) => panic!("Failed while reading from db {}", err),
+        }
     }
 }
