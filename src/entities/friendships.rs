@@ -72,7 +72,6 @@ pub trait FriendshipRepositoryImplementation {
     );
 }
 
-// #[automock]
 #[async_trait]
 impl FriendshipRepositoryImplementation for FriendshipsRepository {
     fn get_db_connection(&self) -> &Arc<Option<DBConnection>> {

@@ -115,11 +115,10 @@ pub trait DatabaseComponentImplementation {
     fn is_connected(&self) -> bool;
     async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error>;
 
-    fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection;
     async fn close(&self);
 }
 
-// #[automock]
+#[automock]
 #[async_trait]
 impl DatabaseComponentImplementation for DatabaseComponent {
     fn get_repos(&self) -> &Option<DBRepositories> {
@@ -170,10 +169,6 @@ impl DatabaseComponentImplementation for DatabaseComponent {
 
     fn is_connected(&self) -> bool {
         self.db_connection.is_some()
-    }
-
-    fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
-        db_connection.as_ref().as_ref().unwrap()
     }
 
     async fn close(&self) {
