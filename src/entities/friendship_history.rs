@@ -1,10 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
+use mockall::predicate::*;
+use mockall::*;
 use sqlx::{
     postgres::Postgres,
     query::Query,
     types::{Json, Uuid},
-    Error, Row,
+    Error, Row, Transaction,
 };
 
 use crate::{
@@ -24,6 +26,7 @@ pub struct FriendshipHistory {
     pub metadata: Option<Json<HashMap<String, String>>>,
 }
 
+// #[automock]
 impl FriendshipHistoryRepository {
     pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }
@@ -46,31 +49,33 @@ impl FriendshipHistoryRepository {
         .bind(metadata)
     }
 
-    pub async fn create(
+    pub async fn create<'a>(
         &self,
         friendship_id: Uuid,
         event: &str,
         acting_user: &str,
         metadata: Option<Json<HashMap<String, String>>>,
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
     ) -> Result<(), sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
-        match self
-            .create_query(friendship_id, event, acting_user, metadata)
-            .execute(db_conn)
-            .await
-        {
+        let query = self.create_query(friendship_id, event, acting_user, metadata);
+
+        match DatabaseComponent::execute_query(query, transaction, db_conn).await {
             Ok(_) => Ok(()),
             Err(err) => Err(err),
         }
     }
 
-    pub async fn get(&self, friendship_id: Uuid) -> Result<Option<FriendshipHistory>, sqlx::Error> {
+    pub async fn get<'a>(
+        &self,
+        friendship_id: Uuid,
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
+    ) -> Result<Option<FriendshipHistory>, sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
-        match sqlx::query("SELECT * FROM friendship_history where friendship_id = $1")
-            .bind(friendship_id)
-            .fetch_one(db_conn)
-            .await
-        {
+        let query = sqlx::query("SELECT * FROM friendship_history where friendship_id = $1")
+            .bind(friendship_id);
+
+        match DatabaseComponent::fetch_one(query, transaction, db_conn).await {
             Ok(row) => {
                 let history = FriendshipHistory {
                     friendship_id: row.try_get("friendship_id").unwrap(),

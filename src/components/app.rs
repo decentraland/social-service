@@ -2,8 +2,8 @@ use futures_util::lock::Mutex;
 
 use super::configuration::Database;
 use super::{
-    configuration::Config, database::DatabaseComponent, health::HealthComponent,
-    synapse::SynapseComponent,
+    configuration::Config, database::DatabaseComponent, database::DatabaseComponentImplementation,
+    health::HealthComponent, synapse::SynapseComponent,
 };
 
 use super::{

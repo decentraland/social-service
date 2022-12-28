@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod database_tests {
-    use std::pin::Pin;
-
-    use futures_util::Future;
     use social_service::{
-        components::{configuration::Database, database::DatabaseComponent},
-        routes::v1::error::CommonError,
+        components::{
+            configuration::Database,
+            database::{DatabaseComponent, DatabaseComponentImplementation},
+        },
+        entities::friendships::FriendshipRepositoryImplementation,
     };
-    use sqlx::{postgres::PgArguments, query::Query, Postgres, Transaction};
+    use sqlx::{postgres::PgArguments, query::Query, Postgres};
 
     use crate::helpers::server::get_configuration;
 
@@ -28,13 +28,18 @@ mod database_tests {
     #[serial_test::serial]
     async fn should_create_and_get_a_friendship() {
         let db = create_db_component().await;
-        let dbrepos = db.db_repos.as_ref().unwrap();
+        let dbrepos = db.get_repos().as_ref().unwrap();
+        let trans = None;
         dbrepos
             .friendships
-            .create_new_friendships(("A", "B"))
+            .create_new_friendships(("A".to_string(), "B".to_string()), &mut trans)
             .await
             .unwrap();
-        let friendship = dbrepos.friendships.get(("A", "B")).await.unwrap();
+        let friendship = dbrepos
+            .friendships
+            .get(("A".to_string(), "B".to_string()), &mut trans)
+            .await
+            .unwrap();
         assert!(friendship.is_some());
 
         assert_eq!(friendship.as_ref().unwrap().address_1, "A");
@@ -46,18 +51,30 @@ mod database_tests {
     async fn should_create_a_friendship_request_event() {
         let db = create_db_component().await;
         let dbrepos = db.db_repos.as_ref().unwrap();
+
+        let mut trans = None;
+
         dbrepos
             .friendships
-            .create_new_friendships(("C", "D"))
+            .create_new_friendships(("C".to_string(), "D".to_string()), &mut trans)
             .await
             .unwrap();
-        let friendship = dbrepos.friendships.get(("C", "D")).await.unwrap().unwrap();
+        let friendship = dbrepos
+            .friendships
+            .get(("C".to_string(), "D".to_string()), &mut trans)
+            .await
+            .unwrap()
+            .unwrap();
         dbrepos
             .friendship_history
-            .create(friendship.id, "request", "C", None)
+            .create(friendship.id, "request", "C", None, &mut trans)
             .await
             .unwrap();
-        let friendship_history = dbrepos.friendship_history.get(friendship.id).await.unwrap();
+        let friendship_history = dbrepos
+            .friendship_history
+            .get(friendship.id, &mut trans)
+            .await
+            .unwrap();
         assert!(friendship_history.is_some());
 
         assert_eq!(
@@ -117,27 +134,21 @@ mod database_tests {
     async fn should_run_transaction_succesfully() {
         let db = create_db_component().await;
         let dbrepos = db.db_repos.as_ref().unwrap();
-        let addresses = ("1", "2");
-        let mut queries: Vec<Query<'_, Postgres, PgArguments>> = vec![];
+        let addresses = ("1".to_string(), "2".to_string());
+        let addresses_2 = ("2".to_string(), "2".to_string());
 
-        queries.push(
-            dbrepos
-                .get_friendships()
-                .create_new_friendships_query(addresses),
-        );
+        let mut trans = Some(db.start_transaction().await.unwrap());
 
-        // queries.push(Box::new(|trans| {
-        //     Box::pin(async move {
-        //         dbrepos
-        //             .friendships
-        //             .get_user_friends(addresses.0, false, Some(&trans))
-        //             .await
-        //             .unwrap();
+        dbrepos
+            .get_friendships()
+            .create_new_friendships(addresses, &mut trans)
+            .await;
 
-        //         Ok(())
-        //     })
-        // }));
+        dbrepos
+            .get_friendships()
+            .create_new_friendships(addresses_2, &mut trans)
+            .await;
 
-        db.execute_transaction(queries).await;
+        trans.unwrap().commit().await;
     }
 }

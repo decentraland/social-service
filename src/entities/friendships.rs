@@ -1,4 +1,6 @@
-use sqlx::{query::Query, types::Uuid, Error, Executor, Postgres, Row, Transaction};
+use async_trait::async_trait;
+use mockall::automock;
+use sqlx::{query::Query, types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, sync::Arc};
 
 use crate::{
@@ -6,16 +8,22 @@ use crate::{
     generate_uuid_v4,
 };
 
-#[derive(Clone)]
-pub struct FriendshipsRepository {
-    db_connection: Arc<Option<DBConnection>>,
-}
-
 pub struct Friendship {
     pub id: Uuid,
     pub address_1: String,
     pub address_2: String,
     pub is_active: bool,
+}
+
+#[derive(Clone)]
+pub struct FriendshipsRepository {
+    db_connection: Arc<Option<DBConnection>>,
+}
+
+impl FriendshipsRepository {
+    pub fn new(db: Arc<Option<DBConnection>>) -> Self {
+        Self { db_connection: db }
+    }
 }
 
 impl fmt::Debug for FriendshipsRepository {
@@ -29,19 +37,46 @@ impl fmt::Debug for FriendshipsRepository {
     }
 }
 
-impl FriendshipsRepository {
-    pub fn new(db: Arc<Option<DBConnection>>) -> Self {
-        Self { db_connection: db }
-    }
+#[async_trait]
+pub trait FriendshipRepositoryImplementation {
+    fn get_db_connection(&self) -> &Arc<Option<DBConnection>>;
 
+    fn create_new_friendships_query(
+        &self,
+        addresses: (String, String),
+    ) -> Query<'static, Postgres, sqlx::postgres::PgArguments>;
+
+    async fn create_new_friendships<'a>(
+        &self,
+        addresses: (String, String),
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn get<'a>(
+        &self,
+        addresses: (String, String),
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
+    ) -> Result<Option<Friendship>, sqlx::Error>;
+
+    async fn get_user_friends<'a>(
+        &self,
+        address: &str,
+        include_inactive: bool,
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
+    ) -> Result<Vec<Friendship>, sqlx::Error>;
+}
+
+#[automock]
+#[async_trait]
+impl FriendshipRepositoryImplementation for FriendshipsRepository {
     fn get_db_connection(&self) -> &Arc<Option<DBConnection>> {
         &self.db_connection
     }
 
-    pub fn create_new_friendships_query<'a>(
+    fn create_new_friendships_query(
         &self,
-        addresses: (&'a str, &'a str),
-    ) -> Query<'a, Postgres, sqlx::postgres::PgArguments> {
+        addresses: (String, String),
+    ) -> Query<'static, Postgres, sqlx::postgres::PgArguments> {
         let (address1, address2) = addresses;
         sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
             .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
@@ -49,10 +84,10 @@ impl FriendshipsRepository {
             .bind(address2)
     }
 
-    pub async fn create_new_friendships(
+    async fn create_new_friendships<'a>(
         &self,
-        addresses: (&str, &str),
-        transaction: Option<Transaction<'_, Postgres>>,
+        addresses: (String, String),
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
     ) -> Result<(), sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let query = self.create_new_friendships_query(addresses);
@@ -63,30 +98,24 @@ impl FriendshipsRepository {
         }
     }
 
-    pub async fn get(
+    async fn get<'a>(
         &self,
-        addresses: (&str, &str),
-        transaction: Option<Transaction<'_, Postgres>>,
+        addresses: (String, String),
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
     ) -> Result<Option<Friendship>, sqlx::Error> {
         let (address1, address2) = addresses;
 
         let query = sqlx::query(
             "SELECT * FROM friendships WHERE (address_1 = $1 AND address_2 = $2) OR (address_1 = $3 AND address_2 = $4)"
         )
-        .bind(address1)
-        .bind(address2)
-        .bind(address2)
-        .bind(address1);
+        .bind(&address1)
+        .bind(&address2)
+        .bind(&address2)
+        .bind(&address1);
 
-        let result = {
-            if let Some(mut transaction) = transaction {
-                query.fetch_one(&mut transaction).await
-            } else {
-                query
-                    .fetch_one(DatabaseComponent::get_connection(&self.db_connection))
-                    .await
-            }
-        };
+        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+
+        let result = DatabaseComponent::fetch_one(query, transaction, db_conn).await;
 
         match result {
             Ok(row) => {
@@ -109,11 +138,11 @@ impl FriendshipsRepository {
     /// if include inactive is true, this will also return all addresses for users
     /// that this user has been friends in the past]
     #[tracing::instrument(name = "Get user friends from DB")]
-    pub async fn get_user_friends(
+    async fn get_user_friends<'a>(
         &self,
         address: &str,
         include_inactive: bool,
-        transaction: Option<&Transaction<'_, Postgres>>,
+        transaction: &'a mut Option<Transaction<'a, Postgres>>,
     ) -> Result<Vec<Friendship>, sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let active_only_clause = " AND is_active";
@@ -125,7 +154,11 @@ impl FriendshipsRepository {
             query.push_str(active_only_clause);
         }
 
-        match sqlx::query(&query).bind(address).fetch_all(db_conn).await {
+        let query = sqlx::query(&query);
+
+        let res = DatabaseComponent::fetch_all(query, transaction, db_conn).await;
+
+        match res {
             Ok(rows) => Ok(rows
                 .iter()
                 .map(|row| -> Friendship {

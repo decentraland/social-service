@@ -3,8 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::DateTime;
 
+use mockall::automock;
 use sqlx::{
-    postgres::{PgArguments, PgPoolOptions, PgQueryResult},
+    postgres::{PgArguments, PgPoolOptions, PgQueryResult, PgRow},
     query::Query,
     Error, Pool, Postgres, Row, Transaction,
 };
@@ -12,12 +13,9 @@ use sqlx::{
 use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
-use crate::{
-    entities::{
-        friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
-        user_features::UserFeaturesRepository,
-    },
-    routes::v1::error::CommonError,
+use crate::entities::{
+    friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
+    user_features::UserFeaturesRepository,
 };
 
 pub type DBConnection = Pool<Postgres>;
@@ -65,11 +63,63 @@ impl DatabaseComponent {
         }
     }
 
-    pub fn get_repos(&self) -> &Option<DBRepositories> {
+    pub fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
+        db_connection.as_ref().as_ref().unwrap()
+    }
+
+    pub async fn execute_query(
+        query: Query<'_, Postgres, PgArguments>,
+        transaction: &mut Option<Transaction<'_, Postgres>>,
+        pool: &Pool<Postgres>,
+    ) -> Result<PgQueryResult, Error> {
+        if let Some(transaction) = transaction {
+            query.execute(transaction).await
+        } else {
+            query.execute(pool).await
+        }
+    }
+
+    pub async fn fetch_one(
+        query: Query<'_, Postgres, PgArguments>,
+        transaction: &mut Option<Transaction<'_, Postgres>>,
+        pool: &Pool<Postgres>,
+    ) -> Result<PgRow, Error> {
+        if let Some(transaction) = transaction {
+            query.fetch_one(transaction).await
+        } else {
+            query.fetch_one(pool).await
+        }
+    }
+
+    pub async fn fetch_all(
+        query: Query<'_, Postgres, PgArguments>,
+        transaction: &mut Option<Transaction<'_, Postgres>>,
+        pool: &Pool<Postgres>,
+    ) -> Result<Vec<PgRow>, Error> {
+        if let Some(transaction) = transaction {
+            query.fetch_all(transaction).await
+        } else {
+            query.fetch_all(pool).await
+        }
+    }
+}
+
+#[async_trait]
+pub trait DatabaseComponentImplementation {
+    fn get_repos(&self) -> &Option<DBRepositories>;
+    async fn run(&mut self) -> Result<(), sqlx::Error>;
+    fn is_connected(&self) -> bool;
+    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error>;
+}
+
+#[automock]
+#[async_trait]
+impl DatabaseComponentImplementation for DatabaseComponent {
+    fn get_repos(&self) -> &Option<DBRepositories> {
         &self.db_repos
     }
 
-    pub async fn run(&mut self) -> Result<(), sqlx::Error> {
+    async fn run(&mut self) -> Result<(), sqlx::Error> {
         if !self.is_connected() {
             let url = format!(
                 "postgres://{}:{}@{}/{}",
@@ -111,7 +161,7 @@ impl DatabaseComponent {
         }
     }
 
-    pub fn is_connected(&self) -> bool {
+    fn is_connected(&self) -> bool {
         self.db_connection.is_some()
     }
 
@@ -123,6 +173,12 @@ impl DatabaseComponent {
         if let Some(connection) = &self.db_connection.as_ref() {
             connection.close().await;
         }
+    }
+
+    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error> {
+        let db_connection = self.db_connection.as_ref().as_ref().unwrap();
+
+        db_connection.begin().await
     }
 }
 
