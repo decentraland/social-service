@@ -55,7 +55,7 @@ impl FriendshipHistoryRepository {
         event: &str,
         acting_user: &str,
         metadata: Option<Json<HashMap<String, String>>>,
-        transaction: &'a mut Option<Transaction<'a, Postgres>>,
+        transaction: Option<Arc<Transaction<'_, Postgres>>>,
     ) -> Result<(), sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let query = self.create_query(friendship_id, event, acting_user, metadata);

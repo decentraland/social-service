@@ -69,11 +69,12 @@ impl DatabaseComponent {
 
     pub async fn execute_query(
         query: Query<'_, Postgres, PgArguments>,
-        transaction: &mut Option<Transaction<'_, Postgres>>,
+        transaction: Option<Arc<Transaction<'_, Postgres>>>,
         pool: &Pool<Postgres>,
     ) -> Result<PgQueryResult, Error> {
-        if let Some(transaction) = transaction {
-            query.execute(transaction).await
+        if let Some(mut transaction) = transaction {
+            let transaction = Arc::get_mut(&mut transaction);
+            query.execute(transaction.unwrap()).await
         } else {
             query.execute(pool).await
         }
@@ -109,7 +110,7 @@ pub trait DatabaseComponentImplementation {
     fn get_repos(&self) -> &Option<DBRepositories>;
     async fn run(&mut self) -> Result<(), sqlx::Error>;
     fn is_connected(&self) -> bool;
-    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error>;
+    async fn start_transaction<'a>(&self) -> Result<Arc<Transaction<'a, Postgres>>, Error>;
 }
 
 #[automock]
@@ -178,7 +179,10 @@ impl DatabaseComponentImplementation for DatabaseComponent {
     async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error> {
         let db_connection = self.db_connection.as_ref().as_ref().unwrap();
 
-        db_connection.begin().await
+        match db_connection.begin().await {
+            Ok(trans) => Ok(Arc::new(trans)),
+            Err(err) => Err(err),
+        }
     }
 }
 

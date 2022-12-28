@@ -49,7 +49,7 @@ pub trait FriendshipRepositoryImplementation {
     async fn create_new_friendships<'a>(
         &self,
         addresses: (String, String),
-        transaction: &'a mut Option<Transaction<'a, Postgres>>,
+        transaction: Option<Arc<Transaction<'a, Postgres>>>,
     ) -> Result<(), sqlx::Error>;
 
     async fn get<'a>(
@@ -87,7 +87,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     async fn create_new_friendships<'a>(
         &self,
         addresses: (String, String),
-        transaction: &'a mut Option<Transaction<'a, Postgres>>,
+        transaction: Option<Arc<Transaction<'a, Postgres>>>,
     ) -> Result<(), sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let query = self.create_new_friendships_query(addresses);
