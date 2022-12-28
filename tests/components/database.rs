@@ -49,8 +49,6 @@ mod database_tests {
         let db = create_db_component().await;
         let dbrepos = db.db_repos.as_ref().unwrap();
 
-        let mut trans = None;
-
         dbrepos
             .friendships
             .create_new_friendships(("C", "D"), None)
