@@ -4,7 +4,6 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::routes::v1::error::CommonError;
 
-#[cfg_attr(any(test, feature = "faux"), faux::create)]
 #[derive(Debug)]
 pub struct SynapseComponent {
     synapse_url: String,
@@ -64,7 +63,6 @@ pub struct SynapseLoginResponse {
     pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
-#[cfg_attr(any(test, feature = "faux"), faux::methods)]
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {

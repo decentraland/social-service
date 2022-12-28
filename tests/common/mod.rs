@@ -1,22 +1,28 @@
 use actix_web::{body::MessageBody, dev::ServiceFactory, web::Data, App};
 use social_service::{
     components::{
-        app::{AppComponents, CustomComponents},
+        app::AppComponents,
         configuration::{Config, Database},
+        synapse::{WhoAmIResponse, WHO_AM_I_URI},
     },
     get_app_router,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
+use wiremock::{
+    matchers::{method, path},
+    MockServer, ResponseTemplate, Mock,
+};
 
-pub fn get_configuration() -> Config {
+pub async fn get_configuration() -> Config {
     let mut config = Config::new().expect("Couldn't read the configuration file");
     config.db.name = uuid::Uuid::new_v4().to_string();
+    create_test_db(&config.db).await;
     config
 }
 
 pub async fn get_app(
     config: Config,
-    custom_components: Option<CustomComponents>,
+    components: Option<AppComponents>,
 ) -> App<
     impl ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -26,12 +32,9 @@ pub async fn get_app(
         InitError = (),
     >,
 > {
-    create_test_db(&config.db).await;
-    let app_components = AppComponents::new(Some(config), custom_components).await;
+    let app_components = components.unwrap_or(AppComponents::new(Some(config)).await);
     let app_data = Data::new(app_components);
-    let app = get_app_router(&app_data);
-
-    app
+    get_app_router(&app_data)
 }
 
 /// We need this to avoid conccurency issues in Tests
@@ -64,4 +67,34 @@ pub async fn create_test_db(db_config: &Database) -> PgPool {
         .expect("Failed to migrate DB");
 
     pool
+}
+
+pub async fn create_synapse_mock_server() -> MockServer {
+    MockServer::start().await
+}
+
+pub async fn mock_server_expect_no_calls() -> MockServer {
+    let server = create_synapse_mock_server().await;
+    Mock::given(method("GET"))
+        .and(path(WHO_AM_I_URI))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .named("No calls to who am I")
+        .mount(&server)
+        .await;
+
+    server
+}
+
+/// Creates a synapse mocked server which respond with the given user ID to who am I endpoint.
+pub async fn who_am_i_synapse_mock_server(user_id: String) -> MockServer {
+    let server = create_synapse_mock_server().await;
+    let response = WhoAmIResponse { user_id };
+    Mock::given(method("GET"))
+        .and(path(WHO_AM_I_URI))
+        .respond_with(ResponseTemplate::new(200).set_body_json(response))
+        .mount(&server)
+        .await;
+
+    server
 }

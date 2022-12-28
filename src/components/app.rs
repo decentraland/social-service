@@ -19,103 +19,25 @@ pub struct AppComponents {
     pub users_cache: Mutex<UsersCacheComponent>,
 }
 
-#[derive(Default)]
-pub struct CustomComponents {
-    pub synapse: Option<SynapseComponent>,
-    pub db: Option<DatabaseComponent>,
-    pub users_cache: Option<UsersCacheComponent>,
-    pub redis: Option<Redis>,
-}
-
-#[derive(Default)]
-pub struct CustomComponentsBuilder {
-    synapse: Option<SynapseComponent>,
-    db: Option<DatabaseComponent>,
-    users_cache: Option<UsersCacheComponent>,
-    redis: Option<Redis>,
-}
-
-impl CustomComponentsBuilder {
-    pub fn with_synapse(mut self, synapse: SynapseComponent) -> Self {
-        self.synapse = Some(synapse);
-        self
-    }
-
-    pub fn with_db(mut self, db: DatabaseComponent) -> Self {
-        self.db = Some(db);
-        self
-    }
-
-    pub fn with_users_cache(mut self, users_cache: UsersCacheComponent) -> Self {
-        self.users_cache = Some(users_cache);
-        self
-    }
-
-    pub fn with_redis(mut self, redis: Redis) -> Self {
-        self.redis = Some(redis);
-        self
-    }
-
-    pub fn build(self) -> CustomComponents {
-        CustomComponents {
-            synapse: self.synapse,
-            db: self.db,
-            users_cache: self.users_cache,
-            redis: self.redis,
-        }
-    }
-}
-
-impl CustomComponents {
-    pub fn builder() -> CustomComponentsBuilder {
-        CustomComponentsBuilder::default()
-    }
-}
-
 impl AppComponents {
-    pub async fn new(
-        custom_config: Option<Config>,
-        custom_components: Option<CustomComponents>,
-    ) -> Self {
+    /// Panics if there is no config provided and cannot bulid a new config
+    pub async fn new(custom_config: Option<Config>) -> Self {
         let config = custom_config
             .unwrap_or_else(|| Config::new().expect("Couldn't read the configuration"));
 
-        let custom = custom_components.unwrap_or_default();
-        Self::custom(config, custom).await
+        Self::with_config(config).await
     }
 
-    async fn custom(config: Config, custom_components: CustomComponents) -> Self {
+    async fn with_config(config: Config) -> Self {
         if env_logger::try_init().is_err() {
             log::debug!("Logger already init")
         }
 
-        let mut custom_components = custom_components;
-
-        let synapse: SynapseComponent = if custom_components.synapse.is_some() {
-            custom_components.synapse.take().unwrap()
-        } else {
-            Self::init_synapse_component(config.synapse.url.clone())
-        };
-
-        let db: DatabaseComponent = if custom_components.db.is_some() {
-            custom_components.db.take().unwrap()
-        } else {
-            Self::init_db_component(&config.db).await
-        };
-
-        let redis: Redis = if custom_components.redis.is_some() {
-            custom_components.redis.take().unwrap()
-        } else {
-            Redis::new_and_run(&config.redis)
-        };
-
+        let synapse = Self::init_synapse_component(config.synapse.url.clone());
+        let db = Self::init_db_component(&config.db).await;
+        let redis = Redis::new_and_run(&config.redis);
         let health = Self::init_health_component(db.clone(), redis.clone());
-
-        let users_cache: UsersCacheComponent = if custom_components.users_cache.is_some() {
-            custom_components.users_cache.take().unwrap()
-        } else {
-            Self::init_users_cache(redis, config.cache_hashing_key.clone())
-        };
+        let users_cache = Self::init_users_cache(redis, config.cache_hashing_key.clone());
 
         Self {
             health,

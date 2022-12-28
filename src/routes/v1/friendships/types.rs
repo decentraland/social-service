@@ -6,7 +6,7 @@ pub struct FriendshipsResponse {
 }
 
 impl FriendshipsResponse {
-    pub fn new(addresses: Vec<&str>) -> Self {
+    pub fn new(addresses: Vec<String>) -> Self {
         let friends = addresses.iter().map(|address| FriendshipFriend {
             address: address.to_string(),
         });

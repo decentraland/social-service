@@ -41,7 +41,7 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
 }
 
 pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> {
-    let app_data = AppComponents::new(custom_config, None).await;
+    let app_data = AppComponents::new(custom_config).await;
     Data::new(app_data)
 }
 

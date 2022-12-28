@@ -44,11 +44,11 @@ impl ResponseError for CommonError {
     fn status_code(&self) -> StatusCode {
         match self {
             Self::NotFound => StatusCode::NOT_FOUND,
-            Self::BadRequest(_str) => StatusCode::BAD_REQUEST,
+            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::UserNotFound => StatusCode::NOT_FOUND,
             Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
-            Self::Forbidden(_str) => StatusCode::FORBIDDEN,
+            Self::Forbidden(_) => StatusCode::FORBIDDEN,
             Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

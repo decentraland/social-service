@@ -42,7 +42,6 @@ pub struct CheckMetricsTokenMiddleware<S> {
     service: S,
     bearer_token: String,
 }
-
 impl<S, B> Service<ServiceRequest> for CheckMetricsTokenMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
@@ -68,23 +67,15 @@ where
                 return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
             }
 
-            let token = if let Some(header) = request.headers().get("authorization") {
-                match header.to_str() {
-                    Ok(res) => {
-                        let split_header_bearer = res.split(' ').collect::<Vec<&str>>();
-                        let token = split_header_bearer.get(1);
-                        if let Some(token) = token {
-                            token.to_owned()
-                        } else {
-                            ""
-                        }
-                    }
-                    Err(_) => "",
-                }
-            } else {
-                ""
+            let token = match request.headers().get("authorization").map(|header| header.to_str()) {
+                Some(Ok(res)) => {
+                    let split_header_bearer = res.split(' ').collect::<Vec<&str>>();
+                    let token = split_header_bearer.get(1);
+                    token.map_or("", |token| token.to_owned())
+                },
+                _ => ""
             };
-
+            
             if token.is_empty() || token != self.bearer_token {
                 let (request, _pl) = request.into_parts();
 
