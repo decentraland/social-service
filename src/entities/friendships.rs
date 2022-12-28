@@ -63,10 +63,13 @@ pub trait FriendshipRepositoryImplementation {
 
     async fn get_user_friends<'a>(
         &self,
-        address: &str,
+        address: &'a str,
         include_inactive: bool,
-        transaction: &'a mut Option<Transaction<'a, Postgres>>,
-    ) -> Result<Vec<Friendship>, sqlx::Error>;
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (
+        Result<Vec<Friendship>, sqlx::Error>,
+        Option<Transaction<'a, Postgres>>,
+    );
 }
 
 // #[automock]
@@ -115,10 +118,10 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let query = sqlx::query(
             "SELECT * FROM friendships WHERE (address_1 = $1 AND address_2 = $2) OR (address_1 = $3 AND address_2 = $4)"
         )
-        .bind(&address1)
-        .bind(&address2)
-        .bind(&address2)
-        .bind(&address1);
+        .bind(address1.to_string())
+        .bind(address2.to_string())
+        .bind(address2.to_string())
+        .bind(address1.to_string());
 
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
 
@@ -147,10 +150,13 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     #[tracing::instrument(name = "Get user friends from DB")]
     async fn get_user_friends<'a>(
         &self,
-        address: &str,
+        address: &'a str,
         include_inactive: bool,
-        transaction: &'a mut Option<Transaction<'a, Postgres>>,
-    ) -> Result<Vec<Friendship>, sqlx::Error> {
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (
+        Result<Vec<Friendship>, sqlx::Error>,
+        Option<Transaction<'a, Postgres>>,
+    ) {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let active_only_clause = " AND is_active";
 
@@ -161,27 +167,31 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
             query.push_str(active_only_clause);
         }
 
-        let query = sqlx::query(&query);
+        let query = sqlx::query(&query).bind(address);
 
-        let res = DatabaseComponent::fetch_all(query, transaction, db_conn).await;
+        let (res, trans) = DatabaseComponent::fetch_all(query, transaction, db_conn).await;
 
         match res {
-            Ok(rows) => Ok(rows
-                .iter()
-                .map(|row| -> Friendship {
-                    Friendship {
-                        id: row.try_get("id").unwrap(),
-                        address_1: row.try_get("address_1").unwrap(),
-                        address_2: row.try_get("address_2").unwrap(),
-                        is_active: row.try_get("is_active").unwrap(),
-                    }
-                })
-                .collect::<Vec<Friendship>>()),
+            Ok(rows) => {
+                let response = Ok(rows
+                    .iter()
+                    .map(|row| -> Friendship {
+                        let friendship = Friendship {
+                            id: row.try_get("id").unwrap(),
+                            address_1: row.try_get("address_1").unwrap(),
+                            address_2: row.try_get("address_2").unwrap(),
+                            is_active: row.try_get("is_active").unwrap(),
+                        };
+                        friendship
+                    })
+                    .collect::<Vec<Friendship>>());
+                (response, trans)
+            }
             Err(err) => match err {
-                Error::RowNotFound => Ok(vec![]),
+                Error::RowNotFound => (Ok(vec![]), trans),
                 _ => {
                     log::error!("Couldn't fetch user {} friends, {}", address, err);
-                    Err(err)
+                    (Err(err), trans)
                 }
             },
         }

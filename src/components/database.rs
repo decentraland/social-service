@@ -68,7 +68,7 @@ impl DatabaseComponent {
     }
 
     pub async fn execute_query<'a>(
-        query: Query<'a, Postgres, PgArguments>,
+        query: Query<'_, Postgres, PgArguments>,
         transaction: Option<Transaction<'a, Postgres>>,
         pool: &'a Pool<Postgres>,
     ) -> (
@@ -94,15 +94,15 @@ impl DatabaseComponent {
         }
     }
 
-    pub async fn fetch_all(
+    pub async fn fetch_all<'a>(
         query: Query<'_, Postgres, PgArguments>,
-        transaction: &mut Option<Transaction<'_, Postgres>>,
+        transaction: Option<Transaction<'a, Postgres>>,
         pool: &Pool<Postgres>,
-    ) -> Result<Vec<PgRow>, Error> {
-        if let Some(transaction) = transaction {
-            query.fetch_all(transaction).await
+    ) -> (Result<Vec<PgRow>, Error>, Option<Transaction<'a, Postgres>>) {
+        if let Some(mut executor) = transaction {
+            (query.fetch_all(&mut executor).await, Some(executor))
         } else {
-            query.fetch_all(pool).await
+            (query.fetch_all(pool).await, transaction)
         }
     }
 }

@@ -56,16 +56,16 @@ impl FriendshipHistoryRepository {
         acting_user: &'a str,
         metadata: Option<Json<HashMap<String, String>>>,
         transaction: Option<Transaction<'a, Postgres>>,
-    ) -> Result<(), sqlx::Error> {
+    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let query = self.create_query(friendship_id, event, acting_user, metadata);
 
-        let (res, _transaction) =
+        let (res, transaction) =
             DatabaseComponent::execute_query(query, transaction, db_conn).await;
 
         match res {
-            Ok(_) => Ok(()),
-            Err(err) => Err(err),
+            Ok(_) => (Ok(()), transaction),
+            Err(err) => (Err(err), transaction),
         }
     }
 
