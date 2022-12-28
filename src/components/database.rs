@@ -14,7 +14,8 @@ use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
 use crate::entities::{
-    friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
+    friendship_history::FriendshipHistoryRepository,
+    friendships::{FriendshipRepositoryImplementation, FriendshipsRepository},
     user_features::UserFeaturesRepository,
 };
 
@@ -113,9 +114,12 @@ pub trait DatabaseComponentImplementation {
     async fn run(&mut self) -> Result<(), sqlx::Error>;
     fn is_connected(&self) -> bool;
     async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error>;
+
+    fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection;
+    async fn close(&self);
 }
 
-#[automock]
+// #[automock]
 #[async_trait]
 impl DatabaseComponentImplementation for DatabaseComponent {
     fn get_repos(&self) -> &Option<DBRepositories> {
@@ -168,11 +172,11 @@ impl DatabaseComponentImplementation for DatabaseComponent {
         self.db_connection.is_some()
     }
 
-    pub fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
+    fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
         db_connection.as_ref().as_ref().unwrap()
     }
 
-    pub async fn close(&self) {
+    async fn close(&self) {
         if let Some(connection) = &self.db_connection.as_ref() {
             connection.close().await;
         }
