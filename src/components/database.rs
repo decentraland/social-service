@@ -14,8 +14,7 @@ use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
 
 use crate::entities::{
-    friendship_history::FriendshipHistoryRepository,
-    friendships::{FriendshipRepositoryImplementation, FriendshipsRepository},
+    friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
     user_features::UserFeaturesRepository,
 };
 

@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use mockall::automock;
 use sqlx::{query::Query, types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, sync::Arc};
 
@@ -175,13 +174,12 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 let response = Ok(rows
                     .iter()
                     .map(|row| -> Friendship {
-                        let friendship = Friendship {
+                        Friendship {
                             id: row.try_get("id").unwrap(),
                             address_1: row.try_get("address_1").unwrap(),
                             address_2: row.try_get("address_2").unwrap(),
                             is_active: row.try_get("is_active").unwrap(),
-                        };
-                        friendship
+                        }
                     })
                     .collect::<Vec<Friendship>>());
                 (response, trans)

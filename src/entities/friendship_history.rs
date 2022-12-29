@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
 use mockall::predicate::*;
-use mockall::*;
 use sqlx::{
     postgres::Postgres,
     query::Query,
