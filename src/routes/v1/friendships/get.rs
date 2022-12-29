@@ -6,8 +6,10 @@ use actix_web::{
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
-    components::app::AppComponents, entities::friendships::Friendship,
-    middlewares::check_auth::UserId, routes::v1::error::CommonError,
+    components::app::AppComponents,
+    entities::friendships::{Friendship, FriendshipRepositoryImplementation},
+    middlewares::check_auth::UserId,
+    routes::v1::error::CommonError,
 };
 
 #[get("/v1/friendships/{userId}")]
@@ -35,7 +37,10 @@ pub async fn get_user_friends(
     // Look for friendships and build friend addresses list
     match &app_data.db.db_repos {
         Some(repos) => {
-            let friendships = repos.friendships.get_user_friends(&user_id, false).await;
+            let (friendships, _) = repos
+                .friendships
+                .get_user_friends(&user_id, false, None)
+                .await;
             match friendships {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 Ok(friendships) => {

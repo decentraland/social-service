@@ -1,7 +1,14 @@
 mod common;
+use actix_web::body::None;
 pub use common::*;
 
-use social_service::components::{configuration::Database, database::DatabaseComponent};
+use social_service::{
+    components::{
+        configuration::Database,
+        database::{DatabaseComponent, DatabaseComponentImplementation},
+    },
+    entities::friendships::FriendshipRepositoryImplementation,
+};
 
 async fn create_db_component() -> DatabaseComponent {
     let config = common::get_configuration().await;
@@ -23,10 +30,11 @@ async fn should_create_and_get_a_friendship() {
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
-        .create_new_friendships(("A", "B"))
+        .create_new_friendships(("A", "B"), None)
         .await
+        .0
         .unwrap();
-    let friendship = dbrepos.friendships.get(("A", "B")).await.unwrap();
+    let friendship = dbrepos.friendships.get_friendship(("A", "B"), None).await.0.unwrap();
     assert!(friendship.is_some());
 
     assert_eq!(friendship.as_ref().unwrap().address_1, "A");
@@ -40,16 +48,29 @@ async fn should_create_a_friendship_request_event() {
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
-        .create_new_friendships(("C", "D"))
+        .create_new_friendships(("C", "D"), None)
         .await
+        .0
         .unwrap();
-    let friendship = dbrepos.friendships.get(("C", "D")).await.unwrap().unwrap();
+    let friendship = dbrepos
+        .friendships
+        .get_friendship(("C", "D"), None)
+        .await
+        .0
+        .unwrap()
+        .unwrap();
     dbrepos
         .friendship_history
-        .create(friendship.id, "request", "C", None)
+        .create(friendship.id, "request", "C", None, None)
         .await
+        .0
         .unwrap();
-    let friendship_history = dbrepos.friendship_history.get(friendship.id).await.unwrap();
+    let friendship_history = dbrepos
+        .friendship_history
+        .get(friendship.id, None)
+        .await
+        .0
+        .unwrap();
     assert!(friendship_history.is_some());
 
     assert_eq!(

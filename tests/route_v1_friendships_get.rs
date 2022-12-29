@@ -4,7 +4,11 @@ pub use common::*;
 use actix_web::{test, web::Data};
 use reqwest::StatusCode;
 use social_service::{
-    components::{app::AppComponents, database::DatabaseComponent},
+    components::{
+        app::AppComponents,
+        database::{DatabaseComponent, DatabaseComponentImplementation},
+    },
+    entities::friendships::FriendshipRepositoryImplementation,
     get_app_router,
     routes::v1::friendships::types::FriendshipsResponse,
 };
@@ -14,8 +18,9 @@ async fn add_friendship(db: &DatabaseComponent, friendship: (&str, &str)) {
         .as_ref()
         .expect("repos to be present")
         .friendships
-        .create_new_friendships(friendship)
+        .create_new_friendships(friendship, None)
         .await
+        .0
         .expect("can create friendship");
 }
 
@@ -155,7 +160,11 @@ async fn test_get_user_friends_should_return_the_address_list() {
 
     // Should parse correctly
     let friendships_response: FriendshipsResponse = test::read_body_json(response).await;
-    let addresses: Vec<&str> = friendships_response.friendships.iter().map(|friendship| friendship.address.as_str()).collect();
+    let addresses: Vec<&str> = friendships_response
+        .friendships
+        .iter()
+        .map(|friendship| friendship.address.as_str())
+        .collect();
     assert!(addresses.contains(&other_user));
     assert!(addresses.contains(&other_user_2));
 }

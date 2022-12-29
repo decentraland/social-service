@@ -2,7 +2,13 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::DateTime;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
+
+use mockall::automock;
+use sqlx::{
+    postgres::{PgArguments, PgPoolOptions, PgQueryResult, PgRow},
+    query::Query,
+    Error, Pool, Postgres, Row, Transaction,
+};
 
 use super::configuration::Database as DatabaseConfig;
 use super::health::Healthy;
@@ -35,6 +41,11 @@ impl DBRepositories {
     }
 }
 
+pub enum Executor<'a> {
+    Transaction(Transaction<'a, Postgres>),
+    Pool(&'a Pool<Postgres>),
+}
+
 #[derive(Clone)]
 pub struct DatabaseComponent {
     db_host: String,
@@ -57,11 +68,71 @@ impl DatabaseComponent {
         }
     }
 
-    pub fn get_repos(&self) -> &Option<DBRepositories> {
+    pub fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
+        db_connection.as_ref().as_ref().unwrap()
+    }
+
+    pub async fn execute_query<'a>(
+        query: Query<'_, Postgres, PgArguments>,
+        executor: Executor<'a>,
+    ) -> (Result<PgQueryResult, Error>, Option<Executor<'a>>) {
+        match executor {
+            Executor::Transaction(mut transaction) => (
+                query.execute(&mut transaction).await,
+                Some(Executor::Transaction(transaction)),
+            ),
+            // we don't return the pool because the connection was consumed
+            Executor::Pool(pool) => (query.execute(pool).await, None),
+        }
+    }
+
+    pub async fn fetch_one<'a>(
+        query: Query<'_, Postgres, PgArguments>,
+        executor: Executor<'a>,
+    ) -> (Result<PgRow, Error>, Option<Executor<'a>>) {
+        match executor {
+            Executor::Transaction(mut transaction) => (
+                query.fetch_one(&mut transaction).await,
+                Some(Executor::Transaction(transaction)),
+            ),
+            // we don't return the pool because the connection was consumed
+            Executor::Pool(pool) => (query.fetch_one(pool).await, None),
+        }
+    }
+
+    pub async fn fetch_all<'a>(
+        query: Query<'_, Postgres, PgArguments>,
+        executor: Executor<'a>,
+    ) -> (Result<Vec<PgRow>, Error>, Option<Executor<'a>>) {
+        match executor {
+            Executor::Transaction(mut transaction) => (
+                query.fetch_all(&mut transaction).await,
+                Some(Executor::Transaction(transaction)),
+            ),
+            // we don't return the pool because the connection was consumed
+            Executor::Pool(pool) => (query.fetch_all(pool).await, None),
+        }
+    }
+}
+
+#[async_trait]
+pub trait DatabaseComponentImplementation {
+    fn get_repos(&self) -> &Option<DBRepositories>;
+    async fn run(&mut self) -> Result<(), sqlx::Error>;
+    fn is_connected(&self) -> bool;
+    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error>;
+
+    async fn close(&self);
+}
+
+#[automock]
+#[async_trait]
+impl DatabaseComponentImplementation for DatabaseComponent {
+    fn get_repos(&self) -> &Option<DBRepositories> {
         &self.db_repos
     }
 
-    pub async fn run(&mut self) -> Result<(), sqlx::Error> {
+    async fn run(&mut self) -> Result<(), sqlx::Error> {
         if !self.is_connected() {
             let url = format!(
                 "postgres://{}:{}@{}/{}",
@@ -103,18 +174,20 @@ impl DatabaseComponent {
         }
     }
 
-    pub fn is_connected(&self) -> bool {
+    fn is_connected(&self) -> bool {
         self.db_connection.is_some()
     }
 
-    pub fn get_connection(db_connection: &Arc<Option<DBConnection>>) -> &DBConnection {
-        db_connection.as_ref().as_ref().unwrap()
-    }
-
-    pub async fn close(&self) {
+    async fn close(&self) {
         if let Some(connection) = &self.db_connection.as_ref() {
             connection.close().await;
         }
+    }
+
+    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error> {
+        let db_connection = self.db_connection.as_ref().as_ref().unwrap();
+
+        db_connection.begin().await
     }
 }
 
