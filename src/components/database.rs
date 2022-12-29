@@ -87,25 +87,27 @@ impl DatabaseComponent {
 
     pub async fn fetch_one<'a>(
         query: Query<'_, Postgres, PgArguments>,
-        transaction: Option<Transaction<'a, Postgres>>,
-        pool: &Pool<Postgres>,
-    ) -> (Result<PgRow, Error>, Option<Transaction<'a, Postgres>>) {
-        if let Some(mut executor) = transaction {
-            (query.fetch_one(&mut executor).await, Some(executor))
-        } else {
-            (query.fetch_one(pool).await, transaction)
+        executor: Executor<'a>,
+    ) -> (Result<PgRow, Error>, Option<Executor<'a>>) {
+        match executor {
+            Executor::Transaction(mut transaction) => (
+                query.fetch_one(&mut transaction).await,
+                Some(Executor::Transaction(transaction)),
+            ),
+            Executor::Pool(pool) => (query.fetch_one(pool).await, None),
         }
     }
 
     pub async fn fetch_all<'a>(
         query: Query<'_, Postgres, PgArguments>,
-        transaction: Option<Transaction<'a, Postgres>>,
-        pool: &Pool<Postgres>,
-    ) -> (Result<Vec<PgRow>, Error>, Option<Transaction<'a, Postgres>>) {
-        if let Some(mut executor) = transaction {
-            (query.fetch_all(&mut executor).await, Some(executor))
-        } else {
-            (query.fetch_all(pool).await, transaction)
+        executor: Executor<'a>,
+    ) -> (Result<Vec<PgRow>, Error>, Option<Executor<'a>>) {
+        match executor {
+            Executor::Transaction(mut transaction) => (
+                query.fetch_all(&mut transaction).await,
+                Some(Executor::Transaction(transaction)),
+            ),
+            Executor::Pool(pool) => (query.fetch_all(pool).await, None),
         }
     }
 }

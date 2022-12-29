@@ -73,18 +73,20 @@ impl FriendshipHistoryRepository {
     }
 
     pub async fn get<'a>(
-        &self,
+        &'a self,
         friendship_id: Uuid,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
         Result<Option<FriendshipHistory>, sqlx::Error>,
         Option<Transaction<'a, Postgres>>,
     ) {
-        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+        let executor = self.get_executor(transaction);
         let query = sqlx::query("SELECT * FROM friendship_history where friendship_id = $1")
             .bind(friendship_id);
 
-        let (res, transaction) = DatabaseComponent::fetch_one(query, transaction, db_conn).await;
+        let (res, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
+
+        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
         match res {
             Ok(row) => {
@@ -94,11 +96,11 @@ impl FriendshipHistoryRepository {
                     acting_user: row.try_get("acting_user").unwrap(),
                     metadata: row.try_get("metadata").unwrap(),
                 };
-                (Ok(Some(history)), transaction)
+                (Ok(Some(history)), transaction_to_return)
             }
             Err(err) => match err {
-                Error::RowNotFound => (Ok(None), transaction),
-                _ => (Err(err), transaction),
+                Error::RowNotFound => (Ok(None), transaction_to_return),
+                _ => (Err(err), transaction_to_return),
             },
         }
     }
@@ -110,4 +112,3 @@ impl FriendshipHistoryRepository {
         }
     }
 }
-

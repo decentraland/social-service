@@ -54,7 +54,7 @@ pub trait FriendshipRepositoryImplementation {
     ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>);
 
     async fn get_friendship<'a>(
-        &self,
+        &'a self,
         addresses: (&'a str, &'a str),
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
@@ -63,7 +63,7 @@ pub trait FriendshipRepositoryImplementation {
     );
 
     async fn get_user_friends<'a>(
-        &self,
+        &'a self,
         address: &'a str,
         include_inactive: bool,
         transaction: Option<Transaction<'a, Postgres>>,
@@ -112,7 +112,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     }
 
     async fn get_friendship<'a>(
-        &self,
+        &'a self,
         addresses: (&'a str, &'a str),
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
@@ -129,9 +129,11 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         .bind(address2.to_string())
         .bind(address1.to_string());
 
-        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+        let executor = self.get_executor(transaction);
 
-        let (result, transaction) = DatabaseComponent::fetch_one(query, transaction, db_conn).await;
+        let (result, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
+
+        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
         match result {
             Ok(row) => {
@@ -141,11 +143,11 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                     address_2: row.try_get("address_2").unwrap(),
                     is_active: row.try_get("is_active").unwrap(),
                 };
-                (Ok(Some(friendship)), transaction)
+                (Ok(Some(friendship)), transaction_to_return)
             }
             Err(err) => match err {
-                Error::RowNotFound => (Ok(None), transaction),
-                _ => (Err(err), transaction),
+                Error::RowNotFound => (Ok(None), transaction_to_return),
+                _ => (Err(err), transaction_to_return),
             },
         }
     }
@@ -155,7 +157,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     /// that this user has been friends in the past]
     #[tracing::instrument(name = "Get user friends from DB")]
     async fn get_user_friends<'a>(
-        &self,
+        &'a self,
         address: &'a str,
         include_inactive: bool,
         transaction: Option<Transaction<'a, Postgres>>,
@@ -163,7 +165,6 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         Result<Vec<Friendship>, sqlx::Error>,
         Option<Transaction<'a, Postgres>>,
     ) {
-        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let active_only_clause = " AND is_active";
 
         let mut query =
@@ -175,7 +176,11 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
 
         let query = sqlx::query(&query).bind(address);
 
-        let (res, trans) = DatabaseComponent::fetch_all(query, transaction, db_conn).await;
+        let executor = self.get_executor(transaction);
+
+        let (res, resulting_executor) = DatabaseComponent::fetch_all(query, executor).await;
+
+        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
         match res {
             Ok(rows) => {
@@ -190,13 +195,13 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                         }
                     })
                     .collect::<Vec<Friendship>>());
-                (response, trans)
+                (response, transaction_to_return)
             }
             Err(err) => match err {
-                Error::RowNotFound => (Ok(vec![]), trans),
+                Error::RowNotFound => (Ok(vec![]), transaction_to_return),
                 _ => {
                     log::error!("Couldn't fetch user {} friends, {}", address, err);
-                    (Err(err), trans)
+                    (Err(err), transaction_to_return)
                 }
             },
         }
