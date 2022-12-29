@@ -81,6 +81,7 @@ impl DatabaseComponent {
                 query.execute(&mut transaction).await,
                 Some(Executor::Transaction(transaction)),
             ),
+            // we don't return the pool because the connection was consumed
             Executor::Pool(pool) => (query.execute(pool).await, None),
         }
     }
@@ -94,6 +95,7 @@ impl DatabaseComponent {
                 query.fetch_one(&mut transaction).await,
                 Some(Executor::Transaction(transaction)),
             ),
+            // we don't return the pool because the connection was consumed
             Executor::Pool(pool) => (query.fetch_one(pool).await, None),
         }
     }
@@ -107,6 +109,7 @@ impl DatabaseComponent {
                 query.fetch_all(&mut transaction).await,
                 Some(Executor::Transaction(transaction)),
             ),
+            // we don't return the pool because the connection was consumed
             Executor::Pool(pool) => (query.fetch_all(pool).await, None),
         }
     }
