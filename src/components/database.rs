@@ -41,6 +41,11 @@ impl DBRepositories {
     }
 }
 
+pub enum Executor<'a> {
+    Transaction(Transaction<'a, Postgres>),
+    Pool(&'a Pool<Postgres>),
+}
+
 #[derive(Clone)]
 pub struct DatabaseComponent {
     db_host: String,
@@ -69,16 +74,14 @@ impl DatabaseComponent {
 
     pub async fn execute_query<'a>(
         query: Query<'_, Postgres, PgArguments>,
-        transaction: Option<Transaction<'a, Postgres>>,
-        pool: &'a Pool<Postgres>,
-    ) -> (
-        Result<PgQueryResult, Error>,
-        Option<Transaction<'a, Postgres>>,
-    ) {
-        if let Some(mut executor) = transaction {
-            (query.execute(&mut executor).await, Some(executor))
-        } else {
-            (query.execute(pool).await, transaction)
+        executor: Executor<'a>,
+    ) -> (Result<PgQueryResult, Error>, Option<Executor<'a>>) {
+        match executor {
+            Executor::Transaction(mut transaction) => (
+                query.execute(&mut transaction).await,
+                Some(Executor::Transaction(transaction)),
+            ),
+            Executor::Pool(pool) => (query.execute(pool).await, None),
         }
     }
 

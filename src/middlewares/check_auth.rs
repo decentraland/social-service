@@ -123,7 +123,7 @@ where
                 match user_cache.get_user(&token).await {
                     Ok(user_id) => Ok(user_id),
                     Err(e) => {
-                        println!("trying to get user {token} but {e}");
+                        log::info!("trying to get user {token} but {e}");
                         match components.synapse.who_am_i(&token).await {
                             Ok(response) => {
                                 if let Err(err) =

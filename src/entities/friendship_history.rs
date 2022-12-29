@@ -9,9 +9,11 @@ use sqlx::{
 };
 
 use crate::{
-    components::database::{DBConnection, DatabaseComponent},
+    components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
 };
+
+use super::utils::get_transaction_result_from_executor;
 
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {
@@ -56,15 +58,17 @@ impl FriendshipHistoryRepository {
         metadata: Option<Json<HashMap<String, String>>>,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
-        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
+        let executor = self.get_executor(transaction);
+
         let query = self.create_query(friendship_id, event, acting_user, metadata);
 
-        let (res, transaction) =
-            DatabaseComponent::execute_query(query, transaction, db_conn).await;
+        let (res, resulting_executor) = DatabaseComponent::execute_query(query, executor).await;
+
+        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
         match res {
-            Ok(_) => (Ok(()), transaction),
-            Err(err) => (Err(err), transaction),
+            Ok(_) => (Ok(()), transaction_to_return),
+            Err(err) => (Err(err), transaction_to_return),
         }
     }
 
@@ -98,4 +102,12 @@ impl FriendshipHistoryRepository {
             },
         }
     }
+
+    fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
+        match transaction {
+            Some(transaction) => Executor::Transaction(transaction),
+            None => Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
+        }
+    }
 }
+

@@ -34,7 +34,7 @@ async fn should_create_and_get_a_friendship() {
         .await
         .0
         .unwrap();
-    let friendship = dbrepos.friendships.get(("A", "B"), None).await.0.unwrap();
+    let friendship = dbrepos.friendships.get_friendship(("A", "B"), None).await.0.unwrap();
     assert!(friendship.is_some());
 
     assert_eq!(friendship.as_ref().unwrap().address_1, "A");
@@ -54,7 +54,7 @@ async fn should_create_a_friendship_request_event() {
         .unwrap();
     let friendship = dbrepos
         .friendships
-        .get(("C", "D"), None)
+        .get_friendship(("C", "D"), None)
         .await
         .0
         .unwrap()

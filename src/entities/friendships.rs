@@ -3,9 +3,11 @@ use sqlx::{query::Query, types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, sync::Arc};
 
 use crate::{
-    components::database::{DBConnection, DatabaseComponent},
+    components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
 };
+
+use super::utils::get_transaction_result_from_executor;
 
 pub struct Friendship {
     pub id: Uuid,
@@ -51,7 +53,7 @@ pub trait FriendshipRepositoryImplementation {
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>);
 
-    async fn get<'a>(
+    async fn get_friendship<'a>(
         &self,
         addresses: (&'a str, &'a str),
         transaction: Option<Transaction<'a, Postgres>>,
@@ -69,6 +71,8 @@ pub trait FriendshipRepositoryImplementation {
         Result<Vec<Friendship>, sqlx::Error>,
         Option<Transaction<'a, Postgres>>,
     );
+
+    fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a>;
 }
 
 #[async_trait]
@@ -93,17 +97,21 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         addresses: (&'a str, &'a str),
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
-        let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         let query = self.create_new_friendships_query(addresses);
-        let (res, transaction) =
-            DatabaseComponent::execute_query(query, transaction, db_conn).await;
+
+        let executor = self.get_executor(transaction);
+
+        let (res, resulting_executor) = DatabaseComponent::execute_query(query, executor).await;
+
+        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
+
         match res {
-            Ok(_) => (Ok(()), transaction),
-            Err(err) => (Err(err), transaction),
+            Ok(_) => (Ok(()), transaction_to_return),
+            Err(err) => (Err(err), transaction_to_return),
         }
     }
 
-    async fn get<'a>(
+    async fn get_friendship<'a>(
         &self,
         addresses: (&'a str, &'a str),
         transaction: Option<Transaction<'a, Postgres>>,
@@ -191,6 +199,13 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                     (Err(err), trans)
                 }
             },
+        }
+    }
+
+    fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
+        match transaction {
+            Some(transaction) => Executor::Transaction(transaction),
+            None => Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
         }
     }
 }
