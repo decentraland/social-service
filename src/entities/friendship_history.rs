@@ -27,7 +27,6 @@ pub struct FriendshipHistory {
     pub metadata: Option<Json<HashMap<String, String>>>,
 }
 
-// #[automock]
 impl FriendshipHistoryRepository {
     pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }
@@ -66,10 +65,7 @@ impl FriendshipHistoryRepository {
 
         let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
-        match res {
-            Ok(_) => (Ok(()), transaction_to_return),
-            Err(err) => (Err(err), transaction_to_return),
-        }
+        (res.map(|_| ()), transaction_to_return)
     }
 
     pub async fn get<'a>(
@@ -106,9 +102,9 @@ impl FriendshipHistoryRepository {
     }
 
     fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
-        match transaction {
-            Some(transaction) => Executor::Transaction(transaction),
-            None => Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
-        }
+        transaction.map_or_else(
+            || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
+            |transaction| Executor::Transaction(transaction),
+        )
     }
 }
