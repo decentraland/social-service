@@ -88,7 +88,7 @@ impl Config {
             )
             .set_override_option("server.host", args.host)?
             .set_override_option("server.port", args.port)?
-            .set_default("synapse.url", "https://synapse.decentraland.zone")?
+            .set_default("synapse.url", "https://synapse.decentraland.org")?
             .set_default("env", "dev")?
             .set_default("wkc_metrics_bearer_token", "")?
             .set_default("db.host", "0.0.0.0:3500")? // docker-compose -> local env

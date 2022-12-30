@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use actix_web::{
     put,
     web::{self, Data},
@@ -385,10 +387,19 @@ async fn store_friendship_update<'a>(
 ) -> (Result<Uuid, SynapseError>, Transaction<'a, Postgres>) {
     match friendship {
         Some(friendship) => {
-            let (_, transaction) = friendships_repository
+            let (res, transaction) = friendships_repository
                 .update_friendship_status(&friendship.id, is_active, Some(transaction))
                 .await;
-            (Ok(friendship.id), transaction.unwrap())
+
+            let res = match res {
+                Ok(_) => Ok(friendship.id),
+                Err(err) => {
+                    log::warn!("Couldn't update friendship {err}");
+                    Err(SynapseError::CommonError(CommonError::Unknown))
+                }
+            };
+
+            (res, transaction.unwrap())
         }
         None => {
             let (friendship_id, transaction) = friendships_repository

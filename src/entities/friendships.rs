@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{query::Query, types::Uuid, Error, Postgres, Row, Transaction};
+use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, sync::Arc};
 
 use crate::{
@@ -214,7 +214,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
         let query = sqlx::query("UPDATE friendships SET is_active = $1 WHERE id = $2")
             .bind(is_active)
-            .bind(friendship_id.to_string());
+            .bind(friendship_id);
 
         let executor = self.get_executor(transaction);
 

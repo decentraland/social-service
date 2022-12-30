@@ -24,7 +24,7 @@ pub struct FriendshipHistory {
     pub friendship_id: Uuid,
     pub event: String,
     pub acting_user: String,
-    pub timestamp: i64,
+    pub timestamp: chrono::NaiveDateTime,
     pub metadata: Option<Json<HashMap<String, String>>>,
 }
 
@@ -66,7 +66,15 @@ impl FriendshipHistoryRepository {
 
         let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
-        (res.map(|_| ()), transaction_to_return)
+        match res {
+            Ok(_) => (Ok(()), transaction_to_return),
+            Err(err) => {
+                println!("ERROR in create {err}");
+                (Err(err), transaction_to_return)
+            }
+        }
+
+        // (res.map_err(|err| ()), transaction_to_return)
     }
 
     pub async fn get<'a>(
