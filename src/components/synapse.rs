@@ -91,7 +91,6 @@ pub struct RoomMembersResponse {
     pub chunk: Vec<RoomMember>,
 }
 
-#[cfg_attr(any(test, feature = "faux"), faux::methods)]
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {

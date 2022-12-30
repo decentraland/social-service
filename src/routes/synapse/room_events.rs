@@ -4,16 +4,18 @@ use actix_web::{
     HttpMessage, HttpRequest, HttpResponse,
 };
 use serde::{Deserialize, Serialize};
+use sqlx::{Postgres, Transaction};
+use uuid::Uuid;
 
 use crate::{
     components::{
         app::AppComponents,
-        database::{DBRepositories, DatabaseComponent},
+        database::{DatabaseComponent, DatabaseComponentImplementation},
         synapse::{RoomMembersResponse, SynapseComponent},
     },
     entities::{
-        friendship_history::{self, FriendshipHistory, FriendshipHistoryRepository},
-        friendships::{Friendship, FriendshipsRepository},
+        friendship_history::{FriendshipHistory, FriendshipHistoryRepository},
+        friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::{Token, UserId},
     routes::v1::error::CommonError,
@@ -120,16 +122,15 @@ async fn process_room_event(
 ) -> Result<RoomEventResponse, SynapseError> {
     // GET MEMBERS FROM SYNAPSE
     let members_result = synapse.get_room_members(token, room_id).await;
-    let members = get_room_members(members_result).await?;
-    // let members_result =
+    let (address_0, address_1) = get_room_members(members_result).await?;
 
     // GET LAST STATUS FROM DB
-    let repos = db.get_repos().as_ref().unwrap();
+    let repos = db.db_repos.as_ref().unwrap();
 
-    let friendship = get_friendship_from_db(repos.get_friendships(), members).await?;
+    let friendship = get_friendship_from_db(&repos.friendships, &address_0, &address_1).await?;
 
     let current_status =
-        get_friendship_status_from_db(friendship, repos.get_friendship_history()).await?;
+        get_friendship_status_from_db(&friendship, &repos.friendship_history).await?;
 
     // PROCESS NEW STATUS OF FRIENDSHIP
     let new_status =
@@ -137,11 +138,15 @@ async fn process_room_event(
 
     // UPDATE FRIENDSHIP ACCORDINGLY IN DB
     update_friendship_status(
+        &friendship,
+        &address_0,
+        &address_1,
         current_status,
         new_status,
         room_event,
-        repos.get_friendships(),
-        repos.get_friendship_history(),
+        &db,
+        &repos.friendships,
+        &repos.friendship_history,
     )
     .await?;
 
@@ -179,9 +184,12 @@ async fn get_room_members(
 
 async fn get_friendship_from_db(
     friendships_repository: &FriendshipsRepository,
-    members: (String, String),
+    address_0: &str,
+    address_1: &str,
 ) -> Result<Option<Friendship>, SynapseError> {
-    let friendship_result = friendships_repository.get((&members.0, &members.1)).await;
+    let (friendship_result, _) = friendships_repository
+        .get_friendship((address_0, address_1), None)
+        .await;
 
     if friendship_result.is_err() {
         let err = friendship_result.err().unwrap();
@@ -196,16 +204,18 @@ async fn get_friendship_from_db(
 }
 
 async fn get_friendship_status_from_db(
-    friendship: Option<Friendship>,
+    friendship: &Option<Friendship>,
     friendship_history_repository: &FriendshipHistoryRepository,
 ) -> Result<FriendshipStatus, SynapseError> {
-    if friendship.is_none() {
-        return Ok(FriendshipStatus::NotFriends);
-    }
+    let friendship = {
+        match friendship {
+            Some(friendship) => friendship,
+            None => return Ok(FriendshipStatus::NotFriends),
+        }
+    };
 
-    let friendship = friendship.unwrap();
-
-    let friendship_history_result = friendship_history_repository.get(friendship.id).await;
+    let (friendship_history_result, _) =
+        friendship_history_repository.get(friendship.id, None).await;
 
     if friendship_history_result.is_err() {
         let err = friendship_history_result.err().unwrap();
@@ -284,20 +294,113 @@ fn verify_if_friends(
 }
 
 async fn update_friendship_status(
+    friendship: &Option<Friendship>,
+    acting_user: &str,
+    second_user: &str,
     current_status: FriendshipStatus,
     new_status: FriendshipStatus,
     room_event: FriendshipEvent,
+    db: &DatabaseComponent,
     friendships_repository: &FriendshipsRepository,
     friendship_history_repository: &FriendshipHistoryRepository,
 ) -> Result<(), SynapseError> {
+    // The only case where we don't create the friendship if it didn't exist
+    // If they are still no friends, it's unnecessary to create a friendship
     if current_status == new_status {
         return Ok(());
     }
 
-    // start transaction
-        // store friendship update
-        // store history
-    // end transaction
+    let transaction = db.start_transaction().await;
 
-    Ok(())
+    if transaction.is_err() {
+        let err = transaction.err().unwrap();
+        log::error!("Couldn't start transaction to store friendship update {err}");
+        return Err(SynapseError::CommonError(CommonError::Unknown));
+    }
+
+    // start transaction
+    let transaction = transaction.unwrap();
+
+    // store friendship update
+    let is_active = new_status == FriendshipStatus::Friends;
+    let (friendship_id_result, transaction) = store_friendship_update(
+        friendship,
+        is_active,
+        acting_user,
+        second_user,
+        friendships_repository,
+        transaction,
+    )
+    .await;
+
+    let friendship_id = match friendship_id_result {
+        Ok(friendship_id) => friendship_id,
+        Err(err) => {
+            log::error!("Couldn't store friendship update {err}");
+            let _ = transaction.rollback().await;
+
+            return Err(SynapseError::CommonError(CommonError::Unknown));
+        }
+    };
+
+    let room_event = serde_json::to_string(&room_event).unwrap();
+
+    // store history
+    let (friendship_history_result, transaction) = friendship_history_repository
+        .create(
+            friendship_id,
+            room_event.as_str(),
+            acting_user,
+            None,
+            Some(transaction),
+        )
+        .await;
+
+    let transaction = transaction.unwrap();
+
+    if friendship_history_result.is_err() {
+        let err = friendship_history_result.unwrap_err();
+        log::error!("Couldn't store friendship history update {err}");
+        let _ = transaction.rollback().await;
+
+        return Err(SynapseError::CommonError(CommonError::Unknown));
+    }
+
+    // end transaction
+    let transaction_result = transaction.commit().await;
+
+    transaction_result.map_err(|err| {
+        log::error!("Couldn't commit transaction to store friendship update {err}");
+        SynapseError::CommonError(CommonError::Unknown)
+    })
+}
+
+async fn store_friendship_update<'a>(
+    friendship: &'a Option<Friendship>,
+    is_active: bool,
+    address_0: &'a str,
+    address_1: &'a str,
+    friendships_repository: &'a FriendshipsRepository,
+    transaction: Transaction<'a, Postgres>,
+) -> (Result<Uuid, SynapseError>, Transaction<'a, Postgres>) {
+    match friendship {
+        Some(friendship) => {
+            let (_, transaction) = friendships_repository
+                .update_friendship_status(&friendship.id, is_active, Some(transaction))
+                .await;
+            (Ok(friendship.id), transaction.unwrap())
+        }
+        None => {
+            let (friendship_id, transaction) = friendships_repository
+                .create_new_friendships((address_0, address_1), Some(transaction))
+                .await;
+            (
+                friendship_id.map_err(|err| {
+                    log::warn!("Couldn't crate new friendship {err}");
+                    SynapseError::CommonError(CommonError::Unknown)
+                }),
+                transaction.unwrap(),
+            )
+        }
+    }
 }

@@ -42,16 +42,11 @@ impl fmt::Debug for FriendshipsRepository {
 pub trait FriendshipRepositoryImplementation {
     fn get_db_connection(&self) -> &Arc<Option<DBConnection>>;
 
-    fn create_new_friendships_query<'a>(
-        &self,
-        addresses: (&'a str, &'a str),
-    ) -> Query<'a, Postgres, sqlx::postgres::PgArguments>;
-
     async fn create_new_friendships<'a>(
         &'a self,
         addresses: (&'a str, &'a str),
         transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>);
+    ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>);
 
     async fn get_friendship<'a>(
         &'a self,
@@ -72,6 +67,13 @@ pub trait FriendshipRepositoryImplementation {
         Option<Transaction<'a, Postgres>>,
     );
 
+    async fn update_friendship_status<'a>(
+        &'a self,
+        friendship_id: &'a Uuid,
+        is_active: bool,
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>);
+
     fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a>;
 }
 
@@ -81,23 +83,20 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         &self.db_connection
     }
 
-    fn create_new_friendships_query<'a>(
-        &self,
-        addresses: (&'a str, &'a str),
-    ) -> Query<'a, Postgres, sqlx::postgres::PgArguments> {
-        let (address1, address2) = addresses;
-        sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
-            .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
-            .bind(address1)
-            .bind(address2)
-    }
-
     async fn create_new_friendships<'a>(
         &'a self,
         addresses: (&'a str, &'a str),
         transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
-        let query = self.create_new_friendships_query(addresses);
+    ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>) {
+        let (address1, address2) = addresses;
+
+        let id = Uuid::parse_str(generate_uuid_v4().as_str()).unwrap();
+
+        let query =
+            sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
+                .bind(id)
+                .bind(address1)
+                .bind(address2);
 
         let executor = self.get_executor(transaction);
 
@@ -106,7 +105,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
         match res {
-            Ok(_) => (Ok(()), transaction_to_return),
+            Ok(_) => (Ok(id), transaction_to_return),
             Err(err) => (Err(err), transaction_to_return),
         }
     }
@@ -204,6 +203,27 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                     (Err(err), transaction_to_return)
                 }
             },
+        }
+    }
+
+    async fn update_friendship_status<'a>(
+        &'a self,
+        friendship_id: &'a Uuid,
+        is_active: bool,
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
+        let query = sqlx::query("UPDATE friendships SET is_active = $1 WHERE id = $2")
+            .bind(is_active)
+            .bind(friendship_id.to_string());
+
+        let executor = self.get_executor(transaction);
+
+        let (res, resulting_executor) = DatabaseComponent::execute_query(query, executor).await;
+        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
+
+        match res {
+            Ok(_) => (Ok(()), transaction_to_return),
+            Err(err) => (Err(err), transaction_to_return),
         }
     }
 
