@@ -47,7 +47,7 @@ pub enum FriendshipEvent {
     DELETE, // Delete an existing friendship
 }
 
-#[derive(Clone)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum FriendshipStatus {
     Friends,
     Requested(String),
@@ -55,15 +55,16 @@ pub enum FriendshipStatus {
     NotFriends,
 }
 
-impl PartialEq for FriendshipStatus {
-    fn eq(&self, other: &Self) -> bool {
-        core::mem::discriminant(self) == core::mem::discriminant(other)
-    }
-}
+// impl PartialEq for FriendshipStatus {
+//     fn eq(&self, other: &Self) -> bool {
+//         let discriminant = core::mem::discriminant(other);
+
+//         core::mem::discriminant(self) == core::mem::discriminant(other)
+//     }
+// }
 
 impl FriendshipStatus {
     fn from_str(str: String, owner: String) -> Self {
-        println!("OWNER: {owner}");
         let friendship_event = serde_json::from_str::<FriendshipEvent>(&str);
 
         if friendship_event.is_err() {
@@ -249,11 +250,6 @@ fn calculate_current_friendship_status(
 
     let friendship_history = friendship_history.unwrap();
 
-    println!(
-        "friendship_history: {}, event {}",
-        friendship_history.acting_user, friendship_history.event
-    );
-
     FriendshipStatus::from_str(friendship_history.event, friendship_history.acting_user)
 }
 
@@ -277,7 +273,7 @@ fn verify_if_friends(
     room_event: FriendshipEvent,
 ) -> FriendshipStatus {
     // if someone accepts or requests a friendship without an existing or a new one, the status shouldn't change
-    if *current_status != FriendshipStatus::Requested("".to_string())
+    if !matches!(*current_status, FriendshipStatus::Requested(_))
         && room_event != FriendshipEvent::REQUEST
     {
         return (*current_status).clone();
@@ -297,6 +293,7 @@ fn verify_if_friends(
                 FriendshipEvent::DELETE => FriendshipStatus::NotFriends,
             }
         }
+        FriendshipStatus::Friends => FriendshipStatus::Friends,
         _ => {
             if room_event == FriendshipEvent::REQUEST {
                 return FriendshipStatus::Requested(acting_user);
@@ -425,5 +422,111 @@ async fn store_friendship_update<'a>(
                 transaction.unwrap(),
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::{process_friendship_status, FriendshipEvent, FriendshipStatus};
+
+    #[test]
+    fn test_process_friendship_status_not_friends_requested() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::NotFriends;
+        let event = FriendshipEvent::REQUEST;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::Requested(acting_user.to_string()));
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_accepted() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Requested("another user".to_string());
+        let event = FriendshipEvent::ACCEPT;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::Friends);
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_rejected() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Requested("another user".to_string());
+        let event = FriendshipEvent::REJECT;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::NotFriends);
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_accepted_same_user() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Requested(acting_user.to_string());
+        let event = FriendshipEvent::ACCEPT;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, current_status);
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_requested_same_user() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Requested(acting_user.to_string());
+        let event = FriendshipEvent::REQUEST;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, current_status);
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_rejected_same_user_should_remove() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Requested(acting_user.to_string());
+        let event = FriendshipEvent::REJECT;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::NotFriends);
+    }
+
+    #[test]
+    fn test_process_friendship_status_friends_remove() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Friends;
+        let event = FriendshipEvent::DELETE;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::NotFriends);
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_cancel() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Friends;
+        let event = FriendshipEvent::CANCEL;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::NotFriends);
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_requested_should_become_friends() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Requested("another user".to_string());
+        let event = FriendshipEvent::REQUEST;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::Friends);
+    }
+
+    #[test]
+    fn test_process_friendship_status_friends_accept_should_stay_friends() {
+        let acting_user = "user";
+        let current_status = FriendshipStatus::Friends;
+        let event = FriendshipEvent::REQUEST;
+        let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+
+        assert_eq!(res, FriendshipStatus::Friends);
     }
 }
