@@ -4,13 +4,41 @@ The social service is an enabler of social interactions for decentraland, it sto
 
 ## Collaboration
 
+### Setting up Rust
+
+#### Rust Installation
+
+The preferred way to install Rust [is by using the rustup command](https://www.rust-lang.org/tools/install):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+This will by default install the stable toolchain, but will also enable you to install beta and nightly toolchains as well as new platforms (e.g. WASM) and update all toolchains to their latest versions.
+
+#### Rust update
+
+Run
+```bash
+rustup update
+```
+
+#### Editor & Tooling
+
+There are two recommended editors/IDEs at the moment:
+
+- [IntelliJ Rust](https://www.jetbrains.com/rust/)
+- VS Code with [Rust Analyzer](https://www.google.com/search?q=rust+analyzer&oq=rust+analyzer&aqs=chrome..69i57j0i512l9.2107j0j7&sourceid=chrome&ie=UTF-8#:~:text=rust%2Dlang/rust,lang%20%E2%80%BA%20rust%2Danalyzer) support
+#### Debug Rust in VS Code
+
+- Follow the instructions [in the following post](https://www.forrestthewoods.com/blog/how-to-debug-rust-with-visual-studio-code/) to add the extension for VS Code for debugging LLVM programs in VS Code
 ### Running the server
 
 ```
 make run
 ```
 
-Running this command will run a dockerized Postgres DB and run the server on port `8080`. You should have Docker installed on your computer.
+Running this command will run a dockerized Postgres DB and run the server on port `8080`. You should have Docker installed on your computer and running.
 
 For development, you can use this command:
 
