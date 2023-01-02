@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use actix_web::{
     put,
     web::{self, Data},
@@ -65,6 +63,7 @@ impl PartialEq for FriendshipStatus {
 
 impl FriendshipStatus {
     fn from_str(str: String, owner: String) -> Self {
+        println!("OWNER: {owner}");
         let friendship_event = serde_json::from_str::<FriendshipEvent>(&str);
 
         if friendship_event.is_err() {
@@ -94,6 +93,8 @@ pub async fn room_event_handler(
     let extensions = req.extensions();
     let logged_in_user = extensions.get::<UserId>().unwrap().0.as_str();
     let token = extensions.get::<Token>().unwrap().0.as_str();
+
+    println!("Acting user: {logged_in_user}");
 
     let response = process_room_event(
         logged_in_user,
@@ -138,11 +139,17 @@ async fn process_room_event(
     let new_status =
         process_friendship_status(acting_user.to_string(), &current_status, room_event);
 
+    let second_user = if address_0.eq_ignore_ascii_case(acting_user) {
+        address_0
+    } else {
+        address_1
+    };
+
     // UPDATE FRIENDSHIP ACCORDINGLY IN DB
     update_friendship_status(
         &friendship,
-        &address_0,
-        &address_1,
+        &acting_user,
+        &second_user,
         current_status,
         new_status,
         room_event,
@@ -241,6 +248,11 @@ fn calculate_current_friendship_status(
     }
 
     let friendship_history = friendship_history.unwrap();
+
+    println!(
+        "friendship_history: {}, event {}",
+        friendship_history.acting_user, friendship_history.event
+    );
 
     FriendshipStatus::from_str(friendship_history.event, friendship_history.acting_user)
 }
