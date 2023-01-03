@@ -70,7 +70,7 @@ impl FriendshipHistoryRepository {
         match res {
             Ok(_) => (Ok(()), transaction_to_return),
             Err(err) => {
-                println!("ERROR in create {err}");
+                log::error!("Error while creating friendship history {err}");
                 (Err(err), transaction_to_return)
             }
         }

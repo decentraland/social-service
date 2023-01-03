@@ -66,7 +66,7 @@ pub struct SynapseLoginResponse {
     pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct RoomMember {
     pub user_id: String,
     pub room_id: String,
@@ -86,7 +86,7 @@ pub struct RoomMember {
     // age: u32,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct RoomMembersResponse {
     pub chunk: Vec<RoomMember>,
 }

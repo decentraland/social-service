@@ -320,18 +320,17 @@ fn calculate_new_friendship_status(
 
     match last_history.event {
         FriendshipEvent::REQUEST => {
+            // since the room event should only be accept or request it can only be done by the second user
             if last_history.acting_user.eq_ignore_ascii_case(&acting_user) {
-                return Ok(FriendshipStatus::Requested(acting_user.to_string()));
+                return Err(SynapseError::InvalidEvent);
             }
 
             match room_event {
                 FriendshipEvent::ACCEPT => Ok(FriendshipStatus::Friends),
-                FriendshipEvent::REJECT => Ok(FriendshipStatus::NotFriends),
                 _ => Err(SynapseError::InvalidEvent),
             }
         }
         FriendshipEvent::ACCEPT => match room_event {
-            FriendshipEvent::DELETE => Ok(FriendshipStatus::NotFriends),
             _ => Err(SynapseError::InvalidEvent),
         },
         _ => match room_event {
@@ -519,17 +518,17 @@ mod tests {
     }
 
     #[test]
-    fn test_process_friendship_status_requested_accepted_same_user() {
+    fn test_process_friendship_status_requested_accepted_same_user_should_err() {
         let acting_user = "user";
         let event = FriendshipEvent::ACCEPT;
-        let last_history = get_last_history(FriendshipEvent::REQUEST, "another user");
+        let last_history = get_last_history(FriendshipEvent::REQUEST, acting_user);
         let res = process_friendship_status(acting_user, &last_history, event);
 
-        assert_eq!(res, Ok(FriendshipStatus::Friends));
+        assert_eq!(res, Err(SynapseError::InvalidEvent));
     }
 
     #[test]
-    fn test_process_friendship_status_requested_requested_same_user() {
+    fn test_process_friendship_status_requested_requested_same_user_should_err() {
         let acting_user = "user";
         let event = FriendshipEvent::REQUEST;
         let last_history = get_last_history(event, acting_user);

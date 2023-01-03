@@ -1,25 +1,103 @@
 #[cfg(test)]
 mod tests {
+    use crate::common::*;
+    use social_service::{
+        components::{
+            synapse::{RoomMember, RoomMembersResponse},
+        },
+        entities::friendships::FriendshipRepositoryImplementation,
+        routes::synapse::room_events::{FriendshipEvent, RoomEventRequestBody},
+    };
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
-    use crate::common::{get_app, get_configuration};
-    use actix_web::test;
+    const ROOM_STATE_URI: &str =
+        "/_matrix/client/r0/rooms/a_room_id/state/org.decentraland.friendship";
+
+    async fn get_synapse_mocked_server_with_room(
+        user_id: String,
+        room_members: (String, String),
+    ) -> MockServer {
+        let synapse_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+
+        let response = RoomMembersResponse {
+            chunk: vec![
+                RoomMember {
+                    room_id: "a_room_id".to_string(),
+                    r#type: "".to_string(),
+                    user_id: room_members.0,
+                },
+                RoomMember {
+                    room_id: "a_room_id".to_string(),
+                    r#type: "".to_string(),
+                    user_id: room_members.1,
+                },
+            ],
+        };
+
+        Mock::given(method("PUT"))
+            .and(path(ROOM_STATE_URI))
+            .respond_with(ResponseTemplate::new(200).set_body_json(response))
+            .mount(&synapse_server)
+            .await;
+
+        synapse_server
+    }
 
     #[actix_web::test]
     async fn test_friendship_lifecycle() {
-        let config = get_configuration().await;
+        let db = create_db_component().await;
 
-        let app = test::init_service(get_app(config, None).await).await;
+        let user_1_id = "0xa";
+        let user_2_id = "0xb";
+        let synapse_server = get_synapse_mocked_server_with_room(
+            user_1_id.to_string(),
+            (user_1_id.to_string(), user_2_id.to_string()),
+        )
+        .await;
 
-        // mock synapse 
+        let mut config = get_configuration().await;
+        config.synapse.url = synapse_server.uri();
+
+        let app = actix_web::test::init_service(get_app(config, None).await).await;
+
+        let token = "a1b2c3d4";
+        let header = ("authorization", format!("Bearer {}", token));
 
         // test 1
 
         // user A request user B
+        let body = RoomEventRequestBody {
+            r#type: FriendshipEvent::REQUEST,
+        };
+
+        let req = actix_web::test::TestRequest::put()
+            .uri(ROOM_STATE_URI)
+            .insert_header(header)
+            .set_json(body)
+            .to_request();
+
+        let resp = actix_web::test::call_service(&app, req).await;
+
+        assert_eq!(resp.status(), 200);
+
+        let repos = db.db_repos.unwrap();
+
+        let result = repos
+            .friendships
+            .get_friendship((user_1_id, user_2_id), None)
+            .await
+            .0
+            .unwrap()
+            .unwrap();
+
         // assert not friends in db yet
-        
+        assert!(!result.is_active);
+
         // user A cancel request for user B
         // assert not friends in db yet
-        
 
         // test 2
 
@@ -30,7 +108,7 @@ mod tests {
         // user B reject user A
         // assert not friends in db yet
         // assert history has request and reject
-        
+
         // test 3
 
         // user A request user B
@@ -40,7 +118,6 @@ mod tests {
         // user B accept user A
         // assert friends in db
         // assert history has request and accept
-
 
         // test 4
 

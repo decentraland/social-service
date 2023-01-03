@@ -3,6 +3,7 @@ use social_service::{
     components::{
         app::AppComponents,
         configuration::{Config, Database},
+        database::{DatabaseComponent, DatabaseComponentImplementation},
         synapse::{WhoAmIResponse, WHO_AM_I_URI},
     },
     get_app_router,
@@ -10,7 +11,7 @@ use social_service::{
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use wiremock::{
     matchers::{method, path},
-    MockServer, ResponseTemplate, Mock,
+    Mock, MockServer, ResponseTemplate,
 };
 
 pub async fn get_configuration() -> Config {
@@ -97,4 +98,17 @@ pub async fn who_am_i_synapse_mock_server(user_id: String) -> MockServer {
         .await;
 
     server
+}
+
+pub async fn create_db_component() -> DatabaseComponent {
+    let config = get_configuration().await;
+    let mut db = DatabaseComponent::new(&Database {
+        host: config.db.host,
+        name: config.db.name,
+        user: config.db.user,
+        password: config.db.password,
+    });
+    db.run().await.unwrap();
+    assert!(db.is_connected());
+    db
 }

@@ -2,25 +2,9 @@ mod common;
 pub use common::*;
 
 use social_service::{
-    components::{
-        configuration::Database,
-        database::{DatabaseComponent, DatabaseComponentImplementation},
-    },
     entities::friendships::FriendshipRepositoryImplementation,
+    routes::synapse::room_events::FriendshipEvent,
 };
-
-async fn create_db_component() -> DatabaseComponent {
-    let config = common::get_configuration().await;
-    let mut db = DatabaseComponent::new(&Database {
-        host: config.db.host,
-        name: config.db.name,
-        user: config.db.user,
-        password: config.db.password,
-    });
-    db.run().await.unwrap();
-    assert!(db.is_connected());
-    db
-}
 
 #[actix_web::test]
 #[serial_test::serial]
@@ -65,7 +49,7 @@ async fn should_create_a_friendship_request_event() {
         .unwrap();
     dbrepos
         .friendship_history
-        .create(friendship.id, "request", "C", None, None)
+        .create(friendship.id, "\"request\"", "C", None, None)
         .await
         .0
         .unwrap();
@@ -81,7 +65,10 @@ async fn should_create_a_friendship_request_event() {
         friendship_history.as_ref().unwrap().friendship_id,
         friendship.id
     );
-    assert_eq!(friendship_history.as_ref().unwrap().event, "request");
+    assert_eq!(
+        friendship_history.as_ref().unwrap().event,
+        FriendshipEvent::REQUEST
+    );
     assert_eq!(friendship_history.as_ref().unwrap().acting_user, "C");
     assert_eq!(friendship_history.as_ref().unwrap().metadata, None);
 }
