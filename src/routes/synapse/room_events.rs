@@ -281,8 +281,24 @@ fn process_friendship_status(
         FriendshipEvent::ACCEPT => {
             calculate_new_friendship_status(acting_user, last_history, room_event)
         }
-        FriendshipEvent::CANCEL => Ok(FriendshipStatus::NotFriends),
-        FriendshipEvent::REJECT => Ok(FriendshipStatus::NotFriends),
+        FriendshipEvent::CANCEL => {
+            if let Some(last_history) = last_history {
+                if last_history.acting_user.eq_ignore_ascii_case(&acting_user) {
+                    return Ok(FriendshipStatus::NotFriends);
+                }
+            }
+
+            Err(SynapseError::InvalidEvent)
+        }
+        FriendshipEvent::REJECT => {
+            if let Some(last_history) = last_history {
+                if !last_history.acting_user.eq_ignore_ascii_case(&acting_user) {
+                    return Ok(FriendshipStatus::NotFriends);
+                }
+            }
+
+            Err(SynapseError::InvalidEvent)
+        }
         FriendshipEvent::DELETE => Ok(FriendshipStatus::NotFriends),
     }
 }
@@ -448,8 +464,26 @@ async fn store_friendship_update<'a>(
 
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDate;
+
+    use crate::{
+        entities::friendship_history::FriendshipHistory, routes::synapse::errors::SynapseError,
+    };
 
     use super::{process_friendship_status, FriendshipEvent, FriendshipStatus};
+
+    fn get_last_history(event: FriendshipEvent, acting_user: &str) -> Option<FriendshipHistory> {
+        Some(FriendshipHistory {
+            event,
+            acting_user: acting_user.to_string(),
+            friendship_id: uuid::uuid!("223ab239-a69f-40e5-9932-d92348a43fd0"),
+            metadata: None,
+            timestamp: NaiveDate::from_ymd_opt(2023, 1, 2)
+                .unwrap()
+                .and_hms_nano_opt(10, 1, 1, 0)
+                .unwrap(),
+        })
+    }
 
     #[test]
     fn test_process_friendship_status_not_friends_requested() {
@@ -464,93 +498,114 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_process_friendship_status_requested_accepted() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Requested("another user".to_string());
-    //     let event = FriendshipEvent::ACCEPT;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+    #[test]
+    fn test_process_friendship_status_requested_accepted() {
+        let acting_user = "user";
+        let event = FriendshipEvent::ACCEPT;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, "another user");
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    //     assert_eq!(res, FriendshipStatus::Friends);
-    // }
+        assert_eq!(res, Ok(FriendshipStatus::Friends));
+    }
 
-    // #[test]
-    // fn test_process_friendship_status_requested_rejected() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Requested("another user".to_string());
-    //     let event = FriendshipEvent::REJECT;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+    #[test]
+    fn test_process_friendship_status_requested_rejected() {
+        let acting_user = "user";
+        let event = FriendshipEvent::REJECT;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, "another user");
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    //     assert_eq!(res, FriendshipStatus::NotFriends);
-    // }
+        assert_eq!(res, Ok(FriendshipStatus::NotFriends));
+    }
 
-    // #[test]
-    // fn test_process_friendship_status_requested_accepted_same_user() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Requested(acting_user.to_string());
-    //     let event = FriendshipEvent::ACCEPT;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+    #[test]
+    fn test_process_friendship_status_requested_accepted_same_user() {
+        let acting_user = "user";
+        let event = FriendshipEvent::ACCEPT;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, "another user");
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    //     assert_eq!(res, current_status);
-    // }
+        assert_eq!(res, Ok(FriendshipStatus::Friends));
+    }
 
-    // #[test]
-    // fn test_process_friendship_status_requested_requested_same_user() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Requested(acting_user.to_string());
-    //     let event = FriendshipEvent::REQUEST;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+    #[test]
+    fn test_process_friendship_status_requested_requested_same_user() {
+        let acting_user = "user";
+        let event = FriendshipEvent::REQUEST;
+        let last_history = get_last_history(event, acting_user);
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    //     assert_eq!(res, current_status);
-    // }
+        assert_eq!(res, Err(SynapseError::InvalidEvent));
+    }
 
-    // #[test]
-    // fn test_process_friendship_status_requested_rejected_same_user_should_remove() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Requested(acting_user.to_string());
-    //     let event = FriendshipEvent::REJECT;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+    #[test]
+    fn test_process_friendship_status_requested_rejected_same_user_should_err() {
+        let acting_user = "user";
+        let event = FriendshipEvent::REJECT;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, acting_user);
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    //     assert_eq!(res, FriendshipStatus::NotFriends);
-    // }
+        assert_eq!(res, Err(SynapseError::InvalidEvent));
+    }
 
-    // #[test]
-    // fn test_process_friendship_status_friends_remove() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Friends;
-    //     let event = FriendshipEvent::DELETE;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+    #[test]
+    fn test_process_friendship_status_friends_remove() {
+        let acting_user = "user";
+        let event = FriendshipEvent::DELETE;
+        let last_history = get_last_history(FriendshipEvent::ACCEPT, "another user");
 
-    //     assert_eq!(res, FriendshipStatus::NotFriends);
-    // }
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    // #[test]
-    // fn test_process_friendship_status_requested_cancel() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Friends;
-    //     let event = FriendshipEvent::CANCEL;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+        assert_eq!(res, Ok(FriendshipStatus::NotFriends));
+    }
 
-    //     assert_eq!(res, FriendshipStatus::NotFriends);
-    // }
+    #[test]
+    fn test_process_friendship_status_requested_cancel() {
+        let acting_user = "user";
+        let event = FriendshipEvent::CANCEL;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, acting_user);
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    // #[test]
-    // fn test_process_friendship_status_requested_requested_should_not_become_friends() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Requested("another user".to_string());
-    //     let event = FriendshipEvent::REQUEST;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+        assert_eq!(res, Ok(FriendshipStatus::NotFriends));
+    }
 
-    //     assert_eq!(res, FriendshipStatus::NotFriends);
-    // }
+    #[test]
+    fn test_process_friendship_status_requested_cancel_from_another_user_should_err() {
+        let acting_user = "user";
+        let event = FriendshipEvent::CANCEL;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, "another user");
+        let res = process_friendship_status(acting_user, &last_history, event);
 
-    // #[test]
-    // fn test_process_friendship_status_friends_accept_should_stay_friends() {
-    //     let acting_user = "user";
-    //     let current_status = FriendshipStatus::Friends;
-    //     let event = FriendshipEvent::REQUEST;
-    //     let res = process_friendship_status(acting_user.to_string(), &current_status, event);
+        assert_eq!(res, Err(SynapseError::InvalidEvent));
+    }
 
-    //     assert_eq!(res, FriendshipStatus::Friends);
-    // }
+    #[test]
+    fn test_process_friendship_status_requested_reject_from_same_user_should_err() {
+        let acting_user = "user";
+        let event = FriendshipEvent::REJECT;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, acting_user);
+        let res = process_friendship_status(acting_user, &last_history, event);
+
+        assert_eq!(res, Err(SynapseError::InvalidEvent));
+    }
+
+    #[test]
+    fn test_process_friendship_status_requested_requested_should_not_become_friends() {
+        let acting_user = "user";
+        let event = FriendshipEvent::REQUEST;
+        let last_history = get_last_history(FriendshipEvent::REQUEST, "another user");
+        let res = process_friendship_status(acting_user, &last_history, event);
+
+        assert_eq!(res, Err(SynapseError::InvalidEvent));
+    }
+
+    #[test]
+    fn test_process_friendship_status_friends_accept_should_err_invalid_event() {
+        let acting_user = "user";
+        let event = FriendshipEvent::REQUEST;
+        let last_history = get_last_history(FriendshipEvent::ACCEPT, "another user");
+        let res = process_friendship_status(acting_user, &last_history, event);
+
+        assert_eq!(res, Err(SynapseError::InvalidEvent));
+    }
 }
