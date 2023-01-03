@@ -100,13 +100,17 @@ pub async fn who_am_i_synapse_mock_server(user_id: String) -> MockServer {
     server
 }
 
-pub async fn create_db_component() -> DatabaseComponent {
-    let config = get_configuration().await;
+pub async fn create_db_component(config: &Option<Config>) -> DatabaseComponent {
+    let default_config = get_configuration().await;
+    let config = match config {
+        Some(config) => config,
+        None => &default_config
+    };
     let mut db = DatabaseComponent::new(&Database {
-        host: config.db.host,
-        name: config.db.name,
-        user: config.db.user,
-        password: config.db.password,
+        host: config.db.host.to_string(),
+        name: config.db.name.to_string(),
+        user: config.db.user.to_string(),
+        password: config.db.password.to_string(),
     });
     db.run().await.unwrap();
     assert!(db.is_connected());

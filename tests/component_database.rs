@@ -9,7 +9,7 @@ use social_service::{
 #[actix_web::test]
 #[serial_test::serial]
 async fn should_create_and_get_a_friendship() {
-    let db = create_db_component().await;
+    let db = create_db_component(&None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
@@ -32,7 +32,7 @@ async fn should_create_and_get_a_friendship() {
 #[actix_web::test]
 #[serial_test::serial]
 async fn should_create_a_friendship_request_event() {
-    let db = create_db_component().await;
+    let db = create_db_component(&None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
@@ -75,7 +75,7 @@ async fn should_create_a_friendship_request_event() {
 
 #[actix_web::test]
 async fn should_create_a_user_feature() {
-    let db = create_db_component().await;
+    let db = create_db_component(&None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .user_features

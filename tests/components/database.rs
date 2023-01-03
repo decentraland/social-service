@@ -11,6 +11,7 @@ mod database_tests {
 
     use crate::helpers::server::get_configuration;
 
+    // TODO: Use the other method
     async fn create_db_component() -> DatabaseComponent {
         let config = get_configuration();
         let mut db = DatabaseComponent::new(&Database {

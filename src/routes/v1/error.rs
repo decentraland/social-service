@@ -1,9 +1,9 @@
 use actix_web::{HttpResponse, ResponseError};
 use reqwest::StatusCode;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use thiserror::Error;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ErrorResponse {
     pub code: u16,
     pub error: String,

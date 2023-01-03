@@ -1,12 +1,13 @@
 #[cfg(test)]
 mod tests {
     use crate::common::*;
+    use actix_web::{test};
     use social_service::{
         components::{
             synapse::{RoomMember, RoomMembersResponse},
         },
         entities::friendships::FriendshipRepositoryImplementation,
-        routes::synapse::room_events::{FriendshipEvent, RoomEventRequestBody},
+        routes::{synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse}, v1::error::ErrorResponse},
     };
     use wiremock::{
         matchers::{method, path},
@@ -15,6 +16,7 @@ mod tests {
 
     const ROOM_STATE_URI: &str =
         "/_matrix/client/r0/rooms/a_room_id/state/org.decentraland.friendship";
+    const ROOM_MEMBERS_URI: &str = "/_matrix/client/r0/rooms/a_room_id/members";
 
     async fn get_synapse_mocked_server_with_room(
         user_id: String,
@@ -22,7 +24,7 @@ mod tests {
     ) -> MockServer {
         let synapse_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
 
-        let response = RoomMembersResponse {
+        let room_members_response = RoomMembersResponse {
             chunk: vec![
                 RoomMember {
                     room_id: "a_room_id".to_string(),
@@ -37,9 +39,18 @@ mod tests {
             ],
         };
 
+        let room_state_response = RoomEventResponse {
+            event_id: "anState".to_string(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path(ROOM_MEMBERS_URI))
+            .respond_with(ResponseTemplate::new(200).set_body_json(room_members_response))
+            .mount(&synapse_server)
+            .await;
         Mock::given(method("PUT"))
             .and(path(ROOM_STATE_URI))
-            .respond_with(ResponseTemplate::new(200).set_body_json(response))
+            .respond_with(ResponseTemplate::new(200).set_body_json(room_state_response))
             .mount(&synapse_server)
             .await;
 
@@ -48,7 +59,6 @@ mod tests {
 
     #[actix_web::test]
     async fn test_friendship_lifecycle() {
-        let db = create_db_component().await;
 
         let user_1_id = "0xa";
         let user_2_id = "0xb";
@@ -60,6 +70,7 @@ mod tests {
 
         let mut config = get_configuration().await;
         config.synapse.url = synapse_server.uri();
+        let db = create_db_component(&Some(config)).await;
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
@@ -81,6 +92,8 @@ mod tests {
 
         let resp = actix_web::test::call_service(&app, req).await;
 
+        // let friendships_response: ErrorResponse = test::read_body_json(resp).await;
+        // println!("ACA fallo {}", friendships_response.message);
         assert_eq!(resp.status(), 200);
 
         let repos = db.db_repos.unwrap();
