@@ -2348,6 +2348,7 @@ dependencies = [
  "futures-util",
  "hex",
  "hmac",
+ "lazy_static",
  "log",
  "mockall",
  "opentelemetry",

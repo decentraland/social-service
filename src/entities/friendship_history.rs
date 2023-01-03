@@ -11,6 +11,7 @@ use sqlx::{
 use crate::{
     components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
+    routes::synapse::room_events::FriendshipEvent,
 };
 
 use super::utils::get_transaction_result_from_executor;
@@ -22,7 +23,7 @@ pub struct FriendshipHistoryRepository {
 
 pub struct FriendshipHistory {
     pub friendship_id: Uuid,
-    pub event: String,
+    pub event: FriendshipEvent,
     pub acting_user: String,
     pub timestamp: chrono::NaiveDateTime,
     pub metadata: Option<Json<HashMap<String, String>>>,
@@ -73,8 +74,6 @@ impl FriendshipHistoryRepository {
                 (Err(err), transaction_to_return)
             }
         }
-
-        // (res.map_err(|err| ()), transaction_to_return)
     }
 
     pub async fn get<'a>(
@@ -95,9 +94,21 @@ impl FriendshipHistoryRepository {
 
         match res {
             Ok(row) => {
+                let friendship_id = row.try_get("friendship_id").unwrap();
+                let event = serde_json::from_str::<FriendshipEvent>(row.try_get("event").unwrap());
+
+                if event.is_err() {
+                    let err = event.unwrap_err();
+                    log::error!("Row for {friendship_id} has an invalid event {}", err);
+                    return (
+                        Err(sqlx::Error::Decode(Box::new(err))),
+                        transaction_to_return,
+                    );
+                }
+
                 let history = FriendshipHistory {
-                    friendship_id: row.try_get("friendship_id").unwrap(),
-                    event: row.try_get("event").unwrap(),
+                    friendship_id,
+                    event: event.unwrap(),
                     acting_user: row.try_get("acting_user").unwrap(),
                     timestamp: row.try_get("timestamp").unwrap(),
                     metadata: row.try_get("metadata").unwrap(),

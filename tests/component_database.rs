@@ -1,5 +1,4 @@
 mod common;
-use actix_web::body::None;
 pub use common::*;
 
 use social_service::{
@@ -34,7 +33,12 @@ async fn should_create_and_get_a_friendship() {
         .await
         .0
         .unwrap();
-    let friendship = dbrepos.friendships.get_friendship(("A", "B"), None).await.0.unwrap();
+    let friendship = dbrepos
+        .friendships
+        .get_friendship(("A", "B"), None)
+        .await
+        .0
+        .unwrap();
     assert!(friendship.is_some());
 
     assert_eq!(friendship.as_ref().unwrap().address_1, "A");
