@@ -402,11 +402,13 @@ mod tests {
 
         let header = ("authorization", format!("Bearer {}", token_2));
 
-        let _ = actix_web::test::TestRequest::put()
+        let req = actix_web::test::TestRequest::put()
             .uri(ROOM_STATE_URI)
             .insert_header(header)
             .set_json(body)
             .to_request();
+
+        let _ = actix_web::test::call_service(&app, req).await;
 
         // assert not friends in db
         let result = repos
@@ -454,11 +456,8 @@ mod tests {
 
         let mut config = get_configuration().await;
         config.synapse.url = synapse_server.uri();
-        let db = create_db_component(Some(&config)).await;
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
-
-        // test 5
 
         // user A request user B
         let body = RoomEventRequestBody {
