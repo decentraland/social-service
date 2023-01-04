@@ -91,14 +91,18 @@ impl SynapseComponent {
         Self::get_request::<VersionResponse>(VERSION_URI, &self.synapse_url).await
     }
 
-    #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
-        Self::authenticated_get_request::<WhoAmIResponse>(
+        let result = Self::authenticated_get_request::<WhoAmIResponse>(
             WHO_AM_I_URI,
             token,
             self.synapse_url.as_str(),
         )
-        .await
+        .await;
+
+        result.map(|mut res| {
+            res.user_id = clean_synapse_user_id(&res.user_id).to_string();
+            res
+        })
     }
 
     #[tracing::instrument(name = "login function > Synapse components")]
@@ -114,7 +118,12 @@ impl SynapseComponent {
             .send()
             .await;
 
-        Self::process_synapse_response::<SynapseLoginResponse>(result).await
+        let response = Self::process_synapse_response::<SynapseLoginResponse>(result).await;
+
+        response.map(|mut res| {
+            res.user_id = clean_synapse_user_id(&res.user_id).to_string();
+            res
+        })
     }
 
     #[tracing::instrument(name = "put room event > Synapse components")]
@@ -142,12 +151,20 @@ impl SynapseComponent {
         room_id: &str,
     ) -> Result<RoomMembersResponse, CommonError> {
         let path = format!("/_matrix/client/r0/rooms/{room_id}/members");
-        Self::authenticated_get_request::<RoomMembersResponse>(
+        let response = Self::authenticated_get_request::<RoomMembersResponse>(
             &path,
             token,
             self.synapse_url.as_str(),
         )
-        .await
+        .await;
+
+        response.map(|mut res| {
+            res.chunk.iter_mut().for_each(|mut room_member| {
+                room_member.user_id = clean_synapse_user_id(&room_member.user_id).to_string();
+            });
+
+            res
+        })
     }
 
     async fn get_request<T: DeserializeOwned>(
@@ -237,4 +254,21 @@ impl SynapseComponent {
             }
         }
     }
+}
+
+/// Get the local part of the userId from matrixUserId
+///
+/// @example
+/// from: '@0x1111ada11111:decentraland.org'
+/// to: '0x1111ada11111'
+fn clean_synapse_user_id(user_id: &str) -> &str {
+    let at_position = user_id.chars().position(|char| char == '@');
+    // this means that the id comes from matrix
+    if let Some(at_position) = at_position {
+        if at_position == 0 {
+            let split_server = user_id.split(':').collect::<Vec<&str>>();
+            return split_server[0];
+        }
+    }
+    return user_id;
 }
