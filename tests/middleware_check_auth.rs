@@ -85,7 +85,7 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
 async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean_user_id_into_redis() {
     let user_id_synapse = "@0xa:decentraland.org";
     let user_id = "0xa";
-    let token = "a_random_token";
+    let token = "a_random_token_";
 
     let mut token_to_user_id: HashMap<String, String> = HashMap::new();
     token_to_user_id.insert(token.to_string(), user_id_synapse.to_string());
