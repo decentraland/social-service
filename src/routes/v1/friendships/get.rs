@@ -27,8 +27,6 @@ pub async fn get_user_friends(
             .clone()
     };
 
-    println!("HOLA logged_in_user: {logged_in_user}, user_id: {user_id}");
-
     // Return error when user has no permission
     if !has_permission(logged_in_user.as_str(), user_id.as_str()) {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(

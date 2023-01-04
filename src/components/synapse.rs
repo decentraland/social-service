@@ -199,7 +199,6 @@ impl SynapseComponent {
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
         let client = reqwest::Client::new();
-        println!("url: {}\n token: {}", url, format!("Bearer {token}"));
         let response = client
             .get(url)
             .header("Authorization", format!("Bearer {token}"))

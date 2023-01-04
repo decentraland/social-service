@@ -98,12 +98,6 @@ pub async fn who_am_i_synapse_mock_server(token_to_user_id: HashMap<String, Stri
             user_id: user_id.to_string(),
         };
 
-        println!(
-            "MOCKING: url: {}\n token: {}",
-            WHO_AM_I_URI,
-            format!("Bearer {token}")
-        );
-
         Mock::given(method("GET"))
             .and(path(WHO_AM_I_URI))
             .and(header("Authorization", format!("Bearer {token}").as_str()))
