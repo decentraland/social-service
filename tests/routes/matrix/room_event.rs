@@ -1,13 +1,12 @@
 #[cfg(test)]
 mod tests {
+
     use crate::common::*;
-    use actix_web::{test};
+
     use social_service::{
-        components::{
-            synapse::{RoomMember, RoomMembersResponse},
-        },
+        components::synapse::{RoomMember, RoomMembersResponse},
         entities::friendships::FriendshipRepositoryImplementation,
-        routes::{synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse}, v1::error::ErrorResponse},
+        routes::synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
     };
     use wiremock::{
         matchers::{method, path},
@@ -59,9 +58,8 @@ mod tests {
 
     #[actix_web::test]
     async fn test_friendship_lifecycle() {
-
-        let user_1_id = "0xa";
-        let user_2_id = "0xb";
+        let user_1_id = "LALA";
+        let user_2_id = "LELE";
         let synapse_server = get_synapse_mocked_server_with_room(
             user_1_id.to_string(),
             (user_1_id.to_string(), user_2_id.to_string()),
@@ -70,7 +68,7 @@ mod tests {
 
         let mut config = get_configuration().await;
         config.synapse.url = synapse_server.uri();
-        let db = create_db_component(&Some(config)).await;
+        let db = create_db_component(Some(&config)).await;
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
@@ -91,9 +89,6 @@ mod tests {
             .to_request();
 
         let resp = actix_web::test::call_service(&app, req).await;
-
-        // let friendships_response: ErrorResponse = test::read_body_json(resp).await;
-        // println!("ACA fallo {}", friendships_response.message);
         assert_eq!(resp.status(), 200);
 
         let repos = db.db_repos.unwrap();

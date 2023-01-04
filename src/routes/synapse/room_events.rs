@@ -113,8 +113,6 @@ pub async fn room_event_handler(
     let logged_in_user = extensions.get::<UserId>().unwrap().0.as_str();
     let token = extensions.get::<Token>().unwrap().0.as_str();
 
-    println!("Acting user: {logged_in_user}");
-
     let response = process_room_event(
         logged_in_user,
         token,
@@ -142,30 +140,22 @@ async fn process_room_event(
     db: &DatabaseComponent,
     synapse: &SynapseComponent,
 ) -> Result<RoomEventResponse, SynapseError> {
-
-    println!("Entro 1");
     // GET MEMBERS FROM SYNAPSE
     let members_result = synapse.get_room_members(token, room_id).await;
-    println!("Entro 2");
     let (address_0, address_1) = get_room_members(members_result).await?;
-    println!("Entro 3");
 
     let second_user = if address_0.eq_ignore_ascii_case(acting_user) {
-        address_0
-    } else {
         address_1
+    } else {
+        address_0
     };
 
     // GET LAST STATUS FROM DB
     let repos = db.db_repos.as_ref().unwrap();
-
-    println!("Entro 4");
     let friendship = get_friendship_from_db(&repos.friendships, &acting_user, &second_user).await?;
 
-    println!("Entro 5");
     let last_history = get_last_history_from_db(&friendship, &repos.friendship_history).await?;
 
-    println!("Entro 6");
     // PROCESS NEW STATUS OF FRIENDSHIP
     let new_status = process_friendship_status(&acting_user, &last_history, room_event)?;
 
@@ -185,10 +175,8 @@ async fn process_room_event(
     )
     .await?;
 
-    println!("Entro 7");
     let res = synapse.store_room_event(token, room_id, room_event).await;
 
-    println!("Entro 8");
     match res {
         Ok(res) => Ok(res),
         Err(err) => return Err(SynapseError::CommonError(err)),
@@ -200,7 +188,6 @@ async fn get_room_members(
 ) -> Result<(String, String), SynapseError> {
     match room_members_response {
         Ok(response) => {
-            println!("Arranco");
             let members = response
                 .chunk
                 .iter()
@@ -208,7 +195,6 @@ async fn get_room_members(
                 .collect::<Vec<String>>();
 
             if members.len() != 2 {
-                println!("fallo con {}", members.len());
                 return Err(SynapseError::FriendshipNotFound);
             }
 
@@ -218,8 +204,8 @@ async fn get_room_members(
             ))
         }
         Err(err) => {
-            println!("KB {err}");
-            return Err(SynapseError::CommonError(err))},
+            return Err(SynapseError::CommonError(err));
+        }
     }
 }
 

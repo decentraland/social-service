@@ -100,11 +100,11 @@ pub async fn who_am_i_synapse_mock_server(user_id: String) -> MockServer {
     server
 }
 
-pub async fn create_db_component(config: &Option<Config>) -> DatabaseComponent {
+pub async fn create_db_component(config: Option<&Config>) -> DatabaseComponent {
     let default_config = get_configuration().await;
     let config = match config {
         Some(config) => config,
-        None => &default_config
+        None => &default_config,
     };
     let mut db = DatabaseComponent::new(&Database {
         host: config.db.host.to_string(),

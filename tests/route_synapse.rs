@@ -85,7 +85,6 @@ async fn should_be_200_and_has_user_in_cache() {
         .to_request();
 
     let response = test::call_service(&app, req).await;
-    println!("response status {}", response.status());
 
     assert!(response.status().is_success());
 
