@@ -90,6 +90,7 @@ pub async fn mock_server_expect_no_calls() -> MockServer {
 /// Creates a synapse mocked server which respond with the given user ID to who am I endpoint.
 pub async fn who_am_i_synapse_mock_server(user_id: String) -> MockServer {
     let server = create_synapse_mock_server().await;
+
     let response = WhoAmIResponse { user_id };
     Mock::given(method("GET"))
         .and(path(WHO_AM_I_URI))

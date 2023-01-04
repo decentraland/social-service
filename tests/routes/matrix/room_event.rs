@@ -72,7 +72,7 @@ mod tests {
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
-        let token = "a1b2c3d4";
+        let token = "a1b2c3d4e5";
         let header = ("authorization", format!("Bearer {}", token));
 
         // test 1
