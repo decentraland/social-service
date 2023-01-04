@@ -71,19 +71,6 @@ pub struct RoomMember {
     pub user_id: String,
     pub room_id: String,
     pub r#type: String,
-    // content: {
-    //     avatar_url: String,
-    //     displayname: String,
-    //     membership: String,
-    // },
-    // origin_server_ts: u32,
-    // sender: String,
-    // state_key: String,
-    // unsigned: {
-    //     age: u32
-    // },
-    // event_id: String,
-    // age: u32,
 }
 
 #[derive(Deserialize, Serialize)]

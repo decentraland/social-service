@@ -85,8 +85,6 @@ mod tests {
 
         let header = ("authorization", format!("Bearer {}", token_1));
 
-        // test 1
-
         // user A request user B
         let body = RoomEventRequestBody {
             r#type: FriendshipEvent::REQUEST,
@@ -168,8 +166,6 @@ mod tests {
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
         let header = ("authorization", format!("Bearer {}", token_1));
-
-        // test 2
 
         // user A request user B
         let body = RoomEventRequestBody {
@@ -268,8 +264,6 @@ mod tests {
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
-        // test 3
-
         // user A request user B
         let body = RoomEventRequestBody {
             r#type: FriendshipEvent::REQUEST,
@@ -349,8 +343,6 @@ mod tests {
         let db = create_db_component(Some(&config)).await;
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
-
-        // test 4
 
         // user A request user B
         let body = RoomEventRequestBody {
