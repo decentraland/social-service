@@ -224,7 +224,7 @@ impl SynapseComponent {
         match error_response {
             Ok(error) => match error.errcode.as_str() {
                 "M_FORBIDDEN" => {
-                    CommonError::Forbidden(error.error.unwrap_or_else(|| "Forbidden".to_string()))
+                    CommonError::Forbidden(error.error.unwrap_or("Forbidden".to_string()))
                 }
                 "M_UNKNOWN_TOKEN" => CommonError::Unauthorized,
                 "M_MISSING_TOKEN" => CommonError::Unauthorized,
