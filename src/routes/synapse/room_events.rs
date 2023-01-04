@@ -109,13 +109,26 @@ pub async fn room_event_handler(
     room_id: web::Path<String>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, SynapseError> {
-    let extensions = req.extensions();
-    let logged_in_user = extensions.get::<UserId>().unwrap().0.as_str();
-    let token = extensions.get::<Token>().unwrap().0.as_str();
+    let (logged_in_user, token) = {
+        let extensions = req.extensions();
+        let logged_in_user = extensions
+            .get::<UserId>()
+            .expect("to have a UserId")
+            .0
+            .clone();
+
+        let token = extensions
+            .get::<Token>()
+            .expect("To have an authentication token")
+            .0
+            .clone();
+
+        (logged_in_user, token)
+    };
 
     let response = process_room_event(
-        logged_in_user,
-        token,
+        &logged_in_user,
+        &token,
         room_id.as_str(),
         body.r#type,
         &app_data.db,
@@ -129,7 +142,7 @@ pub async fn room_event_handler(
 
     let err = response.err().unwrap();
 
-    return Err(err);
+    Err(err)
 }
 
 async fn process_room_event(
@@ -152,24 +165,24 @@ async fn process_room_event(
 
     // GET LAST STATUS FROM DB
     let repos = db.db_repos.as_ref().unwrap();
-    let friendship = get_friendship_from_db(&repos.friendships, &acting_user, &second_user).await?;
+    let friendship = get_friendship_from_db(&repos.friendships, acting_user, &second_user).await?;
 
     let last_history = get_last_history_from_db(&friendship, &repos.friendship_history).await?;
 
     // PROCESS NEW STATUS OF FRIENDSHIP
-    let new_status = process_friendship_status(&acting_user, &last_history, room_event)?;
+    let new_status = process_friendship_status(acting_user, &last_history, room_event)?;
 
     let current_status = FriendshipStatus::from_history_event(last_history);
 
     // UPDATE FRIENDSHIP ACCORDINGLY IN DB
     update_friendship_status(
         &friendship,
-        &acting_user,
+        acting_user,
         &second_user,
         current_status,
         new_status,
         room_event,
-        &db,
+        db,
         &repos.friendships,
         &repos.friendship_history,
     )
@@ -179,7 +192,7 @@ async fn process_room_event(
 
     match res {
         Ok(res) => Ok(res),
-        Err(err) => return Err(SynapseError::CommonError(err)),
+        Err(err) => Err(SynapseError::CommonError(err)),
     }
 }
 
@@ -203,9 +216,7 @@ async fn get_room_members(
                 members.get(1).unwrap().to_string(),
             ))
         }
-        Err(err) => {
-            return Err(SynapseError::CommonError(err));
-        }
+        Err(err) => Err(SynapseError::CommonError(err)),
     }
 }
 
@@ -262,12 +273,7 @@ fn process_friendship_status(
     last_history: &Option<FriendshipHistory>,
     room_event: FriendshipEvent,
 ) -> Result<FriendshipStatus, SynapseError> {
-    let last_event = {
-        match last_history {
-            Some(history) => Some(history.event),
-            None => None,
-        }
-    };
+    let last_event = { last_history.as_ref().map(|history| history.event) };
 
     let is_valid = FriendshipEvent::validate_new_event_is_valid(&last_event, room_event);
     if !is_valid {
@@ -283,7 +289,7 @@ fn process_friendship_status(
         }
         FriendshipEvent::CANCEL => {
             if let Some(last_history) = last_history {
-                if last_history.acting_user.eq_ignore_ascii_case(&acting_user) {
+                if last_history.acting_user.eq_ignore_ascii_case(acting_user) {
                     return Ok(FriendshipStatus::NotFriends);
                 }
             }
@@ -292,7 +298,7 @@ fn process_friendship_status(
         }
         FriendshipEvent::REJECT => {
             if let Some(last_history) = last_history {
-                if !last_history.acting_user.eq_ignore_ascii_case(&acting_user) {
+                if !last_history.acting_user.eq_ignore_ascii_case(acting_user) {
                     return Ok(FriendshipStatus::NotFriends);
                 }
             }
@@ -321,7 +327,7 @@ fn calculate_new_friendship_status(
     match last_history.event {
         FriendshipEvent::REQUEST => {
             // since the room event should only be accept or request it can only be done by the second user
-            if last_history.acting_user.eq_ignore_ascii_case(&acting_user) {
+            if last_history.acting_user.eq_ignore_ascii_case(acting_user) {
                 return Err(SynapseError::InvalidEvent);
             }
 
@@ -330,9 +336,7 @@ fn calculate_new_friendship_status(
                 _ => Err(SynapseError::InvalidEvent),
             }
         }
-        FriendshipEvent::ACCEPT => match room_event {
-            _ => Err(SynapseError::InvalidEvent),
-        },
+        FriendshipEvent::ACCEPT => Err(SynapseError::InvalidEvent),
         _ => match room_event {
             FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
             _ => Err(SynapseError::InvalidEvent),

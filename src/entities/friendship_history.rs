@@ -125,7 +125,7 @@ impl FriendshipHistoryRepository {
     fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
         transaction.map_or_else(
             || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
-            |transaction| Executor::Transaction(transaction),
+            Executor::Transaction,
         )
     }
 }
