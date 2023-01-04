@@ -83,8 +83,8 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
 
 #[actix_web::test]
 async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean_user_id_into_redis() {
-    let user_id_synapse = "@0xa:decentraland.org";
-    let user_id = "0xa";
+    let user_id_synapse = "@0xb:decentraland.org";
+    let user_id = "0xb";
     let token = "a_random_token_";
 
     let mut token_to_user_id: HashMap<String, String> = HashMap::new();
@@ -99,7 +99,7 @@ async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean
     let header = ("authorization", format!("Bearer {}", token));
 
     let req = actix_web::test::TestRequest::get()
-        .uri("/v1/friendships/0xa")
+        .uri("/v1/friendships/0xb")
         .insert_header(header)
         .to_request();
 

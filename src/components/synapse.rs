@@ -92,6 +92,8 @@ impl SynapseComponent {
     }
 
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
+        println!("LLEGO HASTA ACA {}", token);
+
         let result = Self::authenticated_get_request::<WhoAmIResponse>(
             WHO_AM_I_URI,
             token,
@@ -261,14 +263,35 @@ impl SynapseComponent {
 /// @example
 /// from: '@0x1111ada11111:decentraland.org'
 /// to: '0x1111ada11111'
-fn clean_synapse_user_id(user_id: &str) -> &str {
+fn clean_synapse_user_id(user_id: &str) -> String {
     let at_position = user_id.chars().position(|char| char == '@');
     // this means that the id comes from matrix
     if let Some(at_position) = at_position {
         if at_position == 0 {
+            // todo!: validate that the content is indeed an address, otherwise leave it as is
             let split_server = user_id.split(':').collect::<Vec<&str>>();
-            return split_server[0];
+
+            return split_server[0].replace('@', "");
         }
     }
-    return user_id;
+    return user_id.to_string();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clean_synapse_user_id;
+
+    #[test]
+    fn clear_should_obtain_expected_string_for_synapse_user() {
+        let res = clean_synapse_user_id("@0x1111ada11111:decentraland.org");
+
+        assert_eq!(res, "0x1111ada11111");
+    }
+    
+    #[test]
+    fn clear_should_obtain_expected_string_for_plain_user() {
+        let res = clean_synapse_user_id("0x1111ada11111");
+
+        assert_eq!(res, "0x1111ada11111");
+    }
 }
