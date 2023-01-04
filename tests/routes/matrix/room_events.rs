@@ -5,11 +5,17 @@ mod tests {
 
     use crate::common::*;
 
+    use actix_http::Request;
+
     use social_service::{
-        components::synapse::{RoomMember, RoomMembersResponse},
-        entities::friendships::FriendshipRepositoryImplementation,
+        components::{
+            database::DBRepositories,
+            synapse::{RoomMember, RoomMembersResponse},
+        },
+        entities::friendships::{Friendship, FriendshipRepositoryImplementation},
         routes::synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
     };
+    use uuid::Uuid;
     use wiremock::{
         matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
@@ -83,61 +89,24 @@ mod tests {
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
-        let header = ("authorization", format!("Bearer {}", token_1));
-
         // user A request user B
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::REQUEST,
-        };
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_1, FriendshipEvent::REQUEST);
         let resp = actix_web::test::call_service(&app, req).await;
         assert_eq!(resp.status(), 200);
 
         let repos = db.db_repos.unwrap();
 
-        let result = repos
-            .friendships
-            .get_friendship((user_1_id, user_2_id), None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
-
         // assert not friends in db yet
-        assert!(!result.is_active);
+        assert_and_get_friendship_from_db(&repos, (user_1_id, user_2_id), false).await;
 
         // user A cancel request for user B
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::CANCEL,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_1));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
+        let req = get_request(token_1, FriendshipEvent::CANCEL);
 
         let resp = actix_web::test::call_service(&app, req).await;
         assert_eq!(resp.status(), 200);
 
-        let result = repos
-            .friendships
-            .get_friendship((user_1_id, user_2_id), None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
-
         // assert not friends in db yet
-        assert!(!result.is_active);
+        assert_and_get_friendship_from_db(&repos, (user_1_id, user_2_id), false).await;
     }
 
     #[actix_web::test]
@@ -165,78 +134,26 @@ mod tests {
 
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
-        let header = ("authorization", format!("Bearer {}", token_1));
-
         // user A request user B
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::REQUEST,
-        };
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_1, FriendshipEvent::REQUEST);
         let _ = actix_web::test::call_service(&app, req).await;
 
         let repos = db.db_repos.unwrap();
 
-        let result = repos
-            .friendships
-            .get_friendship((user_1_id, user_2_id), None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
-
-        let result = repos
-            .friendship_history
-            .get_last_history_for_friendship(result.id, None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
+        let result = assert_and_get_friendship_from_db(&repos, (user_1_id, user_2_id), false).await;
 
         // assert last history is request
-        assert_eq!(result.event, FriendshipEvent::REQUEST);
+        assert_last_history_from_db(&repos, result.id, user_1_id, FriendshipEvent::REQUEST).await;
 
         // user B reject user A
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::REJECT,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_2));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_2, FriendshipEvent::REJECT);
         let _ = actix_web::test::call_service(&app, req).await;
 
-        let result = repos
-            .friendships
-            .get_friendship((user_1_id, user_2_id), None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
-
         // assert not friends in db yet
-        assert!(!result.is_active);
-
-        let result = repos
-            .friendship_history
-            .get_last_history_for_friendship(result.id, None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
+        let result = assert_and_get_friendship_from_db(&repos, (user_1_id, user_2_id), false).await;
 
         // assert last history is reject
-        assert_eq!(result.event, FriendshipEvent::REJECT);
+        assert_last_history_from_db(&repos, result.id, user_2_id, FriendshipEvent::REJECT).await;
     }
 
     #[actix_web::test]
@@ -265,58 +182,20 @@ mod tests {
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
         // user A request user B
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::REQUEST,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_1));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_1, FriendshipEvent::REQUEST);
         let _ = actix_web::test::call_service(&app, req).await;
 
         // user B accept user A
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::ACCEPT,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_2));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_2, FriendshipEvent::ACCEPT);
         let _ = actix_web::test::call_service(&app, req).await;
 
         let repos = db.db_repos.unwrap();
 
-        let result = repos
-            .friendships
-            .get_friendship((user_1_id, user_2_id), None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
-
         // assert friends in db
-        assert!(result.is_active);
-
-        let result = repos
-            .friendship_history
-            .get_last_history_for_friendship(result.id, None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
+        let result = assert_and_get_friendship_from_db(&repos, (user_1_id, user_2_id), true).await;
 
         // assert last history is accept
-        assert_eq!(result.event, FriendshipEvent::ACCEPT);
+        assert_last_history_from_db(&repos, result.id, user_2_id, FriendshipEvent::ACCEPT).await;
     }
 
     #[actix_web::test]
@@ -345,86 +224,27 @@ mod tests {
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
         // user A request user B
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::REQUEST,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_1));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_1, FriendshipEvent::REQUEST);
         let _ = actix_web::test::call_service(&app, req).await;
 
         // user B accept user A
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::ACCEPT,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_2));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_2, FriendshipEvent::ACCEPT);
         let _ = actix_web::test::call_service(&app, req).await;
 
         let repos = db.db_repos.unwrap();
 
-        let result = repos
-            .friendships
-            .get_friendship((user_1_id, user_2_id), None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
-
         // assert friends in db
-        assert!(result.is_active);
+        assert_and_get_friendship_from_db(&repos, (user_1_id, user_2_id), true).await;
 
         // user B delete user A
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::DELETE,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_2));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_2, FriendshipEvent::DELETE);
         let _ = actix_web::test::call_service(&app, req).await;
 
-        // assert not friends in db
-        let result = repos
-            .friendships
-            .get_friendship((user_1_id, user_2_id), None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
-
         // assert not friends in db anymore
-        assert!(!result.is_active);
-
-        let result = repos
-            .friendship_history
-            .get_last_history_for_friendship(result.id, None)
-            .await
-            .0
-            .unwrap()
-            .unwrap();
+        let result = assert_and_get_friendship_from_db(&repos, (user_1_id, user_2_id), false).await;
 
         // assert last history is delete by B
-        assert_eq!(result.acting_user, user_2_id);
-        assert_eq!(result.event, FriendshipEvent::DELETE);
+        assert_last_history_from_db(&repos, result.id, user_2_id, FriendshipEvent::DELETE).await;
     }
 
     #[actix_web::test]
@@ -452,36 +272,63 @@ mod tests {
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
         // user A request user B
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::REQUEST,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_1));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_1, FriendshipEvent::REQUEST);
         let _ = actix_web::test::call_service(&app, req).await;
+
         // user B request user A
-        let body = RoomEventRequestBody {
-            r#type: FriendshipEvent::REQUEST,
-        };
-
-        let header = ("authorization", format!("Bearer {}", token_1));
-
-        let req = actix_web::test::TestRequest::put()
-            .uri(ROOM_STATE_URI)
-            .insert_header(header)
-            .set_json(body)
-            .to_request();
-
+        let req = get_request(token_2, FriendshipEvent::REQUEST);
         let response = actix_web::test::call_service(&app, req).await;
 
         // endpoint returns error bad request
-
         assert_eq!(response.status(), 400);
+    }
+
+    fn get_request(token: &str, event_type: FriendshipEvent) -> Request {
+        let body = RoomEventRequestBody { r#type: event_type };
+
+        let header = ("authorization", format!("Bearer {}", token));
+
+        actix_web::test::TestRequest::put()
+            .uri(ROOM_STATE_URI)
+            .insert_header(header)
+            .set_json(body)
+            .to_request()
+    }
+
+    async fn assert_and_get_friendship_from_db(
+        repos: &DBRepositories,
+        addresses: (&str, &str),
+        is_active: bool,
+    ) -> Friendship {
+        let result = repos
+            .friendships
+            .get_friendship(addresses, None)
+            .await
+            .0
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(result.is_active, is_active);
+
+        result
+    }
+
+    async fn assert_last_history_from_db(
+        repos: &DBRepositories,
+        friendship_id: Uuid,
+        expected_acting_user: &str,
+        event_type: FriendshipEvent,
+    ) {
+        let result = repos
+            .friendship_history
+            .get_last_history_for_friendship(friendship_id, None)
+            .await
+            .0
+            .unwrap()
+            .unwrap();
+
+        // assert last history is delete by B
+        assert_eq!(result.acting_user, expected_acting_user);
+        assert_eq!(result.event, event_type);
     }
 }

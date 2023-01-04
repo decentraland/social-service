@@ -1,1 +1,1 @@
-pub mod room_event;
+pub mod room_events;

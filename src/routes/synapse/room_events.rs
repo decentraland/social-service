@@ -66,8 +66,6 @@ lazy_static::lazy_static! {
 }
 
 impl FriendshipEvent {
-    /// TODO: Validate that some actions can only be performed when the owner is different or the same as the previous event owner
-    /// i.e. cancel can only be done by the person that requested the friendship
     fn validate_new_event_is_valid(
         current_event: &Option<FriendshipEvent>,
         new_event: FriendshipEvent,
