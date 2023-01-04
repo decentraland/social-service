@@ -57,7 +57,7 @@ async fn should_create_a_friendship_request_event() {
         .unwrap();
     let friendship_history = dbrepos
         .friendship_history
-        .get(friendship.id, None)
+        .get_last_history_for_friendship(friendship.id, None)
         .await
         .0
         .unwrap();

@@ -241,8 +241,9 @@ async fn get_last_history_from_db(
         }
     };
 
-    let (friendship_history_result, _) =
-        friendship_history_repository.get(friendship.id, None).await;
+    let (friendship_history_result, _) = friendship_history_repository
+        .get_last_history_for_friendship(friendship.id, None)
+        .await;
 
     if friendship_history_result.is_err() {
         let err = friendship_history_result.err().unwrap();

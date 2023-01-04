@@ -76,7 +76,7 @@ impl FriendshipHistoryRepository {
         }
     }
 
-    pub async fn get<'a>(
+    pub async fn get_last_history_for_friendship<'a>(
         &'a self,
         friendship_id: Uuid,
         transaction: Option<Transaction<'a, Postgres>>,

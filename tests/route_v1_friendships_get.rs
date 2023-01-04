@@ -1,4 +1,6 @@
 mod common;
+use std::collections::HashMap;
+
 pub use common::*;
 
 use actix_web::{test, web::Data};
@@ -30,7 +32,12 @@ async fn test_get_friends() {
     let user_id = "a_user_id";
     let other_user_id = "other_user_id";
 
-    let mock_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+    let token = "my-token";
+
+    let mut token_to_user_id: HashMap<String, String> = HashMap::new();
+    token_to_user_id.insert(token.to_string(), user_id.to_string());
+
+    let mock_server = who_am_i_synapse_mock_server(token_to_user_id).await;
     let mut config = get_configuration().await;
     config.synapse.url = mock_server.uri();
 
@@ -42,8 +49,6 @@ async fn test_get_friends() {
     let app = test::init_service(router).await;
 
     add_friendship(&app_data.db, (user_id, other_user_id)).await;
-
-    let token = "my-token";
 
     let url = format!("/v1/friendships/{user_id}");
 
@@ -71,15 +76,18 @@ async fn test_get_friends() {
 async fn should_return_forbidden_when_requester_asks_for_different_user() {
     let user_id = "a_user_id";
 
-    let mock_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+    let mut token_to_user_id: HashMap<String, String> = HashMap::new();
+    let token = "my-token";
+    token_to_user_id.insert(token.to_string(), user_id.to_string());
+
+    let mock_server = who_am_i_synapse_mock_server(token_to_user_id).await;
+
     let mut config = get_configuration().await;
     config.synapse.url = mock_server.uri();
 
     let components = AppComponents::new(Some(config.clone())).await;
 
     let app = test::init_service(get_app(config, Some(components)).await).await;
-
-    let token = "my-token";
 
     let url = "/v1/friendships/other_user_id";
 
@@ -97,7 +105,12 @@ async fn should_return_forbidden_when_requester_asks_for_different_user() {
 #[actix_web::test]
 async fn test_get_user_friends_database_error_should_return_unknown_error() {
     let user_id = "a_user_id";
-    let mock_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+    let mut token_to_user_id: HashMap<String, String> = HashMap::new();
+    let token = "my-token";
+
+    token_to_user_id.insert(token.to_string(), user_id.to_string());
+
+    let mock_server = who_am_i_synapse_mock_server(token_to_user_id).await;
     let mut config = get_configuration().await;
     config.synapse.url = mock_server.uri();
 
@@ -108,8 +121,6 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
 
     let app = test::init_service(router).await;
     app_data.db.close().await;
-
-    let token = "my-token";
 
     let url = format!("/v1/friendships/{user_id}");
 
@@ -130,7 +141,12 @@ async fn test_get_user_friends_should_return_the_address_list() {
     let other_user = "another_id";
     let other_user_2 = "another_id_2";
 
-    let mock_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+    let mut token_to_user_id: HashMap<String, String> = HashMap::new();
+    let token = "my-token";
+
+    token_to_user_id.insert(token.to_string(), user_id.to_string());
+
+    let mock_server = who_am_i_synapse_mock_server(token_to_user_id).await;
     let mut config = get_configuration().await;
     config.synapse.url = mock_server.uri();
 
@@ -143,8 +159,6 @@ async fn test_get_user_friends_should_return_the_address_list() {
 
     add_friendship(&app_data.db, (user_id, other_user)).await;
     add_friendship(&app_data.db, (user_id, other_user_2)).await;
-
-    let token = "my-token";
 
     let url = format!("/v1/friendships/{user_id}");
 

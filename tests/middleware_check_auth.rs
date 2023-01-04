@@ -1,4 +1,6 @@
 mod common;
+use std::collections::HashMap;
+
 pub use common::*;
 
 use actix_web::{
@@ -82,13 +84,16 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
 #[actix_web::test]
 async fn should_call_synapse_when_token_not_available_in_redis_and_store_userid_into_redis() {
     let user_id = "0xa";
-    let synapse_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+    let token = "a_random_token";
+
+    let mut token_to_user_id: HashMap<String, String> = HashMap::new();
+    token_to_user_id.insert(token.to_string(), user_id.to_string());
+
+    let synapse_server = who_am_i_synapse_mock_server(token_to_user_id).await;
     let mut config = get_configuration().await;
     config.synapse.url = synapse_server.uri();
 
     let app = test::init_service(get_app(config, None).await).await;
-
-    let token = "a1b2c3d4";
 
     let header = ("authorization", format!("Bearer {}", token));
 
