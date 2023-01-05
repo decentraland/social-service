@@ -272,7 +272,8 @@ fn clean_synapse_user_id(user_id: &str) -> String {
             return split_server[0].replace('@', "");
         }
     }
-    return user_id.to_string();
+
+    user_id.to_string()
 }
 
 #[cfg(test)]
@@ -285,7 +286,7 @@ mod tests {
 
         assert_eq!(res, "0x1111ada11111");
     }
-    
+
     #[test]
     fn clear_should_obtain_expected_string_for_plain_user() {
         let res = clean_synapse_user_id("0x1111ada11111");
