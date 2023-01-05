@@ -11,6 +11,7 @@ use sqlx::{
 use crate::{
     components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
+    routes::synapse::room_events::FriendshipEvent,
 };
 
 use super::utils::get_transaction_result_from_executor;
@@ -22,8 +23,9 @@ pub struct FriendshipHistoryRepository {
 
 pub struct FriendshipHistory {
     pub friendship_id: Uuid,
-    pub event: String,
+    pub event: FriendshipEvent,
     pub acting_user: String,
+    pub timestamp: chrono::NaiveDateTime,
     pub metadata: Option<Json<HashMap<String, String>>>,
 }
 
@@ -65,10 +67,16 @@ impl FriendshipHistoryRepository {
 
         let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
-        (res.map(|_| ()), transaction_to_return)
+        match res {
+            Ok(_) => (Ok(()), transaction_to_return),
+            Err(err) => {
+                log::error!("Error while creating friendship history {err}");
+                (Err(err), transaction_to_return)
+            }
+        }
     }
 
-    pub async fn get<'a>(
+    pub async fn get_last_history_for_friendship<'a>(
         &'a self,
         friendship_id: Uuid,
         transaction: Option<Transaction<'a, Postgres>>,
@@ -77,7 +85,7 @@ impl FriendshipHistoryRepository {
         Option<Transaction<'a, Postgres>>,
     ) {
         let executor = self.get_executor(transaction);
-        let query = sqlx::query("SELECT * FROM friendship_history where friendship_id = $1")
+        let query = sqlx::query("SELECT * FROM friendship_history where friendship_id = $1 ORDER BY timestamp DESC LIMIT 1")
             .bind(friendship_id);
 
         let (res, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
@@ -86,10 +94,23 @@ impl FriendshipHistoryRepository {
 
         match res {
             Ok(row) => {
+                let friendship_id = row.try_get("friendship_id").unwrap();
+                let event = serde_json::from_str::<FriendshipEvent>(row.try_get("event").unwrap());
+
+                if event.is_err() {
+                    let err = event.unwrap_err();
+                    log::error!("Row for {friendship_id} has an invalid event {}", err);
+                    return (
+                        Err(sqlx::Error::Decode(Box::new(err))),
+                        transaction_to_return,
+                    );
+                }
+
                 let history = FriendshipHistory {
-                    friendship_id: row.try_get("friendship_id").unwrap(),
-                    event: row.try_get("event").unwrap(),
+                    friendship_id,
+                    event: event.unwrap(),
                     acting_user: row.try_get("acting_user").unwrap(),
+                    timestamp: row.try_get("timestamp").unwrap(),
                     metadata: row.try_get("metadata").unwrap(),
                 };
                 (Ok(Some(history)), transaction_to_return)
@@ -104,7 +125,7 @@ impl FriendshipHistoryRepository {
     fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
         transaction.map_or_else(
             || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
-            |transaction| Executor::Transaction(transaction),
+            Executor::Transaction,
         )
     }
 }

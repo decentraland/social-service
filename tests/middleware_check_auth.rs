@@ -1,4 +1,6 @@
 mod common;
+use std::collections::HashMap;
+
 pub use common::*;
 
 use actix_web::{
@@ -80,20 +82,24 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
 }
 
 #[actix_web::test]
-async fn should_call_synapse_when_token_not_available_in_redis_and_store_userid_into_redis() {
-    let user_id = "0xa";
-    let synapse_server = who_am_i_synapse_mock_server(user_id.to_string()).await;
+async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean_user_id_into_redis() {
+    let user_id_synapse = "@0xb:decentraland.org";
+    let user_id = "0xb";
+    let token = "a_random_token_";
+
+    let mut token_to_user_id: HashMap<String, String> = HashMap::new();
+    token_to_user_id.insert(token.to_string(), user_id_synapse.to_string());
+
+    let synapse_server = who_am_i_synapse_mock_server(token_to_user_id).await;
     let mut config = get_configuration().await;
     config.synapse.url = synapse_server.uri();
 
     let app = test::init_service(get_app(config, None).await).await;
 
-    let token = "a1b2c3d4";
-
     let header = ("authorization", format!("Bearer {}", token));
 
     let req = actix_web::test::TestRequest::get()
-        .uri("/v1/friendships/0xa")
+        .uri("/v1/friendships/0xb")
         .insert_header(header)
         .to_request();
 

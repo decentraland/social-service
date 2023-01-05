@@ -56,6 +56,9 @@ fn is_auth_route(routes: &[String], path: &str) -> bool {
 #[derive(Debug)]
 pub struct UserId(pub String);
 
+#[derive(Debug)]
+pub struct Token(pub String);
+
 impl<S: 'static, B> Service<ServiceRequest> for CheckAuthTokenMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
@@ -147,6 +150,7 @@ where
                 {
                     let mut extensions = request.extensions_mut();
                     extensions.insert(UserId(user_id));
+                    extensions.insert(Token(token));
                 } // drop extension
 
                 let res = svc.call(request);

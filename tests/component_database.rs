@@ -1,32 +1,15 @@
 mod common;
-use actix_web::body::None;
 pub use common::*;
 
 use social_service::{
-    components::{
-        configuration::Database,
-        database::{DatabaseComponent, DatabaseComponentImplementation},
-    },
     entities::friendships::FriendshipRepositoryImplementation,
+    routes::synapse::room_events::FriendshipEvent,
 };
-
-async fn create_db_component() -> DatabaseComponent {
-    let config = common::get_configuration().await;
-    let mut db = DatabaseComponent::new(&Database {
-        host: config.db.host,
-        name: config.db.name,
-        user: config.db.user,
-        password: config.db.password,
-    });
-    db.run().await.unwrap();
-    assert!(db.is_connected());
-    db
-}
 
 #[actix_web::test]
 #[serial_test::serial]
 async fn should_create_and_get_a_friendship() {
-    let db = create_db_component().await;
+    let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
@@ -34,7 +17,14 @@ async fn should_create_and_get_a_friendship() {
         .await
         .0
         .unwrap();
-    let friendship = dbrepos.friendships.get_friendship(("A", "B"), None).await.0.unwrap();
+
+    let friendship = dbrepos
+        .friendships
+        .get_friendship(("A", "B"), None)
+        .await
+        .0
+        .unwrap();
+
     assert!(friendship.is_some());
 
     assert_eq!(friendship.as_ref().unwrap().address_1, "A");
@@ -44,7 +34,7 @@ async fn should_create_and_get_a_friendship() {
 #[actix_web::test]
 #[serial_test::serial]
 async fn should_create_a_friendship_request_event() {
-    let db = create_db_component().await;
+    let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
@@ -61,13 +51,13 @@ async fn should_create_a_friendship_request_event() {
         .unwrap();
     dbrepos
         .friendship_history
-        .create(friendship.id, "request", "C", None, None)
+        .create(friendship.id, "\"request\"", "C", None, None)
         .await
         .0
         .unwrap();
     let friendship_history = dbrepos
         .friendship_history
-        .get(friendship.id, None)
+        .get_last_history_for_friendship(friendship.id, None)
         .await
         .0
         .unwrap();
@@ -77,14 +67,17 @@ async fn should_create_a_friendship_request_event() {
         friendship_history.as_ref().unwrap().friendship_id,
         friendship.id
     );
-    assert_eq!(friendship_history.as_ref().unwrap().event, "request");
+    assert_eq!(
+        friendship_history.as_ref().unwrap().event,
+        FriendshipEvent::REQUEST
+    );
     assert_eq!(friendship_history.as_ref().unwrap().acting_user, "C");
     assert_eq!(friendship_history.as_ref().unwrap().metadata, None);
 }
 
 #[actix_web::test]
 async fn should_create_a_user_feature() {
-    let db = create_db_component().await;
+    let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .user_features

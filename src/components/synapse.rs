@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::routes::v1::error::CommonError;
+use crate::routes::{
+    synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
+    v1::error::CommonError,
+};
 
 #[derive(Debug)]
 pub struct SynapseComponent {
@@ -27,8 +30,8 @@ pub struct WhoAmIResponse {
 #[derive(Deserialize, Serialize)]
 pub struct SynapseErrorResponse {
     pub errcode: String,
-    pub error: String,
-    pub soft_logout: bool,
+    pub error: Option<String>,
+    pub soft_logout: Option<bool>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginIdentifier {
@@ -63,6 +66,18 @@ pub struct SynapseLoginResponse {
     pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct RoomMember {
+    pub user_id: String,
+    pub room_id: String,
+    pub r#type: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct RoomMembersResponse {
+    pub chunk: Vec<RoomMember>,
+}
+
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
@@ -76,14 +91,18 @@ impl SynapseComponent {
         Self::get_request::<VersionResponse>(VERSION_URI, &self.synapse_url).await
     }
 
-    #[tracing::instrument(name = "who_am_i function > Synapse components")]
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
-        Self::authenticated_get_request::<WhoAmIResponse>(
+        let result = Self::authenticated_get_request::<WhoAmIResponse>(
             WHO_AM_I_URI,
             token,
             self.synapse_url.as_str(),
         )
-        .await
+        .await;
+
+        result.map(|mut res| {
+            res.user_id = clean_synapse_user_id(&res.user_id);
+            res
+        })
     }
 
     #[tracing::instrument(name = "login function > Synapse components")]
@@ -99,7 +118,53 @@ impl SynapseComponent {
             .send()
             .await;
 
-        Self::process_synapse_response::<SynapseLoginResponse>(result).await
+        let response = Self::process_synapse_response::<SynapseLoginResponse>(result).await;
+
+        response.map(|mut res| {
+            res.user_id = clean_synapse_user_id(&res.user_id);
+            res
+        })
+    }
+
+    #[tracing::instrument(name = "put room event > Synapse components")]
+    pub async fn store_room_event(
+        &self,
+        token: &str,
+        room_id: &str,
+        room_event: FriendshipEvent,
+    ) -> Result<RoomEventResponse, CommonError> {
+        let path = format!("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship");
+
+        Self::authenticated_put_request(
+            &path,
+            token,
+            &self.synapse_url,
+            &RoomEventRequestBody { r#type: room_event },
+        )
+        .await
+    }
+
+    #[tracing::instrument(name = "get_room_members > Synapse components")]
+    pub async fn get_room_members(
+        &self,
+        token: &str,
+        room_id: &str,
+    ) -> Result<RoomMembersResponse, CommonError> {
+        let path = format!("/_matrix/client/r0/rooms/{room_id}/members");
+        let response = Self::authenticated_get_request::<RoomMembersResponse>(
+            &path,
+            token,
+            self.synapse_url.as_str(),
+        )
+        .await;
+
+        response.map(|mut res| {
+            res.chunk.iter_mut().for_each(|mut room_member| {
+                room_member.user_id = clean_synapse_user_id(&room_member.user_id);
+            });
+
+            res
+        })
     }
 
     async fn get_request<T: DeserializeOwned>(
@@ -111,6 +176,24 @@ impl SynapseComponent {
         let response = client.get(url).send().await;
 
         Self::process_synapse_response(response).await
+    }
+
+    async fn authenticated_put_request<T: DeserializeOwned, S: Serialize>(
+        path: &str,
+        token: &str,
+        synapse_url: &str,
+        body: S,
+    ) -> Result<T, CommonError> {
+        let url = format!("{synapse_url}{path}");
+        let client = reqwest::Client::new();
+        let response = client
+            .put(url)
+            .json(&body)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await;
+
+        Self::process_synapse_response::<T>(response).await
     }
 
     async fn authenticated_get_request<T: DeserializeOwned>(
@@ -126,7 +209,7 @@ impl SynapseComponent {
             .send()
             .await;
 
-        Self::process_synapse_response(response).await
+        Self::process_synapse_response::<T>(response).await
     }
 
     async fn process_synapse_response<T: DeserializeOwned>(
@@ -141,7 +224,6 @@ impl SynapseComponent {
                 }
 
                 let text = text.unwrap();
-
                 let response = serde_json::from_str::<T>(&text);
 
                 response.map_err(|_| Self::parse_and_return_error(&text))
@@ -158,6 +240,9 @@ impl SynapseComponent {
 
         match error_response {
             Ok(error) => match error.errcode.as_str() {
+                "M_FORBIDDEN" => {
+                    CommonError::Forbidden(error.error.unwrap_or("Forbidden".to_string()))
+                }
                 "M_UNKNOWN_TOKEN" => CommonError::Unauthorized,
                 "M_MISSING_TOKEN" => CommonError::Unauthorized,
                 "M_LIMIT_EXCEEDED" => CommonError::TooManyRequests,
@@ -168,5 +253,44 @@ impl SynapseComponent {
                 CommonError::Unknown
             }
         }
+    }
+}
+
+/// Get the local part of the userId from matrixUserId
+///
+/// @example
+/// from: '@0x1111ada11111:decentraland.org'
+/// to: '0x1111ada11111'
+fn clean_synapse_user_id(user_id: &str) -> String {
+    let at_position = user_id.chars().position(|char| char == '@');
+    // this means that the id comes from matrix
+    if let Some(at_position) = at_position {
+        if at_position == 0 {
+            // todo!: validate that the content is indeed an address, otherwise leave it as is
+            let split_server = user_id.split(':').collect::<Vec<&str>>();
+
+            return split_server[0].replace('@', "");
+        }
+    }
+
+    user_id.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clean_synapse_user_id;
+
+    #[test]
+    fn clear_should_obtain_expected_string_for_synapse_user() {
+        let res = clean_synapse_user_id("@0x1111ada11111:decentraland.org");
+
+        assert_eq!(res, "0x1111ada11111");
+    }
+
+    #[test]
+    fn clear_should_obtain_expected_string_for_plain_user() {
+        let res = clean_synapse_user_id("0x1111ada11111");
+
+        assert_eq!(res, "0x1111ada11111");
     }
 }

@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'social_service'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=social_service"],
+        "filter": {
+          "name": "social_service",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

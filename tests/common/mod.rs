@@ -1,16 +1,19 @@
+use std::collections::HashMap;
+
 use actix_web::{body::MessageBody, dev::ServiceFactory, web::Data, App};
 use social_service::{
     components::{
         app::AppComponents,
         configuration::{Config, Database},
+        database::{DatabaseComponent, DatabaseComponentImplementation},
         synapse::{WhoAmIResponse, WHO_AM_I_URI},
     },
     get_app_router,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use wiremock::{
-    matchers::{method, path},
-    MockServer, ResponseTemplate, Mock,
+    matchers::{header, method, path},
+    Mock, MockServer, ResponseTemplate,
 };
 
 pub async fn get_configuration() -> Config {
@@ -87,14 +90,38 @@ pub async fn mock_server_expect_no_calls() -> MockServer {
 }
 
 /// Creates a synapse mocked server which respond with the given user ID to who am I endpoint.
-pub async fn who_am_i_synapse_mock_server(user_id: String) -> MockServer {
+pub async fn who_am_i_synapse_mock_server(token_to_user_id: HashMap<String, String>) -> MockServer {
     let server = create_synapse_mock_server().await;
-    let response = WhoAmIResponse { user_id };
-    Mock::given(method("GET"))
-        .and(path(WHO_AM_I_URI))
-        .respond_with(ResponseTemplate::new(200).set_body_json(response))
-        .mount(&server)
-        .await;
+
+    for (token, user_id) in token_to_user_id.iter() {
+        let response = WhoAmIResponse {
+            user_id: user_id.to_string(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path(WHO_AM_I_URI))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
+            .respond_with(ResponseTemplate::new(200).set_body_json(response))
+            .mount(&server)
+            .await;
+    }
 
     server
+}
+
+pub async fn create_db_component(config: Option<&Config>) -> DatabaseComponent {
+    let default_config = get_configuration().await;
+    let config = match config {
+        Some(config) => config,
+        None => &default_config,
+    };
+    let mut db = DatabaseComponent::new(&Database {
+        host: config.db.host.to_string(),
+        name: config.db.name.to_string(),
+        user: config.db.user.to_string(),
+        password: config.db.password.to_string(),
+    });
+    db.run().await.unwrap();
+    assert!(db.is_connected());
+    db
 }
