@@ -92,8 +92,6 @@ impl SynapseComponent {
     }
 
     pub async fn who_am_i(&self, token: &str) -> Result<WhoAmIResponse, CommonError> {
-        println!("LLEGO HASTA ACA {}", token);
-
         let result = Self::authenticated_get_request::<WhoAmIResponse>(
             WHO_AM_I_URI,
             token,
@@ -102,7 +100,7 @@ impl SynapseComponent {
         .await;
 
         result.map(|mut res| {
-            res.user_id = clean_synapse_user_id(&res.user_id).to_string();
+            res.user_id = clean_synapse_user_id(&res.user_id);
             res
         })
     }
@@ -123,7 +121,7 @@ impl SynapseComponent {
         let response = Self::process_synapse_response::<SynapseLoginResponse>(result).await;
 
         response.map(|mut res| {
-            res.user_id = clean_synapse_user_id(&res.user_id).to_string();
+            res.user_id = clean_synapse_user_id(&res.user_id);
             res
         })
     }
@@ -162,7 +160,7 @@ impl SynapseComponent {
 
         response.map(|mut res| {
             res.chunk.iter_mut().for_each(|mut room_member| {
-                room_member.user_id = clean_synapse_user_id(&room_member.user_id).to_string();
+                room_member.user_id = clean_synapse_user_id(&room_member.user_id);
             });
 
             res
