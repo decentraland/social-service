@@ -33,7 +33,7 @@ async fn test_get_friends() {
 
     let app = test::init_service(router).await;
 
-    add_friendship(&app_data.db, (user_id, other_user_id)).await;
+    add_friendship(&app_data.db, (user_id, other_user_id), false).await;
 
     let url = format!("/v1/friendships/{user_id}");
 
@@ -142,8 +142,8 @@ async fn test_get_user_friends_should_return_the_address_list() {
 
     let app = test::init_service(router).await;
 
-    add_friendship(&app_data.db, (user_id, other_user)).await;
-    add_friendship(&app_data.db, (user_id, other_user_2)).await;
+    add_friendship(&app_data.db, (user_id, other_user), false).await;
+    add_friendship(&app_data.db, (user_id, other_user_2), false).await;
 
     let url = format!("/v1/friendships/{user_id}");
 

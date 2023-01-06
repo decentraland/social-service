@@ -450,7 +450,7 @@ async fn store_friendship_update<'a>(
         }
         None => {
             let (friendship_id, transaction) = friendships_repository
-                .create_new_friendships((address_0, address_1), Some(transaction))
+                .create_new_friendships((address_0, address_1), false, Some(transaction))
                 .await;
             (
                 friendship_id.map_err(|err| {

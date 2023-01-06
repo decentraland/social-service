@@ -46,6 +46,7 @@ pub trait FriendshipRepositoryImplementation {
     async fn create_new_friendships<'a>(
         &'a self,
         addresses: (&'a str, &'a str),
+        is_active: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>);
 
@@ -61,7 +62,7 @@ pub trait FriendshipRepositoryImplementation {
     async fn get_user_friends<'a>(
         &'a self,
         address: &'a str,
-        include_inactive: bool,
+        only_active: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
         Result<Vec<Friendship>, sqlx::Error>,
@@ -97,17 +98,20 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     async fn create_new_friendships<'a>(
         &'a self,
         addresses: (&'a str, &'a str),
+        is_active: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>) {
         let (address1, address2) = addresses;
 
         let id = Uuid::parse_str(generate_uuid_v4().as_str()).unwrap();
 
-        let query =
-            sqlx::query("INSERT INTO friendships(id, address_1, address_2) VALUES($1,$2, $3);")
-                .bind(id)
-                .bind(address1)
-                .bind(address2);
+        let query = sqlx::query(
+            "INSERT INTO friendships(id, address_1, address_2, is_active) VALUES($1, $2, $3, $4);",
+        )
+        .bind(id)
+        .bind(address1)
+        .bind(address2)
+        .bind(is_active);
 
         let executor = self.get_executor(transaction);
 
@@ -169,7 +173,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     async fn get_user_friends<'a>(
         &'a self,
         address: &'a str,
-        include_inactive: bool,
+        only_active: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
         Result<Vec<Friendship>, sqlx::Error>,
@@ -180,7 +184,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let mut query =
             "SELECT * FROM friendships WHERE (address_1 = $1) OR (address_2 = $1)".to_owned();
 
-        if include_inactive {
+        if only_active {
             query.push_str(active_only_clause);
         }
 

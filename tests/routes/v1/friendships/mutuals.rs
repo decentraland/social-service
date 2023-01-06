@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use actix_http::StatusCode;
+
 use actix_web::{test, web::Data};
 use social_service::{
-    components::{app::AppComponents, database::DatabaseComponent},
+    components::app::AppComponents,
     get_app_router,
     routes::v1::friendships::types::{FriendshipFriend, FriendshipsResponse},
 };
@@ -39,21 +40,21 @@ async fn test_get_mutual_friends() {
 
     // user relations:
     // a -> c -> b (in db: a -> c, b -> c) checks when query for (address_1, address_1)
-    add_friendship(&app_data.db, (user_id_a, user_id_c)).await;
-    add_friendship(&app_data.db, (user_id_b, user_id_c)).await;
+    add_friendship(&app_data.db, (user_id_a, user_id_c), true).await;
+    add_friendship(&app_data.db, (user_id_b, user_id_c), true).await;
 
     // a -> d -> b (in db: a -> d, d -> b) checks when query for (address_1, address_2)
-    add_friendship(&app_data.db, (user_id_a, user_id_d)).await;
-    add_friendship(&app_data.db, (user_id_d, user_id_b)).await;
+    add_friendship(&app_data.db, (user_id_a, user_id_d), true).await;
+    add_friendship(&app_data.db, (user_id_d, user_id_b), true).await;
 
     // a -> e -> b (in db: e -> a, b -> e) checks when query for (address_2, address_1)
-    add_friendship(&app_data.db, (user_id_e, user_id_a)).await;
-    add_friendship(&app_data.db, (user_id_b, user_id_e)).await;
+    add_friendship(&app_data.db, (user_id_e, user_id_a), true).await;
+    add_friendship(&app_data.db, (user_id_b, user_id_e), true).await;
     // a -> f -> b (in db: f -> a, f -> b) checks when query for (address_2, address_2)
-    add_friendship(&app_data.db, (user_id_f, user_id_a)).await;
-    add_friendship(&app_data.db, (user_id_f, user_id_b)).await;
+    add_friendship(&app_data.db, (user_id_f, user_id_a), true).await;
+    add_friendship(&app_data.db, (user_id_f, user_id_b), true).await;
 
-    let url = format!("/v1/friendships/{user_id_a}");
+    let url = format!("/v1/friendships/{user_id_b}/mutuals");
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()
@@ -66,18 +67,20 @@ async fn test_get_mutual_friends() {
     assert_eq!(response.status(), StatusCode::OK);
 
     let friendships_response: FriendshipsResponse = test::read_body_json(response).await;
-    let friend_address = &friendships_response.friendships;
+    let mutual_friends_addresses = &friendships_response.friendships;
 
-    assert!(friend_address.contains(&FriendshipFriend {
+    assert_eq!(mutual_friends_addresses.len(), 4);
+
+    assert!(mutual_friends_addresses.contains(&FriendshipFriend {
         address: user_id_c.to_string()
     }));
-    assert!(friend_address.contains(&FriendshipFriend {
+    assert!(mutual_friends_addresses.contains(&FriendshipFriend {
         address: user_id_d.to_string()
     }));
-    assert!(friend_address.contains(&FriendshipFriend {
+    assert!(mutual_friends_addresses.contains(&FriendshipFriend {
         address: user_id_e.to_string()
     }));
-    assert!(friend_address.contains(&FriendshipFriend {
+    assert!(mutual_friends_addresses.contains(&FriendshipFriend {
         address: user_id_f.to_string()
     }));
 }

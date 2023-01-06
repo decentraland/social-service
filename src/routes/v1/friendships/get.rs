@@ -39,7 +39,7 @@ pub async fn get_user_friends(
         Some(repos) => {
             let (friendships, _) = repos
                 .friendships
-                .get_user_friends(&user_id, false, None)
+                .get_user_friends(&user_id, true, None)
                 .await;
             match friendships {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
