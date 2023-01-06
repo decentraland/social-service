@@ -1,2 +1,2 @@
-mod routes;
 pub mod common;
+pub mod routes;

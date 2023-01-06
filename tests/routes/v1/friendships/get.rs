@@ -1,30 +1,15 @@
-mod common;
 use std::collections::HashMap;
 
-pub use common::*;
-
+use actix_http::StatusCode;
 use actix_web::{test, web::Data};
-use reqwest::StatusCode;
 use social_service::{
-    components::{
-        app::AppComponents,
-        database::{DatabaseComponent, DatabaseComponentImplementation},
-    },
-    entities::friendships::FriendshipRepositoryImplementation,
+    components::{app::AppComponents, database::DatabaseComponentImplementation},
     get_app_router,
     routes::v1::friendships::types::FriendshipsResponse,
 };
 
-async fn add_friendship(db: &DatabaseComponent, friendship: (&str, &str)) {
-    db.db_repos
-        .as_ref()
-        .expect("repos to be present")
-        .friendships
-        .create_new_friendships(friendship, None)
-        .await
-        .0
-        .expect("can create friendship");
-}
+use super::utils::add_friendship;
+use crate::common::*;
 
 // Get friends should return list of friends
 #[actix_web::test]
@@ -119,8 +104,8 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
 
     let router = get_app_router(&app_data);
 
-    let app = test::init_service(router).await;
     app_data.db.close().await;
+    let app = test::init_service(router).await;
 
     let url = format!("/v1/friendships/{user_id}");
 
