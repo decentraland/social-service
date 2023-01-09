@@ -1,4 +1,4 @@
-pub const MUTUALS_FRIENDS_QUERY: &'static str = "WITH friendsA as (
+pub const MUTUALS_FRIENDS_QUERY: &str = "WITH friendsA as (
   SELECT
     CASE
       WHEN address_1 = $1 then address_2
