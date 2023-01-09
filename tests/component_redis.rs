@@ -5,6 +5,7 @@ async fn create_redis_component() -> Redis {
     Redis::new_and_run(&RedisConfig {
         host: "0.0.0.0:6379".to_string(),
     })
+    .await
 }
 
 #[actix_web::test]

@@ -22,7 +22,7 @@ impl std::fmt::Debug for Redis {
 }
 
 impl Redis {
-    pub fn new_and_run(config: &RedisConfig) -> Self {
+    pub async fn new_and_run(config: &RedisConfig) -> Self {
         let mut redis = Self {
             redis_host: config.host.clone(),
             pool: None,
@@ -33,6 +33,15 @@ impl Redis {
 
         match Config::from_url(url).create_pool(Some(Runtime::Tokio1)) {
             Ok(pool) => {
+                let conn = pool.get().await;
+                match conn {
+                    Ok(_) => {}
+                    Err(err) => {
+                        log::error!("Error on connecting to redis: {:?}", err);
+                        panic!("Unable to connect to redis {err:?}")
+                    }
+                }
+
                 redis.pool = Some(pool);
             }
             Err(err) => {

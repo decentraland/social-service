@@ -11,7 +11,8 @@ const TEST_KEY: &str = "TEST KEY";
 async fn create_users_cache_component() -> UsersCacheComponent {
     let redis = Redis::new_and_run(&RedisConfig {
         host: "0.0.0.0:6379".to_string(),
-    });
+    })
+    .await;
 
     UsersCacheComponent::new(redis, TEST_KEY.to_string())
 }
@@ -23,7 +24,8 @@ async fn test_should_return_no_connection_available() -> Result<(), String> {
 
     let mut redis = Redis::new_and_run(&RedisConfig {
         host: "0.0.0.0:6379".to_string(),
-    });
+    })
+    .await;
 
     // When redis is closed, adding a user should return an error
     redis.stop();

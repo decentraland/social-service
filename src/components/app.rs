@@ -35,7 +35,7 @@ impl AppComponents {
 
         let synapse = Self::init_synapse_component(config.synapse.url.clone());
         let db = Self::init_db_component(&config.db).await;
-        let redis = Redis::new_and_run(&config.redis);
+        let redis = Redis::new_and_run(&config.redis).await;
         let health = Self::init_health_component(db.clone(), redis.clone());
         let users_cache = Self::init_users_cache(redis, config.cache_hashing_key.clone());
 
