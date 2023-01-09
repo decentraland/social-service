@@ -16,14 +16,12 @@ pub async fn get_mutual_friends(
     user_id: web::Path<String>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
-    let logged_in_user = {
-        let extensions = req.extensions();
-        extensions
-            .get::<UserId>()
-            .expect("to have a UserId")
-            .0
-            .clone()
-    };
+    let logged_in_user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("to have a UserId")
+        .0
+        .clone();
 
     // Look for friendships and build friend addresses list
     match &app_data.db.db_repos {

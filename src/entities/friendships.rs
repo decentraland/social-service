@@ -245,7 +245,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
             Ok(rows) => {
                 let response = Ok(rows
                     .iter()
-                    .map(|row| -> String { row.try_get("address").unwrap() })
+                    .map(|row| row.try_get("address").unwrap())
                     .collect::<Vec<String>>());
                 (response, transaction_to_return)
             }
