@@ -48,6 +48,12 @@ make dev
 
 Running this command will run a dockerized Postgres DB and run the server on port `8080` but in watch mode, so every change you make will be watched and the server will restart.
 
+### Running Tests locally
+
+```bash
+make test
+```
+
 ### Database & Migrations
 
 Migrations or pending migrations run when the server starts up programatically with the [sqlx](https://github.com/launchbadge/sqlx) API.
