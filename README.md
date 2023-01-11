@@ -66,6 +66,12 @@ make migration name={YOUR_MIGRATION_NAME}
 
 This command will create the migration SQL files (up and down) with the given name
 
+#### Enter in the db
+
+```
+docker exec -ti social_service_db psql -U postgres -d social_service
+```
+
 ### Configuration
 
 There's a configuration file (`configuration.toml`) that allows configuring the following variables but you can ignore this file, if you use the above `make` commands:
