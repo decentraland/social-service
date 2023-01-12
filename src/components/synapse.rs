@@ -120,10 +120,7 @@ impl SynapseComponent {
 
         let response = Self::process_synapse_response::<SynapseLoginResponse>(result).await;
 
-        response.map(|mut res| {
-            res.user_id = clean_synapse_user_id(&res.user_id);
-            res
-        })
+        response
     }
 
     #[tracing::instrument(name = "put room event > Synapse components")]
