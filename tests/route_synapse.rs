@@ -14,6 +14,7 @@ use social_service::{
         synapse::{AuthChain, LoginIdentifier, SynapseLoginRequest, SynapseLoginResponse},
     },
     get_app_router,
+    middlewares::check_auth::UserId,
 };
 
 const URL: &str = "/_matrix/client/r0/login";
@@ -94,7 +95,13 @@ async fn should_be_200_and_has_user_in_cache() {
     let user = users_cache.get_user("0xA1_TOKEN").await;
     assert!(user.is_ok());
     let user = user.unwrap();
-    assert_eq!(user, "0xA1");
+    assert_eq!(
+        user,
+        UserId {
+            social_id: "0xA1".to_string(),
+            synapse_id: "0xA1".to_string()
+        }
+    );
 }
 
 #[actix_web::test]

@@ -23,16 +23,14 @@ pub async fn get_user_friends(
         extensions
             .get::<UserId>()
             .expect("to have a UserId")
-            .0
             .clone()
     };
 
     // The user_id from parameter could be in matrix format
-    let clean_logged_in_user = clean_synapse_user_id(logged_in_user.as_str());
-    let clean_user_id= clean_synapse_user_id(user_id.as_str());
+    let clean_user_id = clean_synapse_user_id(user_id.as_str());
 
     // Return error when user has no permission
-    if !has_permission(clean_logged_in_user.as_str(), clean_user_id.as_str()) {
+    if !has_permission(logged_in_user.social_id.as_str(), clean_user_id.as_str()) {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
             format!("You don't have permission to view {clean_user_id} friends"),
         )));
@@ -48,7 +46,8 @@ pub async fn get_user_friends(
             match friendships {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 Ok(friendships) => {
-                    let response = FriendshipsResponse::new(get_friends(&clean_user_id, friendships));
+                    let response =
+                        FriendshipsResponse::new(get_friends(&clean_user_id, friendships));
                     Ok(HttpResponse::Ok().json(response))
                 }
             }
