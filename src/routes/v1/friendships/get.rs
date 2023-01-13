@@ -29,11 +29,12 @@ pub async fn get_user_friends(
 
     // The user_id from parameter could be in matrix format
     let clean_logged_in_user = clean_synapse_user_id(logged_in_user.as_str());
+    let clean_user_id= clean_synapse_user_id(user_id.as_str());
 
     // Return error when user has no permission
-    if !has_permission(clean_logged_in_user.as_str(), user_id.as_str()) {
+    if !has_permission(clean_logged_in_user.as_str(), clean_user_id.as_str()) {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
-            format!("You don't have permission to view {user_id} friends"),
+            format!("You don't have permission to view {clean_user_id} friends"),
         )));
     }
 
@@ -42,12 +43,12 @@ pub async fn get_user_friends(
         Some(repos) => {
             let (friendships, _) = repos
                 .friendships
-                .get_user_friends(&user_id, true, None)
+                .get_user_friends(&clean_user_id, true, None)
                 .await;
             match friendships {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 Ok(friendships) => {
-                    let response = FriendshipsResponse::new(get_friends(&user_id, friendships));
+                    let response = FriendshipsResponse::new(get_friends(&clean_user_id, friendships));
                     Ok(HttpResponse::Ok().json(response))
                 }
             }
