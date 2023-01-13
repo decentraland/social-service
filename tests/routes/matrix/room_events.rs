@@ -37,11 +37,13 @@ mod tests {
                     room_id: "a_room_id".to_string(),
                     r#type: "".to_string(),
                     user_id: room_members.0,
+                    social_user_id: None,
                 },
                 RoomMember {
                     room_id: "a_room_id".to_string(),
                     r#type: "".to_string(),
                     user_id: room_members.1,
+                    social_user_id: None,
                 },
             ],
         };

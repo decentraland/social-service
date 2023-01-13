@@ -25,6 +25,7 @@ pub struct VersionResponse {
 #[derive(Deserialize, Serialize)]
 pub struct WhoAmIResponse {
     pub user_id: String,
+    pub social_user_id: Option<String>, // social_user_id is not present in synapse
 }
 
 #[derive(Deserialize, Serialize)]
@@ -60,6 +61,7 @@ pub struct SynapseLoginRequest {
 #[derive(Serialize, Deserialize)]
 pub struct SynapseLoginResponse {
     pub user_id: String,
+    pub social_user_id: Option<String>, // social_user_id is not present in synapse
     pub access_token: String,
     pub device_id: String,
     pub home_server: String,
@@ -69,6 +71,7 @@ pub struct SynapseLoginResponse {
 #[derive(Deserialize, Serialize)]
 pub struct RoomMember {
     pub user_id: String,
+    pub social_user_id: Option<String>, // social_user_id is not present in synapse
     pub room_id: String,
     pub r#type: String,
 }
@@ -100,7 +103,7 @@ impl SynapseComponent {
         .await;
 
         result.map(|mut res| {
-            res.user_id = clean_synapse_user_id(&res.user_id);
+            res.social_user_id = Some(clean_synapse_user_id(&res.user_id));
             res
         })
     }
@@ -121,7 +124,7 @@ impl SynapseComponent {
         let response = Self::process_synapse_response::<SynapseLoginResponse>(result).await;
 
         response.map(|mut res| {
-            res.user_id = clean_synapse_user_id(&res.user_id);
+            res.social_user_id = Some(clean_synapse_user_id(&res.user_id));
             res
         })
     }
@@ -160,7 +163,7 @@ impl SynapseComponent {
 
         response.map(|mut res| {
             res.chunk.iter_mut().for_each(|mut room_member| {
-                room_member.user_id = clean_synapse_user_id(&room_member.user_id);
+                room_member.social_user_id = Some(clean_synapse_user_id(&room_member.user_id));
             });
 
             res
@@ -261,7 +264,7 @@ impl SynapseComponent {
 /// @example
 /// from: '@0x1111ada11111:decentraland.org'
 /// to: '0x1111ada11111'
-fn clean_synapse_user_id(user_id: &str) -> String {
+pub fn clean_synapse_user_id(user_id: &str) -> String {
     let at_position = user_id.chars().position(|char| char == '@');
     // this means that the id comes from matrix
     if let Some(at_position) = at_position {

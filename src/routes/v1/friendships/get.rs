@@ -6,7 +6,7 @@ use actix_web::{
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
-    components::app::AppComponents,
+    components::{app::AppComponents, synapse::clean_synapse_user_id},
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     middlewares::check_auth::UserId,
     routes::v1::error::CommonError,
@@ -27,8 +27,12 @@ pub async fn get_user_friends(
             .clone()
     };
 
+    // The user_id from parameter could be in matrix format
+    let clean_logged_in_user = clean_synapse_user_id(logged_in_user.as_str());
+
     // Return error when user has no permission
-    if !has_permission(logged_in_user.as_str(), user_id.as_str()) {
+    if !has_permission(clean_logged_in_user.as_str(), user_id.as_str()) {
+        println!("Error in auth: logged_in_user={} user_id={}", clean_logged_in_user.as_str(), user_id.as_str());
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
             format!("You don't have permission to view {user_id} friends"),
         )));

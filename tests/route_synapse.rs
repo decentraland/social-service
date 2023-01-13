@@ -29,6 +29,7 @@ async fn should_be_200_and_has_user_in_cache() {
     mocked_hash_map.insert("m.homeserver".to_string(), mocked_hash_map_2);
     let login_response = SynapseLoginResponse {
         user_id: "0xA1".to_string(),
+        social_user_id: None,
         access_token: "0xA1_TOKEN".to_string(),
         device_id: "0xA1_DEVICE".to_string(),
         home_server: "decentraland.zone".to_string(),
