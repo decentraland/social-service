@@ -32,7 +32,6 @@ pub async fn get_user_friends(
 
     // Return error when user has no permission
     if !has_permission(clean_logged_in_user.as_str(), user_id.as_str()) {
-        println!("Error in auth: logged_in_user={} user_id={}", clean_logged_in_user.as_str(), user_id.as_str());
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
             format!("You don't have permission to view {user_id} friends"),
         )));
