@@ -6,7 +6,7 @@ use actix_web::{
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
-    components::app::AppComponents,
+    components::{app::AppComponents, synapse::clean_synapse_user_id},
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     middlewares::check_auth::UserId,
     routes::v1::error::CommonError,
@@ -23,14 +23,16 @@ pub async fn get_user_friends(
         extensions
             .get::<UserId>()
             .expect("to have a UserId")
-            .0
             .clone()
     };
 
+    // The user_id from parameter could be in matrix format
+    let clean_user_id = clean_synapse_user_id(user_id.as_str());
+
     // Return error when user has no permission
-    if !has_permission(logged_in_user.as_str(), user_id.as_str()) {
+    if !has_permission(logged_in_user.social_id.as_str(), clean_user_id.as_str()) {
         return Err(FriendshipsError::CommonError(CommonError::Forbidden(
-            format!("You don't have permission to view {user_id} friends"),
+            format!("You don't have permission to view {clean_user_id} friends"),
         )));
     }
 
@@ -39,12 +41,13 @@ pub async fn get_user_friends(
         Some(repos) => {
             let (friendships, _) = repos
                 .friendships
-                .get_user_friends(&user_id, true, None)
+                .get_user_friends(&clean_user_id, true, None)
                 .await;
             match friendships {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 Ok(friendships) => {
-                    let response = FriendshipsResponse::new(get_friends(&user_id, friendships));
+                    let response =
+                        FriendshipsResponse::new(get_friends(&clean_user_id, friendships));
                     Ok(HttpResponse::Ok().json(response))
                 }
             }

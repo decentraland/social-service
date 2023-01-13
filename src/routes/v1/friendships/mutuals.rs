@@ -6,8 +6,10 @@ use actix_web::{
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
-    components::app::AppComponents, entities::friendships::FriendshipRepositoryImplementation,
-    middlewares::check_auth::UserId, routes::v1::error::CommonError,
+    components::{app::AppComponents, synapse::clean_synapse_user_id},
+    entities::friendships::FriendshipRepositoryImplementation,
+    middlewares::check_auth::UserId,
+    routes::v1::error::CommonError,
 };
 
 #[get("/v1/friendships/{userId}/mutuals")]
@@ -20,7 +22,6 @@ pub async fn get_mutual_friends(
         .extensions()
         .get::<UserId>()
         .expect("to have a UserId")
-        .0
         .clone();
 
     // Look for friendships and build friend addresses list
@@ -28,7 +29,11 @@ pub async fn get_mutual_friends(
         Some(repos) => {
             let (friendships, _) = repos
                 .friendships
-                .get_mutual_friends(&logged_in_user, &user_id, None)
+                .get_mutual_friends(
+                    &logged_in_user.social_id,
+                    &clean_synapse_user_id(&user_id),
+                    None,
+                )
                 .await;
             match friendships {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),

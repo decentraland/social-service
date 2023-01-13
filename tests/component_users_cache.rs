@@ -1,7 +1,10 @@
 use std::time::Duration;
 
-use social_service::components::{
-    configuration::Redis as RedisConfig, redis::Redis, users_cache::UsersCacheComponent,
+use social_service::{
+    components::{
+        configuration::Redis as RedisConfig, redis::Redis, users_cache::UsersCacheComponent,
+    },
+    middlewares::check_auth::UserId,
 };
 
 use actix_rt::time::sleep;
@@ -31,7 +34,7 @@ async fn test_should_return_no_connection_available() -> Result<(), String> {
     redis.stop();
 
     let mut user_cache_component = UsersCacheComponent::new(redis, TEST_KEY.to_string());
-    let res = user_cache_component.add_user(token, user_id, None).await;
+    let res = user_cache_component.add_user(token, user_id, user_id, None).await;
 
     match res {
         Ok(_) => Err("Should return the expected error".to_string()),
@@ -55,7 +58,7 @@ async fn test_can_store_and_get_user() {
     let user_id = "my user id";
     let token = "an example token";
 
-    let store = component.add_user(token, user_id, None).await;
+    let store = component.add_user(token, user_id, user_id, None).await;
 
     if let Err(err) = store {
         panic!("Couldn't store the user {} due to {}", user_id, err);
@@ -64,7 +67,13 @@ async fn test_can_store_and_get_user() {
     let res = component.get_user(token).await;
 
     match res {
-        Ok(_) => assert_eq!(res.unwrap(), user_id),
+        Ok(_) => assert_eq!(
+            res.unwrap(),
+            UserId {
+                social_id: user_id.to_string(),
+                synapse_id: user_id.to_string()
+            }
+        ),
         Err(err) => {
             panic!("Couldn't get the user {} due to {}", user_id, err)
         }
@@ -80,7 +89,7 @@ async fn test_obtain_expired_key_returns_none() {
     let expiring_time = 1;
 
     let store = component
-        .add_user(token, user_id, Some(expiring_time))
+        .add_user(token, user_id, user_id, Some(expiring_time))
         .await;
 
     if let Err(err) = store {
