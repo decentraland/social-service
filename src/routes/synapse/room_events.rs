@@ -13,7 +13,7 @@ use crate::{
     components::{
         app::AppComponents,
         database::{DatabaseComponent, DatabaseComponentImplementation},
-        synapse::{RoomMembersResponse, SynapseComponent},
+        synapse::{RoomMembersResponse, SynapseComponent, clean_synapse_user_id},
     },
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository},
@@ -152,7 +152,10 @@ async fn process_room_event(
 ) -> Result<RoomEventResponse, SynapseError> {
     // GET MEMBERS FROM SYNAPSE
     let members_result = synapse.get_room_members(token, room_id).await;
-    let (address_0, address_1) = get_room_members(members_result).await?;
+    let (user_id_0, user_id_1) = get_room_members(members_result).await?;
+
+    let address_0 = clean_synapse_user_id(&user_id_0);
+    let address_1 = clean_synapse_user_id(&user_id_1);
 
     let second_user = if address_0.eq_ignore_ascii_case(acting_user) {
         address_1
