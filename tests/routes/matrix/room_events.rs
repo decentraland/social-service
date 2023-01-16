@@ -67,24 +67,25 @@ mod tests {
     }
 
     struct TestUser<'a> {
-        id: &'a str,
+        user_id: &'a str,
+        social_user_id: &'a str,
         token: &'a str,
     }
 
     // TODO!: Implement a function that returns tokens to prevent collision between tests
-    const USER_A: TestUser = TestUser { id: "LALA", token: "LALA-1" };
-    const USER_B: TestUser = TestUser { id: "LELE", token: "LELE-2" };
+    const USER_A: TestUser = TestUser { user_id: "@LALA", social_user_id: "LALA", token: "LALA-1" };
+    const USER_B: TestUser = TestUser { user_id: "@LELE", social_user_id: "LELE", token: "LELE-2" };
 
     #[actix_web::test]
     async fn test_friendship_lifecycle_request_cancel() {
 
         let mut token_to_user_id: HashMap<String, String> = HashMap::new();
-        token_to_user_id.insert(USER_A.token.to_string(), USER_A.id.to_string());
-        token_to_user_id.insert(USER_B.token.to_string(), USER_B.id.to_string());
+        token_to_user_id.insert(USER_A.token.to_string(), USER_A.user_id.to_string());
+        token_to_user_id.insert(USER_B.token.to_string(), USER_B.user_id.to_string());
 
         let synapse_server = get_synapse_mocked_server_with_room(
             token_to_user_id,
-            (USER_A.id.to_string(), USER_B.id.to_string()),
+            (USER_A.user_id.to_string(), USER_B.user_id.to_string()),
         )
         .await;
 
@@ -102,7 +103,7 @@ mod tests {
         let repos = db.db_repos.unwrap();
 
         // assert not friends in db yet
-        assert_and_get_friendship_from_db(&repos, (USER_A.id, USER_B.id), false).await;
+        assert_and_get_friendship_from_db(&repos, (USER_A.social_user_id, USER_B.social_user_id), false).await;
 
         // user A cancel request for user B
         let req = get_request(USER_A.token, FriendshipEvent::CANCEL);
@@ -111,19 +112,19 @@ mod tests {
         assert_eq!(resp.status(), 200);
 
         // assert not friends in db yet
-        assert_and_get_friendship_from_db(&repos, (USER_A.id, USER_B.id), false).await;
+        assert_and_get_friendship_from_db(&repos, (USER_A.social_user_id, USER_B.social_user_id), false).await;
     }
 
     #[actix_web::test]
     async fn test_friendship_lifecycle_request_reject() {
 
         let mut token_to_user_id: HashMap<String, String> = HashMap::new();
-        token_to_user_id.insert(USER_A.token.to_string(), USER_A.id.to_string());
-        token_to_user_id.insert(USER_B.token.to_string(), USER_B.id.to_string());
+        token_to_user_id.insert(USER_A.token.to_string(), USER_A.user_id.to_string());
+        token_to_user_id.insert(USER_B.token.to_string(), USER_B.user_id.to_string());
 
         let synapse_server = get_synapse_mocked_server_with_room(
             token_to_user_id,
-            (USER_A.id.to_string(), USER_B.id.to_string()),
+            (USER_A.user_id.to_string(), USER_B.user_id.to_string()),
         )
         .await;
 
@@ -139,32 +140,32 @@ mod tests {
 
         let repos = db.db_repos.unwrap();
 
-        let result = assert_and_get_friendship_from_db(&repos, (USER_A.id, USER_B.id), false).await;
+        let result = assert_and_get_friendship_from_db(&repos, (USER_A.social_user_id, USER_B.social_user_id), false).await;
 
         // assert last history is request
-        assert_last_history_from_db(&repos, result.id, USER_A.id, FriendshipEvent::REQUEST).await;
+        assert_last_history_from_db(&repos, result.id, USER_A.social_user_id, FriendshipEvent::REQUEST).await;
 
         // user B reject user A
         let req = get_request(USER_B.token, FriendshipEvent::REJECT);
         let _ = actix_web::test::call_service(&app, req).await;
 
         // assert not friends in db yet
-        let result = assert_and_get_friendship_from_db(&repos, (USER_A.id, USER_B.id), false).await;
+        let result = assert_and_get_friendship_from_db(&repos, (USER_A.social_user_id, USER_B.social_user_id), false).await;
 
         // assert last history is reject
-        assert_last_history_from_db(&repos, result.id, USER_B.id, FriendshipEvent::REJECT).await;
+        assert_last_history_from_db(&repos, result.id, USER_B.social_user_id, FriendshipEvent::REJECT).await;
     }
 
     #[actix_web::test]
     async fn test_friendship_lifecycle_request_accept() {
 
         let mut token_to_user_id: HashMap<String, String> = HashMap::new();
-        token_to_user_id.insert(USER_A.token.to_string(), USER_A.id.to_string());
-        token_to_user_id.insert(USER_B.token.to_string(), USER_B.id.to_string());
+        token_to_user_id.insert(USER_A.token.to_string(), USER_A.user_id.to_string());
+        token_to_user_id.insert(USER_B.token.to_string(), USER_B.user_id.to_string());
 
         let synapse_server = get_synapse_mocked_server_with_room(
             token_to_user_id,
-            (USER_A.id.to_string(), USER_B.id.to_string()),
+            (USER_A.user_id.to_string(), USER_B.user_id.to_string()),
         )
         .await;
 
@@ -185,22 +186,22 @@ mod tests {
         let repos = db.db_repos.unwrap();
 
         // assert friends in db
-        let result = assert_and_get_friendship_from_db(&repos, (USER_A.id, USER_B.id), true).await;
+        let result = assert_and_get_friendship_from_db(&repos, (USER_A.social_user_id, USER_B.social_user_id), true).await;
 
         // assert last history is accept
-        assert_last_history_from_db(&repos, result.id, USER_B.id, FriendshipEvent::ACCEPT).await;
+        assert_last_history_from_db(&repos, result.id, USER_B.social_user_id, FriendshipEvent::ACCEPT).await;
     }
 
     #[actix_web::test]
     async fn test_friendship_lifecycle_request_accept_delete() {
 
         let mut token_to_user_id: HashMap<String, String> = HashMap::new();
-        token_to_user_id.insert(USER_A.token.to_string(), USER_A.id.to_string());
-        token_to_user_id.insert(USER_B.token.to_string(), USER_B.id.to_string());
+        token_to_user_id.insert(USER_A.token.to_string(), USER_A.user_id.to_string());
+        token_to_user_id.insert(USER_B.token.to_string(), USER_B.user_id.to_string());
 
         let synapse_server = get_synapse_mocked_server_with_room(
             token_to_user_id,
-            (USER_A.id.to_string(), USER_B.id.to_string()),
+            (USER_A.user_id.to_string(), USER_B.user_id.to_string()),
         )
         .await;
 
@@ -221,29 +222,29 @@ mod tests {
         let repos = db.db_repos.unwrap();
 
         // assert friends in db
-        assert_and_get_friendship_from_db(&repos, (USER_A.id, USER_B.id), true).await;
+        assert_and_get_friendship_from_db(&repos, (USER_A.social_user_id, USER_B.social_user_id), true).await;
 
         // user B delete user A
         let req = get_request(USER_B.token, FriendshipEvent::DELETE);
         let _ = actix_web::test::call_service(&app, req).await;
 
         // assert not friends in db anymore
-        let result = assert_and_get_friendship_from_db(&repos, (USER_A.id, USER_B.id), false).await;
+        let result = assert_and_get_friendship_from_db(&repos, (USER_A.social_user_id, USER_B.social_user_id), false).await;
 
         // assert last history is delete by B
-        assert_last_history_from_db(&repos, result.id, USER_B.id, FriendshipEvent::DELETE).await;
+        assert_last_history_from_db(&repos, result.id, USER_B.social_user_id, FriendshipEvent::DELETE).await;
     }
 
     #[actix_web::test]
     async fn test_friendship_lifecycle_request_request_should_400() {
 
         let mut token_to_user_id: HashMap<String, String> = HashMap::new();
-        token_to_user_id.insert(USER_A.token.to_string(), USER_A.id.to_string());
-        token_to_user_id.insert(USER_B.token.to_string(), USER_B.id.to_string());
+        token_to_user_id.insert(USER_A.token.to_string(), USER_A.user_id.to_string());
+        token_to_user_id.insert(USER_B.token.to_string(), USER_B.user_id.to_string());
 
         let synapse_server = get_synapse_mocked_server_with_room(
             token_to_user_id,
-            (USER_A.id.to_string(), USER_B.id.to_string()),
+            (USER_A.user_id.to_string(), USER_B.user_id.to_string()),
         )
         .await;
 

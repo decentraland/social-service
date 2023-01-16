@@ -201,7 +201,11 @@ async fn get_room_members(
             let members = response
                 .chunk
                 .iter()
-                .map(|member| member.user_id.clone())
+                .map(|member| {
+                   match member.social_user_id.clone() {
+                    Some(social_user_id) => social_user_id,
+                    None => "".to_string(),
+                }})
                 .collect::<Vec<String>>();
 
             if members.len() != 2 {
