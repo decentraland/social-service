@@ -18,8 +18,8 @@
           <boolProp name="LoopController.continue_forever">false</boolProp>
           <intProp name="LoopController.loops">-1</intProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">1</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <stringProp name="ThreadGroup.num_threads">150</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">150</stringProp>
         <boolProp name="ThreadGroup.scheduler">false</boolProp>
         <stringProp name="ThreadGroup.duration">60</stringProp>
         <stringProp name="ThreadGroup.delay"></stringProp>
@@ -262,7 +262,7 @@
           <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
           <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
           <stringProp name="HTTPSampler.connect_timeout"></stringProp>
-          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout">5000</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
           <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="Constant Timer" enabled="true">
@@ -308,8 +308,8 @@
               </collectionProp>
             </elementProp>
             <stringProp name="HTTPSampler.domain"></stringProp>
-            <stringProp name="HTTPSampler.port">8080</stringProp>
-            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.port"></stringProp>
+            <stringProp name="HTTPSampler.protocol"></stringProp>
             <stringProp name="HTTPSampler.contentEncoding"></stringProp>
             <stringProp name="HTTPSampler.path">/_matrix/client/r0/rooms/${room_id}/state/org.decentraland.friendship</stringProp>
             <stringProp name="HTTPSampler.method">PUT</stringProp>
@@ -345,7 +345,7 @@
           <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
           <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
           <stringProp name="HTTPSampler.connect_timeout"></stringProp>
-          <stringProp name="HTTPSampler.response_timeout"></stringProp>
+          <stringProp name="HTTPSampler.response_timeout">5000</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
           <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="Constant Timer" enabled="true">
@@ -391,8 +391,8 @@
               </collectionProp>
             </elementProp>
             <stringProp name="HTTPSampler.domain"></stringProp>
-            <stringProp name="HTTPSampler.port">8080</stringProp>
-            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.port"></stringProp>
+            <stringProp name="HTTPSampler.protocol"></stringProp>
             <stringProp name="HTTPSampler.contentEncoding"></stringProp>
             <stringProp name="HTTPSampler.path">/_matrix/client/r0/rooms/${room_id}/state/org.decentraland.friendship</stringProp>
             <stringProp name="HTTPSampler.method">PUT</stringProp>
@@ -402,7 +402,7 @@
             <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
             <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
             <stringProp name="HTTPSampler.connect_timeout"></stringProp>
-            <stringProp name="HTTPSampler.response_timeout"></stringProp>
+            <stringProp name="HTTPSampler.response_timeout">5000</stringProp>
             <stringProp name="TestPlan.comments">Updates the room to either remove or add as friend</stringProp>
           </HTTPSamplerProxy>
           <hashTree>
@@ -450,8 +450,8 @@
               </collectionProp>
             </elementProp>
             <stringProp name="HTTPSampler.domain"></stringProp>
-            <stringProp name="HTTPSampler.port">8080</stringProp>
-            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.port"></stringProp>
+            <stringProp name="HTTPSampler.protocol"></stringProp>
             <stringProp name="HTTPSampler.contentEncoding"></stringProp>
             <stringProp name="HTTPSampler.path">/_matrix/client/r0/rooms/${room_id}/state/org.decentraland.friendship</stringProp>
             <stringProp name="HTTPSampler.method">PUT</stringProp>
@@ -461,7 +461,7 @@
             <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
             <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
             <stringProp name="HTTPSampler.connect_timeout"></stringProp>
-            <stringProp name="HTTPSampler.response_timeout"></stringProp>
+            <stringProp name="HTTPSampler.response_timeout">5000</stringProp>
             <stringProp name="TestPlan.comments">Updates the room to either remove or add as friend</stringProp>
           </HTTPSamplerProxy>
           <hashTree>
@@ -509,8 +509,8 @@
               </collectionProp>
             </elementProp>
             <stringProp name="HTTPSampler.domain"></stringProp>
-            <stringProp name="HTTPSampler.port">8080</stringProp>
-            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.port"></stringProp>
+            <stringProp name="HTTPSampler.protocol"></stringProp>
             <stringProp name="HTTPSampler.contentEncoding"></stringProp>
             <stringProp name="HTTPSampler.path">/_matrix/client/r0/rooms/${room_id}/state/org.decentraland.friendship</stringProp>
             <stringProp name="HTTPSampler.method">PUT</stringProp>
@@ -592,8 +592,8 @@
               </collectionProp>
             </elementProp>
             <stringProp name="HTTPSampler.domain"></stringProp>
-            <stringProp name="HTTPSampler.port">8080</stringProp>
-            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.port"></stringProp>
+            <stringProp name="HTTPSampler.protocol"></stringProp>
             <stringProp name="HTTPSampler.contentEncoding"></stringProp>
             <stringProp name="HTTPSampler.path">/_matrix/client/r0/rooms/${room_id}/state/org.decentraland.friendship</stringProp>
             <stringProp name="HTTPSampler.method">PUT</stringProp>
@@ -651,8 +651,8 @@
               </collectionProp>
             </elementProp>
             <stringProp name="HTTPSampler.domain"></stringProp>
-            <stringProp name="HTTPSampler.port">8080</stringProp>
-            <stringProp name="HTTPSampler.protocol">http</stringProp>
+            <stringProp name="HTTPSampler.port"></stringProp>
+            <stringProp name="HTTPSampler.protocol"></stringProp>
             <stringProp name="HTTPSampler.contentEncoding"></stringProp>
             <stringProp name="HTTPSampler.path">/_matrix/client/r0/rooms/${room_id}/state/org.decentraland.friendship</stringProp>
             <stringProp name="HTTPSampler.method">PUT</stringProp>
@@ -698,7 +698,7 @@
         </hashTree>
       </hashTree>
       <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
-        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <boolProp name="ResultCollector.error_logging">true</boolProp>
         <objProp>
           <name>saveConfig</name>
           <value class="SampleSaveConfiguration">
@@ -731,7 +731,7 @@
             <connectTime>true</connectTime>
           </value>
         </objProp>
-        <stringProp name="filename">/Users/jmoguilevsky/Documents/dcl/social-service/perf-test-plan/test_result.csv </stringProp>
+        <stringProp name="filename">/Users/jmoguilevsky/Documents/dcl/social-service/perf-test-plan/test_result_150_users.csv </stringProp>
       </ResultCollector>
       <hashTree/>
       <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report" enabled="true">
@@ -768,7 +768,7 @@
             <connectTime>true</connectTime>
           </value>
         </objProp>
-        <stringProp name="filename">/Users/mpentreath/Git/citizen-platform-performance/services/xapi/results.jtl</stringProp>
+        <stringProp name="filename">/Users/jmoguilevsky/Documents/dcl/social-service/perf-test-plan/result_aggregate_150_users.csv</stringProp>
       </ResultCollector>
       <hashTree/>
     </hashTree>
