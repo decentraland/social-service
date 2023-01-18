@@ -57,7 +57,6 @@ pub async fn get_user_friends(
 }
 
 fn has_permission(logged_user_id: &str, user_id: &str) -> bool {
-
     user_id.eq_ignore_ascii_case(logged_user_id)
 }
 
