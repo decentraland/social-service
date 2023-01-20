@@ -405,10 +405,10 @@ async fn update_friendship_status(
 
     let room_event = serde_json::to_string(&room_event).unwrap();
 
-    let metadata = room_message_body.and_then(|body| {
+    let metadata = room_message_body.map(|body| {
         let mut data = HashMap::new();
         data.insert("message_body".to_string(), body.to_string());
-        Some(Json(data))
+        Json(data)
     });
 
     // store history
