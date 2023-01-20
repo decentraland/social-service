@@ -6,7 +6,7 @@ use actix_web::{
     HttpMessage, HttpRequest, HttpResponse,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{Postgres, Transaction};
+use sqlx::{types::Json, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -33,6 +33,7 @@ pub struct RoomEventResponse {
 #[derive(Deserialize, Serialize)]
 pub struct RoomEventRequestBody {
     pub r#type: FriendshipEvent,
+    pub body: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
@@ -123,11 +124,14 @@ pub async fn room_event_handler(
         (logged_in_user, token)
     };
 
+    let body_message = body.body.as_ref().map(|s| s.as_str());
+
     let response = process_room_event(
         &logged_in_user.social_id,
         &token,
         room_id.as_str(),
         body.r#type,
+        body_message,
         &app_data.db,
         &app_data.synapse,
     )
@@ -147,6 +151,7 @@ async fn process_room_event(
     token: &str,
     room_id: &str,
     room_event: FriendshipEvent,
+    room_message_body: Option<&str>,
     db: &DatabaseComponent,
     synapse: &SynapseComponent,
 ) -> Result<RoomEventResponse, SynapseError> {
@@ -179,13 +184,16 @@ async fn process_room_event(
         current_status,
         new_status,
         room_event,
+        room_message_body,
         db,
         &repos.friendships,
         &repos.friendship_history,
     )
     .await?;
 
-    let res = synapse.store_room_event(token, room_id, room_event).await;
+    let res = synapse
+        .store_room_event(token, room_id, room_event, room_message_body)
+        .await;
 
     match res {
         Ok(res) => Ok(res),
@@ -201,11 +209,10 @@ async fn get_room_members(
             let members = response
                 .chunk
                 .iter()
-                .map(|member| {
-                   match member.social_user_id.clone() {
+                .map(|member| match member.social_user_id.clone() {
                     Some(social_user_id) => social_user_id,
                     None => "".to_string(),
-                }})
+                })
                 .collect::<Vec<String>>();
 
             if members.len() != 2 {
@@ -352,6 +359,7 @@ async fn update_friendship_status(
     current_status: FriendshipStatus,
     new_status: FriendshipStatus,
     room_event: FriendshipEvent,
+    room_message_body: Option<&str>,
     db: &DatabaseComponent,
     friendships_repository: &FriendshipsRepository,
     friendship_history_repository: &FriendshipHistoryRepository,
@@ -397,13 +405,19 @@ async fn update_friendship_status(
 
     let room_event = serde_json::to_string(&room_event).unwrap();
 
+    let metadata = room_message_body.and_then(|body| {
+        let mut data = HashMap::new();
+        data.insert("message_body".to_string(), body.to_string());
+        Some(Json(data))
+    });
+
     // store history
     let (friendship_history_result, transaction) = friendship_history_repository
         .create(
             friendship_id,
             room_event.as_str(),
             acting_user,
-            None,
+            metadata,
             Some(transaction),
         )
         .await;

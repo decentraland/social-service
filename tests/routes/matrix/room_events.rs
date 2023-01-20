@@ -266,7 +266,7 @@ mod tests {
     }
 
     fn get_request(token: &str, event_type: FriendshipEvent) -> Request {
-        let body = RoomEventRequestBody { r#type: event_type };
+        let body = RoomEventRequestBody { r#type: event_type, body: None };
 
         let header = ("authorization", format!("Bearer {}", token));
 
