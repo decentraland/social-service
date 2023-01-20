@@ -124,7 +124,7 @@ pub async fn room_event_handler(
         (logged_in_user, token)
     };
 
-    let body_message = body.body.as_ref().map(|s| s.as_str());
+    let body_message = body.body.as_deref();
 
     let response = process_room_event(
         &logged_in_user.social_id,
