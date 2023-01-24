@@ -166,9 +166,9 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         }
     }
 
-    /// Fetches the friendships of a given user
-    /// if include inactive is true, this will also return all addresses for users
-    /// that this user has been friends in the past]
+    /// Fetches the friendships of a given user.
+    /// If `only_active` is set to true, only the current friends will be returned.
+    /// If set to false, all past and current friendships will be returned.
     #[tracing::instrument(name = "Get user friends from DB")]
     async fn get_user_friends<'a>(
         &'a self,
