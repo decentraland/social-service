@@ -122,6 +122,54 @@ impl FriendshipHistoryRepository {
         }
     }
 
+    /// Query the `request` events history of a friendship
+    pub async fn get_friendship_request_event_history<'a>(
+        &'a self,
+        friendship_id: Uuid,
+        transaction: Option<Transaction<'a, Postgres>>,
+    ) -> (
+        Result<Option<FriendshipHistory>, sqlx::Error>,
+        Option<Transaction<'a, Postgres>>,
+    ) {
+        let executor = self.get_executor(transaction);
+
+        // Query request event
+        let query = sqlx::query("SELECT * FROM friendship_history WHERE friendship_id = $1 AND event = 'request' AND metadata IS NOT NULL ORDER BY timestamp DESC").bind(friendship_id);
+
+        let (res, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
+
+        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
+
+        match res {
+            Ok(row) => {
+                let friendship_id = row.try_get("friendship_id").unwrap();
+                let event = serde_json::from_str::<FriendshipEvent>(row.try_get("event").unwrap());
+
+                if event.is_err() {
+                    let err = event.unwrap_err();
+                    log::error!("Row for {friendship_id} has an invalid event {}", err);
+                    return (
+                        Err(sqlx::Error::Decode(Box::new(err))),
+                        transaction_to_return,
+                    );
+                }
+
+                let history = FriendshipHistory {
+                    friendship_id,
+                    event: event.unwrap(),
+                    acting_user: row.try_get("acting_user").unwrap(),
+                    timestamp: row.try_get("timestamp").unwrap(),
+                    metadata: row.try_get("metadata").unwrap(),
+                };
+                (Ok(Some(history)), transaction_to_return)
+            }
+            Err(err) => match err {
+                Error::RowNotFound => (Ok(None), transaction_to_return),
+                _ => (Err(err), transaction_to_return),
+            },
+        }
+    }
+
     fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
         transaction.map_or_else(
             || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
