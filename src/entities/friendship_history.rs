@@ -122,10 +122,12 @@ impl FriendshipHistoryRepository {
         }
     }
 
-    /// Query the `request` events history of a friendship
+    /// Query the history of `request` events for a friendship between two timestamps.
     pub async fn get_friendship_request_event_history<'a>(
         &'a self,
         friendship_id: Uuid,
+        timestamp_from: chrono::NaiveDateTime,
+        timestamp_to: chrono::NaiveDateTime,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
         Result<Option<FriendshipHistory>, sqlx::Error>,
@@ -133,8 +135,18 @@ impl FriendshipHistoryRepository {
     ) {
         let executor = self.get_executor(transaction);
 
-        // Query request event
-        let query = sqlx::query("SELECT * FROM friendship_history WHERE friendship_id = $1 AND event = 'request' AND metadata IS NOT NULL ORDER BY timestamp DESC").bind(friendship_id);
+        // Buld query
+        let query = sqlx::query(
+            "SELECT * FROM friendship_history 
+                WHERE friendship_id = $1
+                  AND event = 'request' 
+                  AND metadata IS NOT NULL 
+                  AND timestamp BETWEEN $2 AND $3 
+                ORDER BY timestamp DESC",
+        )
+        .bind(friendship_id)
+        .bind(timestamp_from)
+        .bind(timestamp_to);
 
         let (res, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
 
