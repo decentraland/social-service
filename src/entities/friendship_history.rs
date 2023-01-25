@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use chrono::NaiveDateTime;
 use mockall::predicate::*;
 use sqlx::{
     postgres::Postgres,
@@ -25,7 +26,7 @@ pub struct FriendshipHistory {
     pub friendship_id: Uuid,
     pub event: FriendshipEvent,
     pub acting_user: String,
-    pub timestamp: chrono::NaiveDateTime,
+    pub timestamp: NaiveDateTime,
     pub metadata: Option<Json<HashMap<String, String>>>,
 }
 
@@ -126,11 +127,11 @@ impl FriendshipHistoryRepository {
     pub async fn get_friendship_request_event_history<'a>(
         &'a self,
         friendship_id: Uuid,
-        timestamp_from: chrono::NaiveDateTime,
-        timestamp_to: chrono::NaiveDateTime,
+        timestamp_from: NaiveDateTime,
+        timestamp_to: NaiveDateTime,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
-        Result<Option<FriendshipHistory>, sqlx::Error>,
+        Result<Vec<FriendshipHistory>, sqlx::Error>,
         Option<Transaction<'a, Postgres>>,
     ) {
         let executor = self.get_executor(transaction);
@@ -148,35 +149,26 @@ impl FriendshipHistoryRepository {
         .bind(timestamp_from)
         .bind(timestamp_to);
 
-        let (res, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
+        let (res, resulting_executor) = DatabaseComponent::fetch_all(query, executor).await;
 
         let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
 
         match res {
-            Ok(row) => {
-                let friendship_id = row.try_get("friendship_id").unwrap();
-                let event = serde_json::from_str::<FriendshipEvent>(row.try_get("event").unwrap());
-
-                if event.is_err() {
-                    let err = event.unwrap_err();
-                    log::error!("Row for {friendship_id} has an invalid event {}", err);
-                    return (
-                        Err(sqlx::Error::Decode(Box::new(err))),
-                        transaction_to_return,
-                    );
-                }
-
-                let history = FriendshipHistory {
-                    friendship_id,
-                    event: event.unwrap(),
-                    acting_user: row.try_get("acting_user").unwrap(),
-                    timestamp: row.try_get("timestamp").unwrap(),
-                    metadata: row.try_get("metadata").unwrap(),
-                };
-                (Ok(Some(history)), transaction_to_return)
+            Ok(rows) => {
+                let response = Ok(rows
+                    .iter()
+                    .map(|row| FriendshipHistory {
+                        friendship_id: row.try_get("friendship_id").unwrap(),
+                        event: FriendshipEvent::REQUEST,
+                        acting_user: row.try_get("acting_user").unwrap(),
+                        timestamp: row.try_get("timestamp").unwrap(),
+                        metadata: row.try_get("metadata").unwrap(),
+                    })
+                    .collect::<Vec<FriendshipHistory>>());
+                (response, transaction_to_return)
             }
             Err(err) => match err {
-                Error::RowNotFound => (Ok(None), transaction_to_return),
+                Error::RowNotFound => (Ok(vec![]), transaction_to_return),
                 _ => (Err(err), transaction_to_return),
             },
         }
