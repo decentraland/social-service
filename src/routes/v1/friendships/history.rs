@@ -10,20 +10,20 @@ use crate::{
     middlewares::check_auth::UserId, routes::v1::friendships::errors::FriendshipsError,
 };
 
-// TODO: Should we have a dedicated endpoint?
-
+// 1st QUESTION:
 // Ideally, I would like to receive the timestamp_from and timestamp_to in the request to narrow the query.
-// TODO: So, is it a good idea to have sth like this?:
+// So, would it be a good idea to have sth like this?:
+// the fn get_sent_messages_request_event() also receives the param:
+// body: web::Json<RequestEventRequestBody>,
 
-// get_sent_messages_request_event() also receives the param:
-// body: web::Json<RoomEventRequestBody>,
-
-// Where
+// Where RequestEventRequestBody is something like this:
 // pub struct RequestEventRequestBody {
-//   pub timestamp_from: NaiveDateTime,
-//   pub timestamp_to: NaiveDateTime
+//   pub timestamp_from: i64,
+//   pub timestamp_to: i64
 // }
 
+// 2nd QUESTION:
+// Should we have a dedicated endpoint?
 #[get("/v1/friendships/{friendshipId}/request_message")]
 async fn get_sent_messages_request_event(
     req: HttpRequest,
