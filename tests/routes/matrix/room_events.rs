@@ -151,7 +151,12 @@ mod tests {
         let app = actix_web::test::init_service(get_app(config, None).await).await;
 
         // user A request user B
-        let req = get_request(USER_A.token, FriendshipEvent::REQUEST, None);
+        let message_body = "hey, wanna be friends with me?".to_string();
+        let req = get_request(
+            USER_A.token,
+            FriendshipEvent::REQUEST,
+            Some(message_body.clone()),
+        );
         let _ = actix_web::test::call_service(&app, req).await;
 
         let repos = db.db_repos.unwrap();
@@ -169,7 +174,7 @@ mod tests {
             result.id,
             USER_A.social_user_id,
             FriendshipEvent::REQUEST,
-            None,
+            Some(message_body),
         )
         .await;
 
@@ -332,7 +337,7 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn test_friendship_request() {
+    async fn test_friendship_lifecycle_request() {
         let mut token_to_user_id: HashMap<String, String> = HashMap::new();
         token_to_user_id.insert(USER_A.token.to_string(), USER_A.user_id.to_string());
         token_to_user_id.insert(USER_B.token.to_string(), USER_B.user_id.to_string());
