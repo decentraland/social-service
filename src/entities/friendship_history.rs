@@ -124,11 +124,14 @@ impl FriendshipHistoryRepository {
     }
 
     /// Query the history of `request` events for a friendship between two timestamps.
+    /// If `with_metadata` is set to true, only rows with non-empty metadata be returned.
+    /// If set to false, all rows will be returned.
     pub async fn get_friendship_request_event_history<'a>(
         &'a self,
         friendship_id: Uuid,
         timestamp_from: NaiveDateTime,
         timestamp_to: NaiveDateTime,
+        with_metadata: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
         Result<Vec<FriendshipHistory>, sqlx::Error>,
@@ -136,18 +139,25 @@ impl FriendshipHistoryRepository {
     ) {
         let executor = self.get_executor(transaction);
 
-        // Buld query
-        let query = sqlx::query(
-            "SELECT * FROM friendship_history 
-                WHERE friendship_id = $1
-                  AND event = 'request' 
-                  AND metadata IS NOT NULL 
-                  AND timestamp BETWEEN $2 AND $3 
-                ORDER BY timestamp DESC",
-        )
-        .bind(friendship_id)
-        .bind(timestamp_from)
-        .bind(timestamp_to);
+        let with_metadata_only = "AND metadata IS NOT NULL";
+
+        // Build query
+        let mut query = "SELECT * FROM friendship_history 
+        WHERE friendship_id = $1 
+          AND event = 'request' 
+          AND metadata IS NOT NULL 
+          AND timestamp BETWEEN $2 AND $3 
+        ORDER BY timestamp DESC"
+            .to_owned();
+
+        if with_metadata {
+            query.push_str(with_metadata_only);
+        }
+
+        let query = sqlx::query(&query)
+            .bind(friendship_id)
+            .bind(timestamp_from)
+            .bind(timestamp_to);
 
         let (res, resulting_executor) = DatabaseComponent::fetch_all(query, executor).await;
 

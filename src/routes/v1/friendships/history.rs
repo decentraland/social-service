@@ -4,6 +4,7 @@ use actix_web::{
     web::{self, Data},
     HttpRequest, HttpResponse,
 };
+
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -30,20 +31,33 @@ pub struct RequestEventRequestBody {
 async fn get_sent_messages_request_event(
     req: HttpRequest,
     body: web::Json<RequestEventRequestBody>,
-    friendship_id: web::Path<String>,
+    friendship_id: web::Path<Uuid>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
-    let _logged_in_user = req
+    let _logged_in_user: UserId = req
         .extensions()
         .get::<UserId>()
         .expect("to have a UserId")
         .clone();
 
     // Convert it to a timestamp type that can be understood by PostgreSQL.
-    let timestamp_from_naive: NaiveDateTime =
-        NaiveDateTime::from_timestamp_opt(body.timestamp_from, 0).unwrap();
-    let timestamp_to_naive: NaiveDateTime =
-        NaiveDateTime::from_timestamp_opt(body.timestamp_to, 0).unwrap();
+    let timestamp_from_naive = match NaiveDateTime::from_timestamp_opt(body.timestamp_from, 0) {
+        Some(val) => val,
+        None => {
+            return Err(FriendshipsError::CommonError(CommonError::BadRequest(
+                format!("Failed to convert timestamp_from to NaiveDateTime"),
+            )))
+        }
+    };
+
+    let timestamp_to_naive = match NaiveDateTime::from_timestamp_opt(body.timestamp_to, 0) {
+        Some(val) => val,
+        None => {
+            return Err(FriendshipsError::CommonError(CommonError::BadRequest(
+                format!("Failed to convert timestamp_to to NaiveDateTime"),
+            )))
+        }
+    };
 
     // Get the history of friendship request events.
     match &app_data.db.db_repos {
@@ -51,16 +65,17 @@ async fn get_sent_messages_request_event(
             let (history, _) = repos
                 .friendship_history
                 .get_friendship_request_event_history(
-                    friendship_id.parse::<Uuid>().unwrap(),
+                    *friendship_id,
                     timestamp_from_naive,
                     timestamp_to_naive,
+                    true,
                     None,
                 )
                 .await;
             match history {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 Ok(history) => {
-                    // Get request events with messages
+                    // Get request events with non-empty messages.
                     let response =
                         MessageRequestEventResponse::new(get_request_events_with_messages(history));
                     Ok(HttpResponse::Ok().json(response))
@@ -77,25 +92,19 @@ fn get_request_events_with_messages(
     friendship_history: Vec<FriendshipHistory>,
 ) -> Vec<MessageRequestEvent> {
     friendship_history
-        .iter()
-        .filter(|history| {
+        .into_iter()
+        .filter_map(|history| {
             history
                 .metadata
                 .as_ref()
                 .and_then(|meta| meta.get("message_body"))
-                .map_or(false, |s| !s.is_empty())
-        })
-        .map(|history| MessageRequestEvent {
-            friendship_id: history.friendship_id.to_string(),
-            acting_user: history.acting_user.to_string(),
-            timestamp: history.timestamp.timestamp(),
-            body: history
-                .metadata
-                .clone()
-                .unwrap()
-                .get("message_body")
-                .unwrap()
-                .to_string(),
+                .filter(|s| !s.is_empty())
+                .map(|value| MessageRequestEvent {
+                    friendship_id: history.friendship_id.to_string(),
+                    acting_user: history.acting_user.to_string(),
+                    timestamp: history.timestamp.timestamp(),
+                    body: value.to_string(),
+                })
         })
         .collect()
 }
