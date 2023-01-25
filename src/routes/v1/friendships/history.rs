@@ -45,7 +45,7 @@ async fn get_sent_messages_request_event(
         Some(val) => val,
         None => {
             return Err(FriendshipsError::CommonError(CommonError::BadRequest(
-                format!("Failed to convert timestamp_from to NaiveDateTime"),
+                "Failed to convert timestamp_to to NaiveDateTime".to_string(),
             )))
         }
     };
@@ -54,7 +54,7 @@ async fn get_sent_messages_request_event(
         Some(val) => val,
         None => {
             return Err(FriendshipsError::CommonError(CommonError::BadRequest(
-                format!("Failed to convert timestamp_to to NaiveDateTime"),
+                "Failed to convert timestamp_to to NaiveDateTime".to_string(),
             )))
         }
     };
