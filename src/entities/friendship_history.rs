@@ -139,20 +139,22 @@ impl FriendshipHistoryRepository {
     ) {
         let executor = self.get_executor(transaction);
 
-        let with_metadata_only = "AND metadata IS NOT NULL";
+        let with_metadata_only = " AND metadata IS NOT NULL";
 
         // Build query
         let mut query = "SELECT * FROM friendship_history 
         WHERE friendship_id = $1 
           AND event = 'request' 
-          AND metadata IS NOT NULL 
-          AND timestamp BETWEEN $2 AND $3 
-        ORDER BY timestamp DESC"
+          AND timestamp BETWEEN $2 AND $3"
             .to_owned();
 
+        // And metadata not null clause
         if with_metadata {
             query.push_str(with_metadata_only);
         }
+
+        // Order by clause
+        query.push_str(" ORDER BY timestamp DESC");
 
         let query = sqlx::query(&query)
             .bind(friendship_id)
