@@ -10,6 +10,7 @@ use actix_web::dev::{Server, ServiceFactory};
 use actix_web::{web::Data, App, HttpServer};
 use middlewares::check_auth::CheckAuthToken;
 use routes::synapse::room_events::room_event_handler;
+use routes::v1::friendships::history::get_sent_messages_request_event;
 use routes::v1::friendships::mutuals::get_mutual_friends;
 use tracing_actix_web::TracingLogger;
 
@@ -47,10 +48,11 @@ pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> 
     Data::new(app_data)
 }
 
-const ROUTES_NEED_AUTH_TOKEN: [&str; 3] = [
+const ROUTES_NEED_AUTH_TOKEN: [&str; 4] = [
     "/v1/friendships/{userId}",
     "/v1/friendships/{userId}/mutuals",
     "/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship",
+    "/v1/friendships/{friendshipId}/request-events/messages",
 ]; // should fill this array to protect routes
 
 pub fn get_app_router(
@@ -84,6 +86,7 @@ pub fn get_app_router(
         .service(get_mutual_friends)
         .service(login)
         .service(room_event_handler)
+        .service(get_sent_messages_request_event)
 }
 
 fn generate_uuid_v4() -> String {
