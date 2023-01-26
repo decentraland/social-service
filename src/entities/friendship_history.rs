@@ -142,11 +142,7 @@ impl FriendshipHistoryRepository {
         let with_metadata_only = " AND metadata IS NOT NULL";
 
         // Build query
-        let mut query = "SELECT * FROM friendship_history 
-        WHERE friendship_id = $1 
-          AND event = 'request' 
-          AND timestamp BETWEEN $2 AND $3"
-            .to_owned();
+        let mut query = "SELECT * FROM friendship_history WHERE friendship_id = $1 AND event = '\"request\"' AND timestamp BETWEEN $2 AND $3".to_owned();
 
         // And metadata not null clause
         if with_metadata {
