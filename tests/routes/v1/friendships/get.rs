@@ -14,8 +14,8 @@ use crate::common::*;
 // Get friends should return list of friends
 #[actix_web::test]
 async fn test_get_friends() {
-    let user_id = "a_user_id";
-    let other_user_id = "other_user_id";
+    let user_id = "a_User_id";
+    let other_user_id = "other_useR_id";
 
     let token = "my-token";
 
@@ -35,7 +35,7 @@ async fn test_get_friends() {
 
     add_friendship(&app_data.db, (user_id, other_user_id), false).await;
 
-    let url = format!("/v1/friendships/{user_id}");
+    let url = format!("/v1/friendships/a_user_Id");
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()
@@ -122,9 +122,9 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
 
 #[actix_web::test]
 async fn test_get_user_friends_should_return_the_address_list() {
-    let user_id = "a_user_id";
-    let other_user = "another_id";
-    let other_user_2 = "another_id_2";
+    let user_id = "a_uSer_id";
+    let other_user = "anoTher_id";
+    let other_user_2 = "another_Id_2";
 
     let mut token_to_user_id: HashMap<String, String> = HashMap::new();
     let token = "my-token";
@@ -145,7 +145,7 @@ async fn test_get_user_friends_should_return_the_address_list() {
     add_friendship(&app_data.db, (user_id, other_user), false).await;
     add_friendship(&app_data.db, (user_id, other_user_2), false).await;
 
-    let url = format!("/v1/friendships/{user_id}");
+    let url = format!("/v1/friendships/a_uSer_ID");
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()
