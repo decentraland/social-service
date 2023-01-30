@@ -297,8 +297,8 @@ fn order_addresses<'a>(addresses: (&'a str, &'a str)) -> (&'a str, &'a str) {
     let (address1, address2) = addresses;
 
     if address1 < address2 {
-        return addresses;
+        addresses
     } else {
-        return (address2, address1);
+        (address2, address1)
     }
 }

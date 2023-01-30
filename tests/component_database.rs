@@ -13,7 +13,7 @@ async fn should_create_and_get_a_friendship() {
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
-        .create_new_friendships(("A", "B"), false, None)
+        .create_new_friendships(("B", "A"), false, None)
         .await
         .0
         .unwrap();
