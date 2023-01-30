@@ -101,7 +101,8 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         is_active: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>) {
-        let (address1, address2) = addresses;
+        // The addresses are order lexicographic to ensure that the friendship tuple is unique
+        let (address1, address2) = order_addresses(addresses);
 
         let id = Uuid::parse_str(generate_uuid_v4().as_str()).unwrap();
 
@@ -290,5 +291,15 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
             Some(transaction) => Executor::Transaction(transaction),
             None => Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
         }
+    }
+}
+
+fn order_addresses<'a>(addresses: (&'a str, &'a str)) -> (&'a str, &'a str) {
+    let (address1, address2) = addresses;
+
+    if address1 < address2 {
+        addresses
+    } else {
+        (address2, address1)
     }
 }
