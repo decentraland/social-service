@@ -101,6 +101,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         is_active: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>) {
+        // The addresses are order lexicographic to ensure that the friendship tuple is unique
         let (address1, address2) = order_addresses(addresses);
 
         let id = Uuid::parse_str(generate_uuid_v4().as_str()).unwrap();
