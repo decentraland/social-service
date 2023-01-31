@@ -24,12 +24,12 @@ pub struct FriendshipFriend {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MessageRequestEventResponse {
-    pub friendships: Vec<MessageRequestEvent>,
+    pub messages_req_events: Vec<MessageRequestEvent>,
 }
 
 impl MessageRequestEventResponse {
     pub fn new(addresses: Vec<MessageRequestEvent>) -> Self {
-        let friends = addresses.iter().map(|address| MessageRequestEvent {
+        let messages = addresses.iter().map(|address| MessageRequestEvent {
             friendship_id: address.friendship_id.clone(),
             acting_user: address.acting_user.clone(),
             timestamp: address.timestamp,
@@ -37,7 +37,7 @@ impl MessageRequestEventResponse {
         });
 
         Self {
-            friendships: friends.collect(),
+            messages_req_events: messages.collect(),
         }
     }
 }

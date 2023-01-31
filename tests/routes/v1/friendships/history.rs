@@ -95,8 +95,8 @@ async fn test_get_sent_messages_request_event() {
     let friendship_history_response: MessageRequestEventResponse =
         test::read_body_json(response).await;
 
-    let message = &friendship_history_response.friendships[0].body;
+    let message = &friendship_history_response.messages_req_events[0].body;
 
     assert_eq!("Hola", message);
-    assert_eq!(friendship_history_response.friendships.len(), 1)
+    assert_eq!(friendship_history_response.messages_req_events.len(), 1)
 }
