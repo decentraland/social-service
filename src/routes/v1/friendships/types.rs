@@ -23,9 +23,8 @@ pub struct FriendshipFriend {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct MessageRequestEventResponse {
-    #[serde(rename = "messages_request_events")]
+    #[serde(rename = "messagesRequestEvents")]
     pub messages_req_events: Vec<MessageRequestEvent>,
 }
 
