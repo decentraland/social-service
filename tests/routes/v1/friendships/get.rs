@@ -123,8 +123,8 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
 #[actix_web::test]
 async fn test_get_user_friends_should_return_the_address_list() {
     let user_id = "a_uSer_id";
-    let other_user = "anoTher_id";
-    let other_user_2 = "another_Id_2";
+    let other_user = "b_another_Id";
+    let other_user_2 = "b_another_Id_2";
 
     let mut token_to_user_id: HashMap<String, String> = HashMap::new();
     let token = "my-token";
