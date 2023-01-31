@@ -135,14 +135,14 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         Option<Transaction<'a, Postgres>>,
     ) {
         let (address1, address2) = addresses;
+        let address1_lowercase = address1.to_ascii_lowercase();
+        let address2_lowercase = address2.to_ascii_lowercase();
 
         let query = sqlx::query(
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 AND LOWER(address_2) = $2) OR (LOWER(address_1) = $3 AND LOWER(address_2) = $4)"
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 AND LOWER(address_2) = $2) OR (LOWER(address_1) = $2 AND LOWER(address_2) = $1)"
         )
-        .bind(address1.to_string().to_ascii_lowercase())
-        .bind(address2.to_string().to_ascii_lowercase())
-        .bind(address2.to_string().to_ascii_lowercase())
-        .bind(address1.to_string().to_ascii_lowercase());
+        .bind(address1_lowercase)
+        .bind(address2_lowercase);
 
         let executor = self.get_executor(transaction);
 
