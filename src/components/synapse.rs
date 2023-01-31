@@ -135,6 +135,7 @@ impl SynapseComponent {
         token: &str,
         room_id: &str,
         room_event: FriendshipEvent,
+        room_message_body: Option<&str>,
     ) -> Result<RoomEventResponse, CommonError> {
         let path = format!("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship");
 
@@ -142,7 +143,10 @@ impl SynapseComponent {
             &path,
             token,
             &self.synapse_url,
-            &RoomEventRequestBody { r#type: room_event },
+            &RoomEventRequestBody {
+                r#type: room_event,
+                body: room_message_body.map(|s| s.to_string()),
+            },
         )
         .await
     }

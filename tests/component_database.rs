@@ -1,4 +1,8 @@
 mod common;
+
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use chrono::NaiveDateTime;
 pub use common::*;
 
 use social_service::{
@@ -61,17 +65,53 @@ async fn should_create_a_friendship_request_event() {
         .await
         .0
         .unwrap();
+
+    let timestamp_from: i64 = 1662921288; // Sunday, September 11, 2022 6:34:48 PM
+    let timestamp_from_naive = NaiveDateTime::from_timestamp_millis(timestamp_from).unwrap();
+    let timestamp_to = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let timestamp_to_naive = NaiveDateTime::from_timestamp_millis(timestamp_to).unwrap();
+
+    let request_event_friendship_history = dbrepos
+        .friendship_history
+        .get_friendship_request_event_history(
+            friendship.id,
+            timestamp_from_naive,
+            timestamp_to_naive,
+            false,
+            None,
+        )
+        .await
+        .0
+        .unwrap();
+
+    assert_eq!(request_event_friendship_history.len(), 1);
+
+    assert_eq!(
+        request_event_friendship_history[0].friendship_id,
+        friendship.id
+    );
+
+    assert_eq!(
+        request_event_friendship_history[0].event,
+        FriendshipEvent::REQUEST
+    );
+
     assert!(friendship_history.is_some());
 
     assert_eq!(
         friendship_history.as_ref().unwrap().friendship_id,
         friendship.id
     );
+
     assert_eq!(
         friendship_history.as_ref().unwrap().event,
         FriendshipEvent::REQUEST
     );
     assert_eq!(friendship_history.as_ref().unwrap().acting_user, "C");
+
     assert_eq!(friendship_history.as_ref().unwrap().metadata, None);
 }
 
