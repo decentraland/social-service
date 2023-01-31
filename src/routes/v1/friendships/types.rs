@@ -24,6 +24,7 @@ pub struct FriendshipFriend {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MessageRequestEventResponse {
+    #[serde(rename = "messages_request_events")]
     pub messages_req_events: Vec<MessageRequestEvent>,
 }
 
