@@ -23,6 +23,7 @@ pub struct FriendshipFriend {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageRequestEventResponse {
     #[serde(rename = "messages_request_events")]
     pub messages_req_events: Vec<MessageRequestEvent>,
@@ -44,6 +45,7 @@ impl MessageRequestEventResponse {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageRequestEvent {
     pub friendship_id: String,
     pub acting_user: String,
