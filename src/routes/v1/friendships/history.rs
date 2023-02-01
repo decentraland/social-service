@@ -131,10 +131,10 @@ async fn get_users_friendship(app_data: Data<AppComponents>, friendship_id: Uuid
                 .await;
             match result {
                 Ok(users) => users.unwrap_or(vec![]),
-                Err(_) => return vec![],
+                Err(_) => vec![],
             }
         }
-        None => return vec![],
+        None => vec![],
     }
 }
 
