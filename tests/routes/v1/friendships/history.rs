@@ -6,7 +6,6 @@ use actix_web::test;
 use actix_web::web::Data;
 
 use social_service::get_app_router;
-use social_service::routes::v1::friendships::history::RequestEventRequestBody;
 use social_service::routes::v1::friendships::types::MessageRequestEventResponse;
 use sqlx::types::Json;
 use uuid::uuid;
@@ -72,18 +71,18 @@ async fn test_get_sent_messages_request_event() {
     // Create friendship request entry without metadata
     create_friendship_history(&app_data.db, friendship_id, "\"request\"", user_id, None).await;
 
-    let url = format!("/v1/friendships/{friendship_id}/request-events/messages");
+    let url = format!(
+        "/v1/friendships/{friendship_id}/request-events/messages?timestamp_from={}&timestamp_to={}",
+        1662921288 as i64,
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
+    );
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()
         .uri(url.as_str())
-        .set_json(&RequestEventRequestBody {
-            timestamp_from: 1662921288, // Sunday, September 11, 2022 6:34:48 PMs
-            timestamp_to: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as i64,
-        })
         .insert_header(header)
         .to_request();
 

@@ -22,7 +22,7 @@ use crate::{
 use super::types::MessageRequestEvent;
 
 #[derive(Deserialize, Serialize)]
-pub struct RequestEventRequestBody {
+pub struct RequestEventParam {
     pub timestamp_from: i64, // timestamp in milis
     pub timestamp_to: i64,   // timestamp in milis
 }
@@ -30,7 +30,7 @@ pub struct RequestEventRequestBody {
 #[get("/v1/friendships/{friendshipId}/request-events/messages")]
 async fn get_sent_messages_request_event(
     req: HttpRequest,
-    body: web::Json<RequestEventRequestBody>,
+    param: web::Query<RequestEventParam>,
     friendship_id: web::Path<Uuid>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
@@ -41,7 +41,7 @@ async fn get_sent_messages_request_event(
         .clone();
 
     // Convert it to a timestamp type that can be understood by PostgreSQL.
-    let timestamp_from_naive = match NaiveDateTime::from_timestamp_opt(body.timestamp_from, 0) {
+    let timestamp_from_naive = match NaiveDateTime::from_timestamp_opt(param.timestamp_from, 0) {
         Some(val) => val,
         None => {
             return Err(FriendshipsError::CommonError(CommonError::BadRequest(
@@ -50,7 +50,7 @@ async fn get_sent_messages_request_event(
         }
     };
 
-    let timestamp_to_naive = match NaiveDateTime::from_timestamp_opt(body.timestamp_to, 0) {
+    let timestamp_to_naive = match NaiveDateTime::from_timestamp_opt(param.timestamp_to, 0) {
         Some(val) => val,
         None => {
             return Err(FriendshipsError::CommonError(CommonError::BadRequest(
