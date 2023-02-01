@@ -73,11 +73,11 @@ async fn test_get_sent_messages_request_event() {
 
     let url = format!(
         "/v1/friendships/{friendship_id}/request-events/messages?timestamp_from={}&timestamp_to={}",
-        1662921288 as i64,
+        1662921288,
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_millis() as i64
+            .as_millis()
     );
 
     let header = ("authorization", format!("Bearer {}", token));
