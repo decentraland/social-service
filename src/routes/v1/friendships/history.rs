@@ -11,7 +11,9 @@ use uuid::Uuid;
 
 use crate::{
     components::app::AppComponents,
-    entities::friendship_history::FriendshipHistory,
+    entities::{
+        friendship_history::FriendshipHistory, friendships::FriendshipRepositoryImplementation,
+    },
     middlewares::check_auth::UserId,
     routes::v1::{
         error::CommonError,
@@ -34,11 +36,21 @@ async fn get_sent_messages_request_event(
     friendship_id: web::Path<Uuid>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
-    let _logged_in_user: UserId = req
+    let logged_in_user: UserId = req
         .extensions()
         .get::<UserId>()
         .expect("to have a UserId")
         .clone();
+
+    // Retrieve users from friendship and verify permissions.
+    let users = get_users_friendship(app_data.clone(), *friendship_id).await;
+    if !users.is_empty() {
+        has_permission(logged_in_user.social_id.as_str(), &users[0], &users[1]);
+    } else {
+        return Err(FriendshipsError::CommonError(CommonError::BadRequest(
+            format!("You don't have permission to view the sent request messages for friendship {friendship_id}"),
+        )));
+    }
 
     // Convert it to a timestamp type that can be understood by PostgreSQL.
     let timestamp_from_naive = match NaiveDateTime::from_timestamp_opt(param.timestamp_from, 0) {
@@ -107,4 +119,26 @@ fn get_request_events_with_messages(
                 })
         })
         .collect()
+}
+
+/// Retrieve users from friendship
+async fn get_users_friendship(app_data: Data<AppComponents>, friendship_id: Uuid) -> Vec<String> {
+    match &app_data.db.db_repos {
+        Some(repos) => {
+            let (result, _) = repos
+                .friendships
+                .get_users_from_friendship(&friendship_id, None)
+                .await;
+            match result {
+                Ok(users) => users.unwrap_or(vec![]),
+                Err(_) => return vec![],
+            }
+        }
+        None => return vec![],
+    }
+}
+
+///
+fn has_permission(logged_user_id: &str, user_id_1: &str, user_id_2: &str) -> bool {
+    logged_user_id.eq_ignore_ascii_case(user_id_1) || logged_user_id.eq_ignore_ascii_case(user_id_2)
 }

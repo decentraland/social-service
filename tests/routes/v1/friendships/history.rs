@@ -8,19 +8,18 @@ use actix_web::web::Data;
 use social_service::get_app_router;
 use social_service::routes::v1::friendships::types::MessageRequestEventResponse;
 use sqlx::types::Json;
-use uuid::uuid;
 
 use social_service::components::app::AppComponents;
 
 use crate::common::*;
-use crate::routes::v1::friendships::utils::create_friendship_history;
+use crate::routes::v1::friendships::utils::{add_friendship, create_friendship_history};
 
 #[actix_rt::test]
 async fn test_get_sent_messages_request_event() {
     let user_id = "a_user_id";
-    let friendship_id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
+    let other_user_id = "other_user_id";
 
-    let room_message_body = Some("Hola");
+    let room_message_body = Some("hi, wanna be friends?");
     let metadata = room_message_body.map(|body| {
         let mut data = HashMap::new();
         data.insert("message_body".to_string(), body.to_string());
@@ -48,8 +47,10 @@ async fn test_get_sent_messages_request_event() {
 
     let app = test::init_service(router).await;
 
-    // Create friendship request entry with metadata
-    // that contains the key `message_body`
+    // Add friendship entry
+    let friendship_id = add_friendship(&app_data.db, (user_id, other_user_id), true).await;
+
+    // Create friendship request entry with metadata that contains the key `message_body`
     create_friendship_history(
         &app_data.db,
         friendship_id,
@@ -58,8 +59,8 @@ async fn test_get_sent_messages_request_event() {
         metadata,
     )
     .await;
-    // Create friendship request entry with metadata
-    // that does not contain the key `message_body`
+
+    // Create friendship request entry with metadata that does not contain the key `message_body`
     create_friendship_history(
         &app_data.db,
         friendship_id,
@@ -68,6 +69,7 @@ async fn test_get_sent_messages_request_event() {
         metadata_other_key,
     )
     .await;
+
     // Create friendship request entry without metadata
     create_friendship_history(&app_data.db, friendship_id, "\"request\"", user_id, None).await;
 
@@ -96,6 +98,6 @@ async fn test_get_sent_messages_request_event() {
 
     let message = &friendship_history_response.messages_req_events[0].body;
 
-    assert_eq!("Hola", message);
+    assert_eq!("hi, wanna be friends?", message);
     assert_eq!(friendship_history_response.messages_req_events.len(), 1)
 }
