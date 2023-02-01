@@ -15,10 +15,10 @@ use crate::common::*;
 // Get friends should return list of friends
 #[actix_web::test]
 async fn test_get_mutual_friends() {
-    let user_id_a = "user-a";
-    let user_id_b = "user-b";
+    let user_id_a = "user-A";
+    let user_id_b = "useR-b";
     let user_id_c = "user-c";
-    let user_id_d = "user-d";
+    let user_id_d = "user-D";
     let user_id_e = "user-e";
     let user_id_f = "user-f";
 
@@ -54,7 +54,7 @@ async fn test_get_mutual_friends() {
     add_friendship(&app_data.db, (user_id_f, user_id_a), true).await;
     add_friendship(&app_data.db, (user_id_f, user_id_b), true).await;
 
-    let url = format!("/v1/friendships/{user_id_b}/mutuals");
+    let url = format!("/v1/friendships/user-b/mutuals");
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()

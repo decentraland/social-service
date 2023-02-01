@@ -1,7 +1,7 @@
 pub const MUTUALS_FRIENDS_QUERY: &str = "WITH friendsA as (
   SELECT
     CASE
-      WHEN address_1 = $1 then address_2
+      WHEN LOWER(address_1) = $1 then address_2
       else address_1
     end as address
   FROM
@@ -12,8 +12,8 @@ pub const MUTUALS_FRIENDS_QUERY: &str = "WITH friendsA as (
         friendships f_a
       where
         (
-          f_a.address_1 = $1
-          or f_a.address_2 = $1
+          LOWER(f_a.address_1) = $1
+          or LOWER(f_a.address_2) = $1
         )
     ) as friends_a
 )
@@ -25,7 +25,7 @@ WHERE
   address IN (
     SELECT
       CASE
-        WHEN address_1 = $2 then address_2
+        WHEN LOWER(address_1) = $2 then address_2
         else address_1
       end as address_a
     FROM
@@ -36,8 +36,8 @@ WHERE
           friendships f_b
         where
           (
-            f_b.address_1 = $2
-            or f_b.address_2 = $2
+            LOWER(f_b.address_1) = $2
+            or LOWER(f_b.address_2) = $2
           )
       ) as friends_b
   );";
