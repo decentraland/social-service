@@ -70,7 +70,7 @@ pub struct SynapseLoginResponse {
 
 #[derive(Deserialize, Serialize)]
 pub struct RoomMember {
-    pub user_id: String,
+    pub state_key: String,
     pub social_user_id: Option<String>, // social_user_id is not present in synapse
     pub room_id: String,
     pub r#type: String,
@@ -166,8 +166,10 @@ impl SynapseComponent {
         .await;
 
         response.map(|mut res| {
-            res.chunk.iter_mut().for_each(|mut room_member| {
-                room_member.social_user_id = Some(clean_synapse_user_id(&room_member.user_id));
+            res.chunk.iter_mut()
+            .filter(|room_member| room_member.state_key.starts_with('@'))
+            .for_each(|mut room_member| {
+                room_member.social_user_id = Some(clean_synapse_user_id(&room_member.state_key));
             });
 
             res
