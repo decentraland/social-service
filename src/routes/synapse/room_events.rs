@@ -16,7 +16,7 @@ use crate::{
         synapse::{RoomMembersResponse, SynapseComponent},
     },
     entities::{
-        friendship_history::{FriendshipHistory, FriendshipHistoryRepository},
+        friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::{Token, UserId},
@@ -33,7 +33,7 @@ pub struct RoomEventResponse {
 #[derive(Deserialize, Serialize)]
 pub struct RoomEventRequestBody {
     pub r#type: FriendshipEvent,
-    pub body: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
@@ -124,7 +124,7 @@ pub async fn room_event_handler(
         (logged_in_user, token)
     };
 
-    let body_message = body.body.as_deref();
+    let body_message = body.message.as_deref();
 
     let response = process_room_event(
         &logged_in_user.social_id,
@@ -188,6 +188,7 @@ async fn process_room_event(
         db,
         &repos.friendships,
         &repos.friendship_history,
+        room_id,
     )
     .await?;
 
@@ -363,6 +364,7 @@ async fn update_friendship_status(
     db: &DatabaseComponent,
     friendships_repository: &FriendshipsRepository,
     friendship_history_repository: &FriendshipHistoryRepository,
+    room_id: &str,
 ) -> Result<(), SynapseError> {
     // The only case where we don't create the friendship if it didn't exist
     // If they are still no friends, it's unnecessary to create a friendship
@@ -405,10 +407,12 @@ async fn update_friendship_status(
 
     let room_event = serde_json::to_string(&room_event).unwrap();
 
-    let metadata = room_message_body.map(|body| {
-        let mut data = HashMap::new();
-        data.insert("message_body".to_string(), body.to_string());
-        Json(data)
+    let metadata = room_message_body.map(|message| {
+        Json::from(sqlx::types::Json(FriendshipMetadata {
+            message: Some(message.to_string()),
+            synapse_room_id: Some(room_id.to_string()),
+            migrated_from_synapse: None,
+        }))
     });
 
     // store history

@@ -112,7 +112,7 @@ async fn should_create_a_friendship_request_event() {
     );
     assert_eq!(friendship_history.as_ref().unwrap().acting_user, "C");
 
-    assert_eq!(friendship_history.as_ref().unwrap().metadata, None);
+    assert!(friendship_history.as_ref().unwrap().metadata.is_none());
 }
 
 #[actix_web::test]

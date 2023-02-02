@@ -386,7 +386,7 @@ mod tests {
     fn get_request(token: &str, event_type: FriendshipEvent, body: Option<String>) -> Request {
         let body = RoomEventRequestBody {
             r#type: event_type,
-            body,
+            message: body,
         };
 
         let header = ("authorization", format!("Bearer {}", token));
@@ -435,7 +435,7 @@ mod tests {
         assert_eq!(result.event, event_type);
         let message_body = result
             .metadata
-            .and_then(|j| j.get("message_body").cloned())
+            .and_then(|j| j.message.clone())
             .map(|j| j.to_string())
             .unwrap_or("".to_string());
         assert_eq!(message_body, message.unwrap_or("".to_string()));

@@ -97,7 +97,7 @@ fn get_request_events_with_messages(
             history
                 .metadata
                 .as_ref()
-                .and_then(|meta| meta.get("message_body"))
+                .and_then(|meta| meta.message.clone())
                 .filter(|s| !s.is_empty())
                 .map(|value| MessageRequestEvent {
                     friendship_id: history.friendship_id.to_string(),
