@@ -5,8 +5,6 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 
-use chrono::NaiveDateTime;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
@@ -23,16 +21,9 @@ use crate::{
 
 use super::types::MessageRequestEvent;
 
-#[derive(Deserialize, Serialize)]
-pub struct RequestEventParam {
-    pub timestamp_from: i64, // timestamp in milis
-    pub timestamp_to: i64,   // timestamp in milis
-}
-
 #[get("/v1/friendships/{friendshipId}/request-events/messages")]
 async fn get_sent_messages_request_event(
     req: HttpRequest,
-    param: web::Query<RequestEventParam>,
     friendship_id: web::Path<Uuid>,
     app_data: Data<AppComponents>,
 ) -> Result<HttpResponse, FriendshipsError> {
@@ -42,47 +33,24 @@ async fn get_sent_messages_request_event(
         .expect("to have a UserId")
         .clone();
 
-    // Retrieve users from friendship and verify permissions.
-    let users = get_users_friendship(app_data.clone(), *friendship_id).await;
-    if !users.is_empty() {
-        has_permission(logged_in_user.social_id.as_str(), &users[0], &users[1]);
-    } else {
-        return Err(FriendshipsError::CommonError(CommonError::BadRequest(
-            format!("You don't have permission to view the sent request messages for friendship {friendship_id}"),
-        )));
+    // Retrieve users from friendship.
+    let users = match get_users_friendship(app_data.clone(), *friendship_id).await {
+        Some(value) => value,
+        None => return Err(FriendshipsError::CommonError(CommonError::NotFound)),
+    };
+
+    // Verify permissions.
+    if !has_permission(logged_in_user.social_id.as_str(), &users[0], &users[1]) {
+        return Err(FriendshipsError::CommonError(CommonError::Unauthorized));
     }
 
-    // Convert it to a timestamp type that can be understood by PostgreSQL.
-    let timestamp_from_naive = match NaiveDateTime::from_timestamp_opt(param.timestamp_from, 0) {
-        Some(val) => val,
-        None => {
-            return Err(FriendshipsError::CommonError(CommonError::BadRequest(
-                "Failed to convert timestamp_to to NaiveDateTime".to_string(),
-            )))
-        }
-    };
-
-    let timestamp_to_naive = match NaiveDateTime::from_timestamp_opt(param.timestamp_to, 0) {
-        Some(val) => val,
-        None => {
-            return Err(FriendshipsError::CommonError(CommonError::BadRequest(
-                "Failed to convert timestamp_to to NaiveDateTime".to_string(),
-            )))
-        }
-    };
-
-    // Get the history of friendship request events.
+    // Get the history of friendship request events with non-empty metadata.
     match &app_data.db.db_repos {
         Some(repos) => {
             let (history, _) = repos
                 .friendship_history
-                .get_friendship_request_event_history(
-                    *friendship_id,
-                    timestamp_from_naive,
-                    timestamp_to_naive,
-                    true,
-                    None,
-                )
+                // We set the metadata to true, meaning only rows with non-empty metadata will be returned.
+                .get_friendship_request_event_history(*friendship_id, true, None)
                 .await;
             match history {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
@@ -121,8 +89,11 @@ fn get_request_events_with_messages(
         .collect()
 }
 
-/// Retrieve users from friendship
-async fn get_users_friendship(app_data: Data<AppComponents>, friendship_id: Uuid) -> Vec<String> {
+/// Retrieve users from friendship.
+async fn get_users_friendship(
+    app_data: Data<AppComponents>,
+    friendship_id: Uuid,
+) -> Option<Vec<String>> {
     match &app_data.db.db_repos {
         Some(repos) => {
             let (result, _) = repos
@@ -130,15 +101,15 @@ async fn get_users_friendship(app_data: Data<AppComponents>, friendship_id: Uuid
                 .get_users_from_friendship(&friendship_id, None)
                 .await;
             match result {
-                Ok(users) => users.unwrap_or(vec![]),
-                Err(_) => vec![],
+                Ok(users) => users,
+                Err(_) => None,
             }
         }
-        None => vec![],
+        None => None,
     }
 }
 
-///
+/// Check if the logged-in user is part of the friendship.
 fn has_permission(logged_user_id: &str, user_id_1: &str, user_id_2: &str) -> bool {
     logged_user_id.eq_ignore_ascii_case(user_id_1) || logged_user_id.eq_ignore_ascii_case(user_id_2)
 }

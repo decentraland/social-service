@@ -1,8 +1,5 @@
 mod common;
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use chrono::NaiveDateTime;
 pub use common::*;
 
 use social_service::{
@@ -66,23 +63,9 @@ async fn should_create_a_friendship_request_event() {
         .0
         .unwrap();
 
-    let timestamp_from: i64 = 1662921288; // Sunday, September 11, 2022 6:34:48 PM
-    let timestamp_from_naive = NaiveDateTime::from_timestamp_millis(timestamp_from).unwrap();
-    let timestamp_to = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64;
-    let timestamp_to_naive = NaiveDateTime::from_timestamp_millis(timestamp_to).unwrap();
-
     let request_event_friendship_history = dbrepos
         .friendship_history
-        .get_friendship_request_event_history(
-            friendship.id,
-            timestamp_from_naive,
-            timestamp_to_naive,
-            false,
-            None,
-        )
+        .get_friendship_request_event_history(friendship.id, false, None)
         .await
         .0
         .unwrap();
