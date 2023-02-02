@@ -21,7 +21,7 @@ async fn should_create_and_get_a_friendship() {
 
     let friendship = dbrepos
         .friendships
-        .get_friendship(("A", "B"), None)
+        .get_friendship(("a", "b"), None)
         .await
         .0
         .unwrap();

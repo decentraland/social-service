@@ -110,8 +110,8 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         is_active: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>) {
-        // The addresses are order lexicographic to ensure that the friendship tuple is unique
-        let (address1, address2) = order_addresses(addresses);
+        // The addresses are lexicographicly sorted to ensure that the friendship tuple is unique
+        let (address1, address2) = sort_addresses(addresses);
 
         let id = Uuid::parse_str(generate_uuid_v4().as_str()).unwrap();
 
@@ -144,14 +144,14 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         Option<Transaction<'a, Postgres>>,
     ) {
         let (address1, address2) = addresses;
+        let address1_lowercase = address1.to_ascii_lowercase();
+        let address2_lowercase = address2.to_ascii_lowercase();
 
         let query = sqlx::query(
-            "SELECT * FROM friendships WHERE (address_1 = $1 AND address_2 = $2) OR (address_1 = $3 AND address_2 = $4)"
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 AND LOWER(address_2) = $2) OR (LOWER(address_1) = $2 AND LOWER(address_2) = $1)"
         )
-        .bind(address1.to_string())
-        .bind(address2.to_string())
-        .bind(address2.to_string())
-        .bind(address1.to_string());
+        .bind(address1_lowercase)
+        .bind(address2_lowercase);
 
         let executor = self.get_executor(transaction);
 
@@ -192,13 +192,13 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let active_only_clause = " AND is_active";
 
         let mut query =
-            "SELECT * FROM friendships WHERE (address_1 = $1) OR (address_2 = $1)".to_owned();
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)".to_owned();
 
         if only_active {
             query.push_str(active_only_clause);
         }
 
-        let query = sqlx::query(&query).bind(address);
+        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
 
         let executor = self.get_executor(transaction);
 
@@ -243,7 +243,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     ) {
         let query = MUTUALS_FRIENDS_QUERY.to_string();
 
-        let query = sqlx::query(&query).bind(address_1).bind(address_2);
+        let query = sqlx::query(&query).bind(address_1.to_ascii_lowercase()).bind(address_2.to_ascii_lowercase());
 
         let executor = self.get_executor(transaction);
 
@@ -338,7 +338,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     }
 }
 
-fn order_addresses<'a>(addresses: (&'a str, &'a str)) -> (&'a str, &'a str) {
+fn sort_addresses<'a>(addresses: (&'a str, &'a str)) -> (&'a str, &'a str) {
     let (address1, address2) = addresses;
 
     if address1 < address2 {
