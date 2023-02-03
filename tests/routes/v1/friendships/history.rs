@@ -20,7 +20,7 @@ async fn test_get_sent_messages_request_event() {
     let user_id = "a_user_id";
     let other_user_id = "other_user_id";
 
-    let room_message_body = Some("Hola");
+    let room_message_body = Some("hi, wanna be friends?");
     let metadata = Json::from(sqlx::types::Json(FriendshipMetadata {
         message: room_message_body.map(|body| body.to_string()),
         synapse_room_id: Some("a room_id".to_string()),
