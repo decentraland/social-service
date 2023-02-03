@@ -44,13 +44,12 @@ async fn get_sent_messages_request_event(
         return Err(FriendshipsError::CommonError(CommonError::Unauthorized));
     }
 
-    // Get the history of friendship request events with non-empty metadata.
+    // Get the history of friendship request events.
     match &app_data.db.db_repos {
         Some(repos) => {
             let (history, _) = repos
                 .friendship_history
-                // We set the metadata to true, meaning only rows with non-empty metadata will be returned.
-                .get_friendship_request_event_history(*friendship_id, true, None)
+                .get_friendship_request_event_history(*friendship_id, None)
                 .await;
             match history {
                 Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),

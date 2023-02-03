@@ -65,7 +65,7 @@ async fn should_create_a_friendship_request_event() {
 
     let request_event_friendship_history = dbrepos
         .friendship_history
-        .get_friendship_request_event_history(friendship.id, false, None)
+        .get_friendship_request_event_history(friendship.id, None)
         .await
         .0
         .unwrap();

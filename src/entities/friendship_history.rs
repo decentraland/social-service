@@ -124,12 +124,9 @@ impl FriendshipHistoryRepository {
     }
 
     /// Query the history of `request` events for a friendship.
-    /// If `with_metadata` is set to true, only rows with non-empty metadata be returned.
-    /// If set to false, all rows will be returned.
     pub async fn get_friendship_request_event_history<'a>(
         &'a self,
         friendship_id: Uuid,
-        with_metadata: bool,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (
         Result<Vec<FriendshipHistory>, sqlx::Error>,
@@ -137,17 +134,10 @@ impl FriendshipHistoryRepository {
     ) {
         let executor = self.get_executor(transaction);
 
-        let with_metadata_only = " AND metadata IS NOT NULL";
-
         // Build query
         let mut query =
             "SELECT * FROM friendship_history WHERE friendship_id = $1 AND event = '\"request\"'"
                 .to_owned();
-
-        // And metadata not null clause
-        if with_metadata {
-            query.push_str(with_metadata_only);
-        }
 
         // Order by clause
         query.push_str(" ORDER BY timestamp DESC");
