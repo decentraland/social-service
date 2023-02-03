@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use social_service::components::database::DatabaseComponent;
 use social_service::entities::friendship_history::FriendshipMetadata;
 use social_service::entities::friendships::FriendshipRepositoryImplementation;

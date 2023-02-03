@@ -103,7 +103,7 @@ fn get_request_events_with_messages(
                     friendship_id: history.friendship_id.to_string(),
                     acting_user: history.acting_user.to_string(),
                     timestamp: history.timestamp.timestamp(),
-                    body: value.to_string(),
+                    body: value,
                 })
         })
         .collect()
