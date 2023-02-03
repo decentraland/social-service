@@ -39,8 +39,8 @@ async fn get_sent_messages_request_event(
         None => return Err(FriendshipsError::CommonError(CommonError::NotFound)),
     };
 
-    // Verify permissions.
-    if !has_permission(logged_in_user.social_id.as_str(), &users[0], &users[1]) {
+    // Verify that the logged in user is present in the friendship.
+    if !has_permission(logged_in_user.social_id.as_str(), users) {
         return Err(FriendshipsError::CommonError(CommonError::Unauthorized));
     }
 
@@ -109,6 +109,8 @@ async fn get_users_friendship(
 }
 
 /// Check if the logged-in user is part of the friendship.
-fn has_permission(logged_user_id: &str, user_id_1: &str, user_id_2: &str) -> bool {
-    logged_user_id.eq_ignore_ascii_case(user_id_1) || logged_user_id.eq_ignore_ascii_case(user_id_2)
+fn has_permission(logged_user_id: &str, users: Vec<String>) -> bool {
+    users
+        .iter()
+        .any(|user| logged_user_id.eq_ignore_ascii_case(user))
 }
