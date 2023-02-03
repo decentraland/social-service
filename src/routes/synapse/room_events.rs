@@ -420,7 +420,7 @@ async fn update_friendship_status(
         sqlx::types::Json(FriendshipMetadata {
             message: Some(message.to_string()),
             synapse_room_id: Some(room_info.room_id.to_string()),
-            migrated_from_synapse: None,
+            migrated_from_synapse: Some(false),
         })
     });
 
