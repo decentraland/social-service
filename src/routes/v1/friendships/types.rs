@@ -34,7 +34,7 @@ impl MessageRequestEventResponse {
             friendship_id: address.friendship_id.clone(),
             acting_user: address.acting_user.clone(),
             timestamp: address.timestamp,
-            body: address.body.clone(),
+            message: address.message.clone(),
         });
 
         Self {
@@ -49,5 +49,5 @@ pub struct MessageRequestEvent {
     pub friendship_id: String,
     pub acting_user: String,
     pub timestamp: i64,
-    pub body: String,
+    pub message: String,
 }

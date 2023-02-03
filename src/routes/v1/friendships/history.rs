@@ -65,7 +65,7 @@ async fn get_sent_messages_request_event(
     }
 }
 
-/// Filters the `friendship_history`. It checks if the `metadata` of each `FriendshipHistory` contains the key `message_body`
+/// Filters the `friendship_history`. It checks if the `metadata` of each `FriendshipHistory` contains the key `message`
 /// and if it contains a non-empty value. If the check returns true, the struct is included in the filtered vector.
 fn get_request_events_with_messages(
     friendship_history: Vec<FriendshipHistory>,
@@ -82,7 +82,7 @@ fn get_request_events_with_messages(
                     friendship_id: history.friendship_id.to_string(),
                     acting_user: history.acting_user.to_string(),
                     timestamp: history.timestamp.timestamp(),
-                    body: value,
+                    message: value,
                 })
         })
         .collect()

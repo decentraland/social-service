@@ -124,14 +124,14 @@ pub async fn room_event_handler(
         (logged_in_user, token)
     };
 
-    let body_message = body.message.as_deref();
+    let room_message_body = body.message.as_deref();
 
     let response = process_room_event(
         &logged_in_user.social_id,
         &token,
         room_id.as_str(),
         body.r#type,
-        body_message,
+        room_message_body,
         &app_data.db,
         &app_data.synapse,
     )
