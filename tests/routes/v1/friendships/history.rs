@@ -23,16 +23,15 @@ async fn test_get_sent_messages_request_event() {
     let friendship_id = uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8");
 
     let room_message_body = Some("Hola");
-    let room_id = Some("a room_id".to_string());
     let metadata = Json::from(sqlx::types::Json(FriendshipMetadata {
         message: room_message_body.map(|body| body.to_string()),
-        synapse_room_id: None,
-        migrated_from_synapse: None,
+        synapse_room_id: Some("a room_id".to_string()),
+        migrated_from_synapse: Some(true),
     }));
 
     let metadata_without_body = Json::from(sqlx::types::Json(FriendshipMetadata {
         message: None,
-        synapse_room_id: room_id,
+        synapse_room_id: Some("a room_id".to_string()),
         migrated_from_synapse: None,
     }));
 
