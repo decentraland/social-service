@@ -5,6 +5,7 @@ use actix_http::StatusCode;
 use actix_web::test;
 use actix_web::web::Data;
 
+use social_service::entities::friendship_history::FriendshipMetadata;
 use social_service::get_app_router;
 use social_service::routes::v1::friendships::types::MessageRequestEventResponse;
 use sqlx::types::Json;
@@ -19,17 +20,18 @@ async fn test_get_sent_messages_request_event() {
     let user_id = "a_user_id";
     let other_user_id = "other_user_id";
 
-    let room_message_body = Some("hi, wanna be friends?");
-    let metadata = room_message_body.map(|body| {
-        let mut data = HashMap::new();
-        data.insert("message_body".to_string(), body.to_string());
-        Json(data)
-    });
-    let metadata_other_key = room_message_body.map(|body| {
-        let mut data = HashMap::new();
-        data.insert("other_key".to_string(), body.to_string());
-        Json(data)
-    });
+    let room_message_body = Some("Hola");
+    let metadata = Json::from(sqlx::types::Json(FriendshipMetadata {
+        message: room_message_body.map(|body| body.to_string()),
+        synapse_room_id: Some("a room_id".to_string()),
+        migrated_from_synapse: Some(true),
+    }));
+
+    let metadata_without_body = Json::from(sqlx::types::Json(FriendshipMetadata {
+        message: None,
+        synapse_room_id: Some("a room_id".to_string()),
+        migrated_from_synapse: None,
+    }));
 
     let token = "my-token";
 
@@ -56,7 +58,7 @@ async fn test_get_sent_messages_request_event() {
         friendship_id,
         "\"request\"",
         user_id,
-        metadata,
+        Some(metadata),
     )
     .await;
 
@@ -66,7 +68,7 @@ async fn test_get_sent_messages_request_event() {
         friendship_id,
         "\"request\"",
         user_id,
-        metadata_other_key,
+        Some(metadata_without_body),
     )
     .await;
 

@@ -145,7 +145,7 @@ impl SynapseComponent {
             &self.synapse_url,
             &RoomEventRequestBody {
                 r#type: room_event,
-                body: room_message_body.map(|s| s.to_string()),
+                message: room_message_body.map(|s| s.to_string()),
             },
         )
         .await

@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use social_service::components::database::DatabaseComponent;
+use social_service::entities::friendship_history::FriendshipMetadata;
 use social_service::entities::friendships::FriendshipRepositoryImplementation;
 use sqlx::types::Json;
 use uuid::Uuid;
@@ -28,7 +27,7 @@ pub async fn create_friendship_history(
     friendship_id: Uuid,
     event: &str,
     acting_user: &str,
-    metadata: Option<Json<HashMap<String, String>>>,
+    metadata: Option<Json<FriendshipMetadata>>,
 ) {
     db.db_repos
         .as_ref()
