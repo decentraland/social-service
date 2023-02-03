@@ -52,7 +52,7 @@ async fn test_get_sent_messages_request_event() {
     // Add friendship entry
     let friendship_id = add_friendship(&app_data.db, (user_id, other_user_id), true).await;
 
-    // Create friendship request entry with metadata that contains the key `message_body`
+    // Create friendship request entry with metadata that contains the key `message`
     create_friendship_history(
         &app_data.db,
         friendship_id,
@@ -62,7 +62,7 @@ async fn test_get_sent_messages_request_event() {
     )
     .await;
 
-    // Create friendship request entry with metadata that does not contain the key `message_body`
+    // Create friendship request entry with metadata that does not contain the key `message`
     create_friendship_history(
         &app_data.db,
         friendship_id,
