@@ -6,7 +6,7 @@ use actix_web::{
     HttpMessage, HttpRequest, HttpResponse,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{types::Json, Postgres, Transaction};
+use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
