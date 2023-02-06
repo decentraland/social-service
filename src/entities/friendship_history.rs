@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-use std::{sync::Arc};
-=======
 use std::sync::Arc;
->>>>>>> Stashed changes
 
 use chrono::NaiveDateTime;
 use mockall::predicate::*;
