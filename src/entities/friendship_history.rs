@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 use std::{sync::Arc};
+=======
+use std::sync::Arc;
+>>>>>>> Stashed changes
 
 use chrono::NaiveDateTime;
 use mockall::predicate::*;
@@ -120,7 +124,7 @@ impl FriendshipHistoryRepository {
                     event: event.unwrap(),
                     acting_user: row.try_get("acting_user").unwrap(),
                     timestamp: row.try_get("timestamp").unwrap(),
-                    metadata: row.try_get("metadata").unwrap(),
+                    metadata: row.try_get("metadata").unwrap_or(None),
                 };
                 (Ok(Some(history)), transaction_to_return)
             }
@@ -178,7 +182,7 @@ impl FriendshipHistoryRepository {
                         event: FriendshipEvent::REQUEST,
                         acting_user: row.try_get("acting_user").unwrap(),
                         timestamp: row.try_get("timestamp").unwrap(),
-                        metadata: row.try_get("metadata").unwrap(),
+                        metadata: row.try_get("metadata").unwrap_or(None),
                     })
                     .collect::<Vec<FriendshipHistory>>());
                 (response, transaction_to_return)
