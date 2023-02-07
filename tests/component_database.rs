@@ -63,25 +63,6 @@ async fn should_create_a_friendship_request_event() {
         .0
         .unwrap();
 
-    let request_event_friendship_history = dbrepos
-        .friendship_history
-        .get_friendship_request_event_history(friendship.id, None)
-        .await
-        .0
-        .unwrap();
-
-    assert_eq!(request_event_friendship_history.len(), 1);
-
-    assert_eq!(
-        request_event_friendship_history[0].friendship_id,
-        friendship.id
-    );
-
-    assert_eq!(
-        request_event_friendship_history[0].event,
-        FriendshipEvent::REQUEST
-    );
-
     assert!(friendship_history.is_some());
 
     assert_eq!(

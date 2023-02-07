@@ -131,52 +131,6 @@ impl FriendshipHistoryRepository {
         }
     }
 
-    /// Query the history of `request` events for a friendship.
-    pub async fn get_friendship_request_event_history<'a>(
-        &'a self,
-        friendship_id: Uuid,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (
-        Result<Vec<FriendshipHistory>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
-    ) {
-        let executor = self.get_executor(transaction);
-
-        // Build query
-        let mut query =
-            "SELECT * FROM friendship_history WHERE friendship_id = $1 AND event = '\"request\"'"
-                .to_owned();
-
-        // Order by clause
-        query.push_str(" ORDER BY timestamp DESC");
-
-        let query = sqlx::query(&query).bind(friendship_id);
-
-        let (res, resulting_executor) = DatabaseComponent::fetch_all(query, executor).await;
-
-        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
-
-        match res {
-            Ok(rows) => {
-                let response = Ok(rows
-                    .iter()
-                    .map(|row| FriendshipHistory {
-                        friendship_id: row.try_get("friendship_id").unwrap(),
-                        event: FriendshipEvent::REQUEST,
-                        acting_user: row.try_get("acting_user").unwrap(),
-                        timestamp: row.try_get("timestamp").unwrap(),
-                        metadata: row.try_get("metadata").unwrap_or(None),
-                    })
-                    .collect::<Vec<FriendshipHistory>>());
-                (response, transaction_to_return)
-            }
-            Err(err) => match err {
-                Error::RowNotFound => (Ok(vec![]), transaction_to_return),
-                _ => (Err(err), transaction_to_return),
-            },
-        }
-    }
-
     fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
         transaction.map_or_else(
             || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
