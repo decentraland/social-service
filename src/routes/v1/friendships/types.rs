@@ -29,13 +29,15 @@ pub struct MessageRequestEventResponse {
 }
 
 impl MessageRequestEventResponse {
-    pub fn new(addresses: Vec<MessageRequestEvent>) -> Self {
-        let messages = addresses.iter().map(|address| MessageRequestEvent {
-            friendship_id: address.friendship_id.clone(),
-            acting_user: address.acting_user.clone(),
-            timestamp: address.timestamp,
-            message: address.message.clone(),
-        });
+    pub fn new(messages_req_events: Vec<MessageRequestEvent>) -> Self {
+        let messages = messages_req_events
+            .iter()
+            .map(|message_req_event| MessageRequestEvent {
+                friendship_id: message_req_event.friendship_id.clone(),
+                acting_user: message_req_event.acting_user.clone(),
+                timestamp: message_req_event.timestamp,
+                message: message_req_event.message.clone(),
+            });
 
         Self {
             messages_req_events: messages.collect(),
