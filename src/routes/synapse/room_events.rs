@@ -202,11 +202,14 @@ async fn process_room_event(
         .store_room_event(token, room_id, room_event, room_message_body)
         .await;
 
-    if let Some(val) = room_message_body {
-        let _responsee = synapse
-            .send_message_event_given_room(token, room_id, room_event, val)
-            .await;
-    }
+    // If it's a friendship request event and the request contains a message, we send a message event to the given room.
+    if room_event == FriendshipEvent::REQUEST {
+        if let Some(val) = room_message_body {
+            let _responsee = synapse
+                .send_message_event_given_room(token, room_id, room_event, val)
+                .await;
+        }
+    };
 
     match res {
         Ok(res) => Ok(res),
