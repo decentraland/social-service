@@ -86,15 +86,6 @@ pub trait FriendshipRepositoryImplementation {
         Option<Transaction<'a, Postgres>>,
     );
 
-    async fn get_users_from_friendship<'a>(
-        &'a self,
-        friendship_id: &'a Uuid,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (
-        Result<Option<Vec<String>>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
-    );
-
     fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a>;
 }
 
@@ -273,41 +264,6 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                     );
                     (Err(err), transaction_to_return)
                 }
-            },
-        }
-    }
-
-    #[tracing::instrument(name = "Get users from friendship from DB")]
-    async fn get_users_from_friendship<'a>(
-        &'a self,
-        friendship_id: &'a Uuid,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (
-        Result<Option<Vec<String>>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
-    ) {
-        let query = "SELECT * FROM friendships WHERE id = $1".to_string();
-
-        let query = sqlx::query(&query).bind(friendship_id);
-
-        let executor = self.get_executor(transaction);
-
-        let (res, resulting_executor) = DatabaseComponent::fetch_one(query, executor).await;
-
-        let transaction_to_return = get_transaction_result_from_executor(resulting_executor);
-
-        match res {
-            Ok(row) => {
-                let response: Vec<String> = [
-                    row.try_get("address_1").unwrap(),
-                    row.try_get("address_2").unwrap(),
-                ]
-                .to_vec();
-                (Ok(Some(response)), transaction_to_return)
-            }
-            Err(err) => match err {
-                Error::RowNotFound => (Ok(None), transaction_to_return),
-                _ => (Err(err), transaction_to_return),
             },
         }
     }
