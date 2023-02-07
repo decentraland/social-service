@@ -183,7 +183,8 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let active_only_clause = " AND is_active";
 
         let mut query =
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)".to_owned();
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)"
+                .to_owned();
 
         if only_active {
             query.push_str(active_only_clause);
@@ -234,7 +235,9 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     ) {
         let query = MUTUALS_FRIENDS_QUERY.to_string();
 
-        let query = sqlx::query(&query).bind(address_1.to_ascii_lowercase()).bind(address_2.to_ascii_lowercase());
+        let query = sqlx::query(&query)
+            .bind(address_1.to_ascii_lowercase())
+            .bind(address_2.to_ascii_lowercase());
 
         let executor = self.get_executor(transaction);
 

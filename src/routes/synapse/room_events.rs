@@ -124,14 +124,14 @@ pub async fn room_event_handler(
         (logged_in_user, token)
     };
 
-    let body_message = body.message.as_deref();
+    let room_message_body = body.message.as_deref();
 
     let response = process_room_event(
         &logged_in_user.social_id,
         &token,
         room_id.as_str(),
         body.r#type,
-        body_message,
+        room_message_body,
         &app_data.db,
         &app_data.synapse,
     )
@@ -176,11 +176,16 @@ async fn process_room_event(
 
     let current_status = FriendshipStatus::from_history_event(last_history);
 
-    let room_info = RoomInfo { room_event, room_message_body, room_id };
+    let room_info = RoomInfo {
+        room_event,
+        room_message_body,
+        room_id,
+    };
     let friendship_ports = FriendshipPorts {
         db,
         friendships_repository: &repos.friendships,
-        friendship_history_repository: &repos.friendship_history, };
+        friendship_history_repository: &repos.friendship_history,
+    };
     // UPDATE FRIENDSHIP ACCORDINGLY IN DB
     update_friendship_status(
         &friendship,
@@ -425,7 +430,8 @@ async fn update_friendship_status(
     });
 
     // store history
-    let (friendship_history_result, transaction) = friendship_ports.friendship_history_repository
+    let (friendship_history_result, transaction) = friendship_ports
+        .friendship_history_repository
         .create(
             friendship_id,
             room_event.as_str(),
