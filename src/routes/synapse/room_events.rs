@@ -16,7 +16,7 @@ use crate::{
         synapse::{RoomMembersResponse, SynapseComponent},
     },
     entities::{
-        friendship_history::{FriendshipHistory, FriendshipHistoryRepository},
+        friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::{Token, UserId},
@@ -33,6 +33,7 @@ pub struct RoomEventResponse {
 #[derive(Deserialize, Serialize)]
 pub struct RoomEventRequestBody {
     pub r#type: FriendshipEvent,
+    pub message: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
@@ -123,11 +124,14 @@ pub async fn room_event_handler(
         (logged_in_user, token)
     };
 
+    let room_message_body = body.message.as_deref();
+
     let response = process_room_event(
         &logged_in_user.social_id,
         &token,
         room_id.as_str(),
         body.r#type,
+        room_message_body,
         &app_data.db,
         &app_data.synapse,
     )
@@ -147,6 +151,7 @@ async fn process_room_event(
     token: &str,
     room_id: &str,
     room_event: FriendshipEvent,
+    room_message_body: Option<&str>,
     db: &DatabaseComponent,
     synapse: &SynapseComponent,
 ) -> Result<RoomEventResponse, SynapseError> {
@@ -171,6 +176,16 @@ async fn process_room_event(
 
     let current_status = FriendshipStatus::from_history_event(last_history);
 
+    let room_info = RoomInfo {
+        room_event,
+        room_message_body,
+        room_id,
+    };
+    let friendship_ports = FriendshipPorts {
+        db,
+        friendships_repository: &repos.friendships,
+        friendship_history_repository: &repos.friendship_history,
+    };
     // UPDATE FRIENDSHIP ACCORDINGLY IN DB
     update_friendship_status(
         &friendship,
@@ -178,14 +193,14 @@ async fn process_room_event(
         &second_user,
         current_status,
         new_status,
-        room_event,
-        db,
-        &repos.friendships,
-        &repos.friendship_history,
+        room_info,
+        friendship_ports,
     )
     .await?;
 
-    let res = synapse.store_room_event(token, room_id, room_event).await;
+    let res = synapse
+        .store_room_event(token, room_id, room_event, room_message_body)
+        .await;
 
     match res {
         Ok(res) => Ok(res),
@@ -201,11 +216,10 @@ async fn get_room_members(
             let members = response
                 .chunk
                 .iter()
-                .map(|member| {
-                   match member.social_user_id.clone() {
+                .map(|member| match member.social_user_id.clone() {
                     Some(social_user_id) => social_user_id,
                     None => "".to_string(),
-                }})
+                })
                 .collect::<Vec<String>>();
 
             if members.len() != 2 {
@@ -345,16 +359,26 @@ fn calculate_new_friendship_status(
     }
 }
 
+pub struct RoomInfo<'a> {
+    room_event: FriendshipEvent,
+    room_message_body: Option<&'a str>,
+    room_id: &'a str,
+}
+
+pub struct FriendshipPorts<'a> {
+    db: &'a DatabaseComponent,
+    friendships_repository: &'a FriendshipsRepository,
+    friendship_history_repository: &'a FriendshipHistoryRepository,
+}
+
 async fn update_friendship_status(
     friendship: &Option<Friendship>,
     acting_user: &str,
     second_user: &str,
     current_status: FriendshipStatus,
     new_status: FriendshipStatus,
-    room_event: FriendshipEvent,
-    db: &DatabaseComponent,
-    friendships_repository: &FriendshipsRepository,
-    friendship_history_repository: &FriendshipHistoryRepository,
+    room_info: RoomInfo<'_>,
+    friendship_ports: FriendshipPorts<'_>,
 ) -> Result<(), SynapseError> {
     // The only case where we don't create the friendship if it didn't exist
     // If they are still no friends, it's unnecessary to create a friendship
@@ -362,7 +386,7 @@ async fn update_friendship_status(
         return Ok(());
     }
 
-    let transaction = db.start_transaction().await;
+    let transaction = friendship_ports.db.start_transaction().await;
 
     if transaction.is_err() {
         let err = transaction.err().unwrap();
@@ -380,7 +404,7 @@ async fn update_friendship_status(
         is_active,
         acting_user,
         second_user,
-        friendships_repository,
+        friendship_ports.friendships_repository,
         transaction,
     )
     .await;
@@ -395,15 +419,24 @@ async fn update_friendship_status(
         }
     };
 
-    let room_event = serde_json::to_string(&room_event).unwrap();
+    let room_event = serde_json::to_string(&room_info.room_event).unwrap();
+
+    let metadata = room_info.room_message_body.map(|message| {
+        sqlx::types::Json(FriendshipMetadata {
+            message: Some(message.to_string()),
+            synapse_room_id: Some(room_info.room_id.to_string()),
+            migrated_from_synapse: None,
+        })
+    });
 
     // store history
-    let (friendship_history_result, transaction) = friendship_history_repository
+    let (friendship_history_result, transaction) = friendship_ports
+        .friendship_history_repository
         .create(
             friendship_id,
             room_event.as_str(),
             acting_user,
-            None,
+            metadata,
             Some(transaction),
         )
         .await;

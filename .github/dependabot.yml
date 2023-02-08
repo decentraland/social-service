@@ -6,7 +6,10 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: "America/Buenos_Aires"
     ignore:
         # These are peer deps of Cargo and should not be automatically bumped
         - dependency-name: "semver"

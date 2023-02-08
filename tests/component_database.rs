@@ -1,4 +1,5 @@
 mod common;
+
 pub use common::*;
 
 use social_service::{
@@ -13,14 +14,14 @@ async fn should_create_and_get_a_friendship() {
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .friendships
-        .create_new_friendships(("A", "B"), false, None)
+        .create_new_friendships(("B", "A"), false, None)
         .await
         .0
         .unwrap();
 
     let friendship = dbrepos
         .friendships
-        .get_friendship(("A", "B"), None)
+        .get_friendship(("a", "b"), None)
         .await
         .0
         .unwrap();
@@ -61,18 +62,21 @@ async fn should_create_a_friendship_request_event() {
         .await
         .0
         .unwrap();
+
     assert!(friendship_history.is_some());
 
     assert_eq!(
         friendship_history.as_ref().unwrap().friendship_id,
         friendship.id
     );
+
     assert_eq!(
         friendship_history.as_ref().unwrap().event,
         FriendshipEvent::REQUEST
     );
     assert_eq!(friendship_history.as_ref().unwrap().acting_user, "C");
-    assert_eq!(friendship_history.as_ref().unwrap().metadata, None);
+
+    assert!(friendship_history.as_ref().unwrap().metadata.is_none());
 }
 
 #[actix_web::test]
