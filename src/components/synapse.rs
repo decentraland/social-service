@@ -168,7 +168,6 @@ impl SynapseComponent {
         // The transaction ID for this event.
         // Clients should generate an ID unique across requests with the same access token;
         // it will be used by the server to ensure idempotency of requests.
-        // https://github.com/matrix-org/matrix-js-sdk/blob/1842004db2c9a58896fe159d52d489cf6ee3fcf7/src/client.ts#L3818
         let txn_id = format!(
             "m.{}",
             SystemTime::now()
