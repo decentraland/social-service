@@ -1,6 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
+use chrono::NaiveDateTime;
 use mockall::predicate::*;
+use serde::{Deserialize, Serialize};
 use sqlx::{
     postgres::Postgres,
     query::Query,
@@ -21,12 +23,19 @@ pub struct FriendshipHistoryRepository {
     db_connection: Arc<Option<DBConnection>>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FriendshipMetadata {
+    pub message: Option<String>,
+    pub synapse_room_id: Option<String>,
+    pub migrated_from_synapse: Option<bool>,
+}
+
 pub struct FriendshipHistory {
     pub friendship_id: Uuid,
     pub event: FriendshipEvent,
     pub acting_user: String,
-    pub timestamp: chrono::NaiveDateTime,
-    pub metadata: Option<Json<HashMap<String, String>>>,
+    pub timestamp: NaiveDateTime,
+    pub metadata: Option<Json<FriendshipMetadata>>,
 }
 
 impl FriendshipHistoryRepository {
@@ -39,7 +48,7 @@ impl FriendshipHistoryRepository {
         friendship_id: Uuid,
         event: &'a str,
         acting_user: &'a str,
-        metadata: Option<Json<HashMap<String, String>>>,
+        metadata: Option<Json<FriendshipMetadata>>,
     ) -> Query<'a, Postgres, sqlx::postgres::PgArguments> {
         sqlx::query(
                 "INSERT INTO friendship_history (id,friendship_id, event, acting_user, metadata) VALUES ($1,$2,$3,$4,$5)",
@@ -56,7 +65,7 @@ impl FriendshipHistoryRepository {
         friendship_id: Uuid,
         event: &'a str,
         acting_user: &'a str,
-        metadata: Option<Json<HashMap<String, String>>>,
+        metadata: Option<Json<FriendshipMetadata>>,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
         let executor = self.get_executor(transaction);
@@ -111,7 +120,7 @@ impl FriendshipHistoryRepository {
                     event: event.unwrap(),
                     acting_user: row.try_get("acting_user").unwrap(),
                     timestamp: row.try_get("timestamp").unwrap(),
-                    metadata: row.try_get("metadata").unwrap(),
+                    metadata: row.try_get("metadata").unwrap_or(None),
                 };
                 (Ok(Some(history)), transaction_to_return)
             }

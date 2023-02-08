@@ -13,9 +13,9 @@ use crate::common::*;
 
 // Get friends should return list of friends
 #[actix_web::test]
-async fn test_get_friends() {
-    let user_id = "a_user_id";
-    let other_user_id = "other_user_id";
+async fn test_get_friends_when_active() {
+    let user_id = "a_User_id";
+    let other_user_id = "other_useR_id";
 
     let token = "my-token";
 
@@ -33,9 +33,9 @@ async fn test_get_friends() {
 
     let app = test::init_service(router).await;
 
-    add_friendship(&app_data.db, (user_id, other_user_id), false).await;
+    add_friendship(&app_data.db, (user_id, other_user_id), true).await;
 
-    let url = format!("/v1/friendships/{user_id}");
+    let url = format!("/v1/friendships/a_user_Id");
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()
@@ -55,6 +55,47 @@ async fn test_get_friends() {
         .expect("at least one friend")
         .address;
     assert_eq!(friend_address, other_user_id);
+}
+
+// Get friends should return empty when non-active
+#[actix_web::test]
+async fn test_get_friends_when_inactive() {
+    let user_id = "a_User_id";
+    let other_user_id = "other_useR_id";
+
+    let token = "my-token";
+
+    let mut token_to_user_id: HashMap<String, String> = HashMap::new();
+    token_to_user_id.insert(token.to_string(), user_id.to_string());
+
+    let mock_server = who_am_i_synapse_mock_server(token_to_user_id).await;
+    let mut config = get_configuration().await;
+    config.synapse.url = mock_server.uri();
+
+    let app_components = AppComponents::new(Some(config)).await;
+    let app_data = Data::new(app_components);
+
+    let router = get_app_router(&app_data);
+
+    let app = test::init_service(router).await;
+
+    add_friendship(&app_data.db, (user_id, other_user_id), false).await;
+
+    let url = format!("/v1/friendships/a_user_Id");
+
+    let header = ("authorization", format!("Bearer {}", token));
+    let req = test::TestRequest::get()
+        .uri(url.as_str())
+        .append_header(header)
+        .to_request();
+
+    let response = test::call_service(&app, req).await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Should parse correctly
+    let friendships_response: FriendshipsResponse = test::read_body_json(response).await;
+    assert!(&friendships_response.friendships.is_empty());
 }
 
 #[actix_web::test]
@@ -122,9 +163,9 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
 
 #[actix_web::test]
 async fn test_get_user_friends_should_return_the_address_list() {
-    let user_id = "a_user_id";
-    let other_user = "another_id";
-    let other_user_2 = "another_id_2";
+    let user_id = "a_uSer_id";
+    let other_user = "b_another_Id";
+    let other_user_2 = "b_another_Id_2";
 
     let mut token_to_user_id: HashMap<String, String> = HashMap::new();
     let token = "my-token";
@@ -142,10 +183,10 @@ async fn test_get_user_friends_should_return_the_address_list() {
 
     let app = test::init_service(router).await;
 
-    add_friendship(&app_data.db, (user_id, other_user), false).await;
-    add_friendship(&app_data.db, (user_id, other_user_2), false).await;
+    add_friendship(&app_data.db, (user_id, other_user), true).await;
+    add_friendship(&app_data.db, (user_id, other_user_2), true).await;
 
-    let url = format!("/v1/friendships/{user_id}");
+    let url = format!("/v1/friendships/a_uSer_ID");
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()

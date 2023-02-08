@@ -10,6 +10,7 @@ use actix_web::{
     Error, HttpMessage, HttpResponse,
 };
 use futures_util::future::LocalBoxFuture;
+use serde::{Deserialize, Serialize};
 
 use crate::{components::app::AppComponents, routes::v1::error::CommonError};
 
@@ -53,8 +54,11 @@ fn is_auth_route(routes: &[String], path: &str) -> bool {
     routes.iter().any(|x| *x == path)
 }
 
-#[derive(Debug)]
-pub struct UserId(pub String);
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UserId {
+    pub social_id: String,
+    pub synapse_id: String,
+}
 
 #[derive(Debug)]
 pub struct Token(pub String);
@@ -129,8 +133,14 @@ where
                         log::info!("trying to get user {token} but {e}");
                         match components.synapse.who_am_i(&token).await {
                             Ok(response) => {
-                                if let Err(err) =
-                                    user_cache.add_user(&token, &response.user_id, None).await
+                                let user_id = UserId {
+                                    social_id: response.social_user_id.unwrap(),
+                                    synapse_id: response.user_id,
+                                };
+
+                                if let Err(err) = user_cache
+                                    .add_user(&token, &user_id.social_id, &user_id.synapse_id, None)
+                                    .await
                                 {
                                     log::error!(
                                         "check_auth.rs > Error on storing token into Redis: {:?}",
@@ -138,7 +148,7 @@ where
                                     )
                                 }
 
-                                Ok(response.user_id)
+                                Ok(user_id)
                             }
                             Err(err) => Err(err),
                         }
@@ -149,7 +159,7 @@ where
             if let Ok(user_id) = user_id {
                 {
                     let mut extensions = request.extensions_mut();
-                    extensions.insert(UserId(user_id));
+                    extensions.insert(user_id);
                     extensions.insert(Token(token));
                 } // drop extension
 

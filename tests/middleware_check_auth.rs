@@ -45,7 +45,7 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
         .users_cache
         .lock()
         .await
-        .add_user(token, user_id, None)
+        .add_user(token, user_id, user_id, None)
         .await
         .expect("can add user");
 
@@ -72,7 +72,7 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
         .request()
         .extensions()
         .get::<UserId>()
-        .map(|u| u.0.clone());
+        .map(|u| u.social_id.clone());
 
     let status = resp.status();
 
@@ -82,9 +82,9 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
 }
 
 #[actix_web::test]
-async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean_user_id_into_redis() {
+async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean_user_id_into_redis(
+) {
     let user_id_synapse = "@0xb:decentraland.org";
-    let user_id = "0xb";
     let token = "a_random_token_";
 
     let mut token_to_user_id: HashMap<String, String> = HashMap::new();
@@ -108,5 +108,6 @@ async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean
     let ctx_user_id = extensions.get::<UserId>();
     assert_eq!(resp.status(), 200);
     assert!(ctx_user_id.is_some());
-    assert_eq!(ctx_user_id.unwrap().0, user_id)
+    // Check that the id sent to synapse has the matrix format
+    assert_eq!(ctx_user_id.unwrap().synapse_id, user_id_synapse)
 }

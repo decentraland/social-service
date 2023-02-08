@@ -96,6 +96,7 @@ pub async fn who_am_i_synapse_mock_server(token_to_user_id: HashMap<String, Stri
     for (token, user_id) in token_to_user_id.iter() {
         let response = WhoAmIResponse {
             user_id: user_id.to_string(),
+            social_user_id: None,
         };
 
         Mock::given(method("GET"))

@@ -1,5 +1,8 @@
 use crate::{
-    components::{app::AppComponents, synapse::SynapseLoginRequest},
+    components::{
+        app::AppComponents,
+        synapse::{clean_synapse_user_id, SynapseLoginRequest},
+    },
     routes::v1::error::CommonError,
 };
 
@@ -27,8 +30,15 @@ pub async fn login(
     match app_data.synapse.login(payload.0).await {
         Ok(ok_response) => {
             let mut users_cache = app_data.users_cache.lock().await;
+            let social_id = clean_synapse_user_id(&ok_response.user_id);
+
             if users_cache
-                .add_user(&ok_response.access_token, &ok_response.user_id, None)
+                .add_user(
+                    &ok_response.access_token,
+                    &social_id,
+                    &ok_response.user_id,
+                    None,
+                )
                 .await
                 .is_ok()
             {
