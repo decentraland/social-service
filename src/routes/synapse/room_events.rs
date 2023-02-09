@@ -251,9 +251,9 @@ async fn process_room_event(
             let transaction_result = transaction.commit().await;
 
             match transaction_result {
-                Ok(_) => return Ok(value),
-                Err(_) => return Err(SynapseError::CommonError(CommonError::Unknown)),
-            };
+                Ok(_) => Ok(value),
+                Err(_) => Err(SynapseError::CommonError(CommonError::Unknown)),
+            }
         }
         Err(err) => Err(SynapseError::CommonError(err)),
     }
@@ -499,7 +499,7 @@ async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Couldn't store friendship history update: {:?}", err);
             let _ = transaction.rollback().await;
-            return Err(SynapseError::CommonError(CommonError::Unknown));
+            Err(SynapseError::CommonError(CommonError::Unknown))
         }
     }
 }
