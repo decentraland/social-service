@@ -186,33 +186,50 @@ async fn process_room_event(
         friendships_repository: &repos.friendships,
         friendship_history_repository: &repos.friendship_history,
     };
-    // UPDATE FRIENDSHIP ACCORDINGLY IN DB
-    update_friendship_status(
-        &friendship,
-        acting_user,
-        &second_user,
-        current_status,
-        new_status,
-        room_info,
-        friendship_ports,
-    )
-    .await?;
 
+    // Store friendship event in the given room
     let res = synapse
         .store_room_event(token, room_id, room_event, room_message_body)
         .await;
 
-    // If it's a friendship request event and the request contains a message, we send a message event to the given room.
-    if room_event == FriendshipEvent::REQUEST {
-        if let Some(val) = room_message_body {
-            let _responsee = synapse
-                .send_message_event_given_room(token, room_id, room_event, val)
-                .await;
-        }
-    };
-
     match res {
-        Ok(res) => Ok(res),
+        Ok(value) => {
+            // If it's a friendship request event and the request contains a message, we send a message event to the given room.
+            if room_event == FriendshipEvent::REQUEST {
+                if let Some(val) = room_message_body {
+                    let mut retry_count = 0;
+                    loop {
+                        match synapse
+                            .send_message_event_given_room(token, room_id, room_event, val)
+                            .await
+                        {
+                            Ok(_) => {
+                                break;
+                            }
+                            Err(err) => {
+                                retry_count += 1;
+                                if retry_count >= 3 {
+                                    return Err(SynapseError::CommonError(err));
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // UPDATE FRIENDSHIP ACCORDINGLY IN DB
+            update_friendship_status(
+                &friendship,
+                acting_user,
+                &second_user,
+                current_status,
+                new_status,
+                room_info,
+                friendship_ports,
+            )
+            .await?;
+            Ok(value)
+        }
         Err(err) => Err(SynapseError::CommonError(err)),
     }
 }
