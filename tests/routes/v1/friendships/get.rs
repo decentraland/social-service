@@ -82,7 +82,7 @@ async fn test_get_friends_when_active() {
 
     add_friendship(&app_data.db, (user_id, other_user_id), true).await;
 
-    let url = format!("/v1/friendships/a_user_Id");
+    let url = format!("/v1/friendships/a_user_Id/");
 
     let header = ("authorization", format!("Bearer {}", token));
     let req = test::TestRequest::get()
