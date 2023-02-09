@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use sqlx::Error;
+
 use actix_web::{
     put,
     web::{self, Data},
@@ -187,6 +189,57 @@ async fn process_room_event(
         friendship_history_repository: &repos.friendship_history,
     };
 
+    // The only case where we don't create the friendship if it didn't exist
+    // If they are still no friends, it's unnecessary to create a friendship
+    if current_status == new_status {
+        return Ok(RoomEventResponse {
+            event_id: room_id.to_string(),
+        });
+    }
+
+    // Start transaction
+    let transaction = friendship_ports.db.start_transaction().await;
+    if transaction.is_err() {
+        let err = transaction.err().unwrap();
+        log::error!("Couldn't start transaction to store friendship update {err}");
+        return Err(SynapseError::CommonError(CommonError::Unknown));
+    }
+
+    // UPDATE FRIENDSHIP ACCORDINGLY IN DB
+    let transaction = update_friendship_status(
+        &friendship,
+        acting_user,
+        &second_user,
+        new_status,
+        room_info,
+        friendship_ports,
+        transaction,
+    )
+    .await?;
+
+    // If it's a friendship request event and the request contains a message, we send a message event to the given room.
+    if room_event == FriendshipEvent::REQUEST {
+        if let Some(val) = room_message_body {
+            let mut retry_count = 0;
+            loop {
+                match synapse
+                    .send_message_event_given_room(token, room_id, room_event, val)
+                    .await
+                {
+                    Ok(_) => {
+                        break;
+                    }
+                    Err(err) => {
+                        retry_count += 1;
+                        if retry_count >= 3 {
+                            return Err(SynapseError::CommonError(err));
+                        }
+                    }
+                }
+            }
+        }
+    };
+
     // Store friendship event in the given room
     let res = synapse
         .store_room_event(token, room_id, room_event, room_message_body)
@@ -194,41 +247,13 @@ async fn process_room_event(
 
     match res {
         Ok(value) => {
-            // If it's a friendship request event and the request contains a message, we send a message event to the given room.
-            if room_event == FriendshipEvent::REQUEST {
-                if let Some(val) = room_message_body {
-                    let mut retry_count = 0;
-                    loop {
-                        match synapse
-                            .send_message_event_given_room(token, room_id, room_event, val)
-                            .await
-                        {
-                            Ok(_) => {
-                                break;
-                            }
-                            Err(err) => {
-                                retry_count += 1;
-                                if retry_count >= 3 {
-                                    return Err(SynapseError::CommonError(err));
-                                }
-                            }
-                        }
-                    }
-                }
-            };
+            // End transaction
+            let transaction_result = transaction.commit().await;
 
-            // UPDATE FRIENDSHIP ACCORDINGLY IN DB
-            update_friendship_status(
-                &friendship,
-                acting_user,
-                &second_user,
-                current_status,
-                new_status,
-                room_info,
-                friendship_ports,
-            )
-            .await?;
-            Ok(value)
+            match transaction_result {
+                Ok(_) => return Ok(value),
+                Err(_) => return Err(SynapseError::CommonError(CommonError::Unknown)),
+            };
         }
         Err(err) => Err(SynapseError::CommonError(err)),
     }
@@ -397,31 +422,23 @@ pub struct FriendshipPorts<'a> {
     friendship_history_repository: &'a FriendshipHistoryRepository,
 }
 
-async fn update_friendship_status(
-    friendship: &Option<Friendship>,
-    acting_user: &str,
-    second_user: &str,
-    current_status: FriendshipStatus,
+async fn update_friendship_status<'a>(
+    friendship: &'a Option<Friendship>,
+    acting_user: &'a str,
+    second_user: &'a str,
     new_status: FriendshipStatus,
-    room_info: RoomInfo<'_>,
-    friendship_ports: FriendshipPorts<'_>,
-) -> Result<(), SynapseError> {
-    // The only case where we don't create the friendship if it didn't exist
-    // If they are still no friends, it's unnecessary to create a friendship
-    if current_status == new_status {
-        return Ok(());
-    }
-
-    let transaction = friendship_ports.db.start_transaction().await;
-
-    if transaction.is_err() {
-        let err = transaction.err().unwrap();
-        log::error!("Couldn't start transaction to store friendship update {err}");
-        return Err(SynapseError::CommonError(CommonError::Unknown));
-    }
-
-    // start transaction
-    let transaction = transaction.unwrap();
+    room_info: RoomInfo<'a>,
+    friendship_ports: FriendshipPorts<'a>,
+    transaction: Result<Transaction<'a, Postgres>, Error>,
+) -> Result<Transaction<'a, Postgres>, SynapseError> {
+    // get transaction
+    let transaction = match transaction {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            log::error!("Error starting transaction: {:?}", err);
+            return Err(SynapseError::CommonError(CommonError::Unknown));
+        }
+    };
 
     // store friendship update
     let is_active = new_status == FriendshipStatus::Friends;
@@ -445,7 +462,15 @@ async fn update_friendship_status(
         }
     };
 
-    let room_event = serde_json::to_string(&room_info.room_event).unwrap();
+    let room_event_string = match serde_json::to_string(&room_info.room_event) {
+        Ok(room_event_string) => room_event_string,
+        Err(err) => {
+            log::error!("Error serializing room event: {:?}", err);
+            let _ = transaction.rollback().await;
+            return Err(SynapseError::CommonError(CommonError::Unknown));
+        }
+    };
+    let room_event = Box::leak(room_event_string.into_boxed_str());
 
     let metadata = room_info.room_message_body.map(|message| {
         sqlx::types::Json(FriendshipMetadata {
@@ -460,7 +485,7 @@ async fn update_friendship_status(
         .friendship_history_repository
         .create(
             friendship_id,
-            room_event.as_str(),
+            room_event,
             acting_user,
             metadata,
             Some(transaction),
@@ -469,21 +494,14 @@ async fn update_friendship_status(
 
     let transaction = transaction.unwrap();
 
-    if friendship_history_result.is_err() {
-        let err = friendship_history_result.unwrap_err();
-        log::error!("Couldn't store friendship history update {err}");
-        let _ = transaction.rollback().await;
-
-        return Err(SynapseError::CommonError(CommonError::Unknown));
+    match friendship_history_result {
+        Ok(_) => Ok(transaction),
+        Err(err) => {
+            log::error!("Couldn't store friendship history update: {:?}", err);
+            let _ = transaction.rollback().await;
+            return Err(SynapseError::CommonError(CommonError::Unknown));
+        }
     }
-
-    // end transaction
-    let transaction_result = transaction.commit().await;
-
-    transaction_result.map_err(|err| {
-        log::error!("Couldn't commit transaction to store friendship update {err}");
-        SynapseError::CommonError(CommonError::Unknown)
-    })
 }
 
 async fn store_friendship_update<'a>(
