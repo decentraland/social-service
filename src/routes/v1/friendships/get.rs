@@ -12,6 +12,8 @@ use crate::{
     routes::v1::error::CommonError,
 };
 
+const ME: &str = "me";
+
 #[get("/v1/friendships/{userId}")]
 pub async fn get_user_friends(
     req: HttpRequest,
@@ -25,9 +27,8 @@ pub async fn get_user_friends(
             .expect("to have a UserId")
             .clone()
     };
-
-    // The user_id from parameter could be in matrix format
-    let clean_user_id = clean_synapse_user_id(user_id.as_str());
+    
+    let clean_user_id: String = if ME.eq_ignore_ascii_case(&user_id) { logged_in_user.social_id.clone() } else { clean_synapse_user_id(user_id.as_str()) };
 
     // Return error when user has no permission
     if !has_permission(logged_in_user.social_id.as_str(), clean_user_id.as_str()) {

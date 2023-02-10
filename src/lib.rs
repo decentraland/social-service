@@ -7,6 +7,7 @@ mod utils;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
+use actix_web::middleware::{self};
 use actix_web::{web::Data, App, HttpServer};
 use middlewares::check_auth::CheckAuthToken;
 use routes::synapse::room_events::room_event_handler;
@@ -77,6 +78,7 @@ pub fn get_app_router(
             data.config.wkc_metrics_bearer_token.clone(),
         ))
         .wrap(CheckAuthToken::new(protected_routes))
+        .wrap(middleware::NormalizePath::trim())
         .service(live)
         .service(health)
         .service(version)
