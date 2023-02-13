@@ -218,27 +218,7 @@ async fn process_room_event(
     .await?;
 
     // If it's a friendship request event and the request contains a message, we send a message event to the given room.
-    if room_event == FriendshipEvent::REQUEST {
-        if let Some(val) = room_message_body {
-            let mut retry_count = 0;
-            loop {
-                match synapse
-                    .send_message_event_given_room(token, room_id, room_event, val)
-                    .await
-                {
-                    Ok(_) => {
-                        break;
-                    }
-                    Err(err) => {
-                        retry_count += 1;
-                        if retry_count >= 3 {
-                            return Err(SynapseError::CommonError(err));
-                        }
-                    }
-                }
-            }
-        }
-    };
+    store_message_in_synapse_room(token, room_id, room_event, room_message_body, synapse).await?;
 
     // Store friendship event in the given room
     let res = synapse
@@ -541,6 +521,40 @@ async fn store_friendship_update<'a>(
             )
         }
     }
+}
+
+/// If it's a friendship request event and the request contains a message, we send a message event to the given room.
+async fn store_message_in_synapse_room<'a>(
+    token: &str,
+    room_id: &str,
+    room_event: FriendshipEvent,
+    room_message_body: Option<&str>,
+    synapse: &SynapseComponent,
+) -> Result<(), SynapseError> {
+    // Check if it's a `request` event.
+    if room_event != FriendshipEvent::REQUEST {
+        return Ok(());
+    }
+
+    // Check if there is a message, if any, send the message event to the given room.
+    if let Some(val) = room_message_body {
+        for retry_count in 0..3 {
+            match synapse
+                .send_message_event_given_room(token, room_id, room_event, val)
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(err) => {
+                    if retry_count == 2 {
+                        return Err(SynapseError::CommonError(err));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
