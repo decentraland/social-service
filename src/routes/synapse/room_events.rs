@@ -199,9 +199,8 @@ async fn process_room_event(
 
     // Start transaction
     let transaction = friendship_ports.db.start_transaction().await;
-    if transaction.is_err() {
-        let err = transaction.err().unwrap();
-        log::error!("Couldn't start transaction to store friendship update {err}");
+    if let Err(error) = transaction {
+        log::error!("Couldn't start transaction to store friendship update {error}");
         return Err(SynapseError::CommonError(CommonError::Unknown));
     }
 
