@@ -63,8 +63,8 @@ impl FriendshipHistoryRepository {
     pub async fn create<'a>(
         &'a self,
         friendship_id: Uuid,
-        event: &'a str,
-        acting_user: &'a str,
+        event: &str,
+        acting_user: &str,
         metadata: Option<Json<FriendshipMetadata>>,
         transaction: Option<Transaction<'a, Postgres>>,
     ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {

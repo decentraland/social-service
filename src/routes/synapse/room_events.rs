@@ -449,7 +449,6 @@ async fn update_friendship_status<'a>(
             return Err(SynapseError::CommonError(CommonError::Unknown));
         }
     };
-    let room_event = Box::leak(room_event_string.into_boxed_str());
 
     let metadata = room_info.room_message_body.map(|message| {
         sqlx::types::Json(FriendshipMetadata {
@@ -464,7 +463,7 @@ async fn update_friendship_status<'a>(
         .friendship_history_repository
         .create(
             friendship_id,
-            room_event,
+            room_event_string.as_str(),
             acting_user,
             metadata,
             Some(transaction),
