@@ -43,7 +43,7 @@ impl DBRepositories {
 
 pub enum Executor<'a> {
     Transaction(Transaction<'a, Postgres>),
-    Pool(&'a Pool<Postgres>),
+    Pool(Pool<Postgres>),
 }
 
 #[derive(Clone)]
@@ -72,17 +72,17 @@ impl DatabaseComponent {
         db_connection.as_ref().as_ref().unwrap()
     }
 
-    pub async fn execute_query<'a>(
+    pub async fn execute_query(
         query: Query<'_, Postgres, PgArguments>,
-        executor: Executor<'a>,
-    ) -> (Result<PgQueryResult, Error>, Option<Executor<'a>>) {
+        executor: Executor<'static>,
+    ) -> (Result<PgQueryResult, Error>, Option<Executor<'static>>) {
         match executor {
             Executor::Transaction(mut transaction) => (
                 query.execute(&mut transaction).await,
                 Some(Executor::Transaction(transaction)),
             ),
             // we don't return the pool because the connection was consumed
-            Executor::Pool(pool) => (query.execute(pool).await, None),
+            Executor::Pool(pool) => (query.execute(&pool).await, None),
         }
     }
 
@@ -96,7 +96,7 @@ impl DatabaseComponent {
                 Some(Executor::Transaction(transaction)),
             ),
             // we don't return the pool because the connection was consumed
-            Executor::Pool(pool) => (query.fetch_one(pool).await, None),
+            Executor::Pool(pool) => (query.fetch_one(&pool).await, None),
         }
     }
 
@@ -110,7 +110,7 @@ impl DatabaseComponent {
                 Some(Executor::Transaction(transaction)),
             ),
             // we don't return the pool because the connection was consumed
-            Executor::Pool(pool) => (query.fetch_all(pool).await, None),
+            Executor::Pool(pool) => (query.fetch_all(&pool).await, None),
         }
     }
 }
@@ -120,7 +120,7 @@ pub trait DatabaseComponentImplementation {
     fn get_repos(&self) -> &Option<DBRepositories>;
     async fn run(&mut self) -> Result<(), sqlx::Error>;
     fn is_connected(&self) -> bool;
-    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error>;
+    async fn start_transaction(&self) -> Result<Transaction<'static, Postgres>, Error>;
 
     async fn close(&self);
 }
@@ -184,7 +184,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
         }
     }
 
-    async fn start_transaction<'a>(&self) -> Result<Transaction<'a, Postgres>, Error> {
+    async fn start_transaction(&self) -> Result<Transaction<'static, Postgres>, Error> {
         let db_connection = self.db_connection.as_ref().as_ref().unwrap();
 
         db_connection.begin().await

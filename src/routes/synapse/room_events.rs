@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use sqlx::Error;
-
 use actix_web::{
     put,
     web::{self, Data},
@@ -148,7 +146,7 @@ pub async fn room_event_handler(
     Err(err)
 }
 
-async fn process_room_event(
+async fn process_room_event<'a>(
     acting_user: &str,
     token: &str,
     room_id: &str,
@@ -203,6 +201,8 @@ async fn process_room_event(
         log::error!("Couldn't start transaction to store friendship update {error}");
         return Err(SynapseError::CommonError(CommonError::Unknown));
     }
+
+    let transaction = transaction.unwrap();
 
     // UPDATE FRIENDSHIP ACCORDINGLY IN DB
     let transaction = update_friendship_status(
@@ -408,17 +408,8 @@ async fn update_friendship_status<'a>(
     new_status: FriendshipStatus,
     room_info: RoomInfo<'a>,
     friendship_ports: FriendshipPorts<'a>,
-    transaction: Result<Transaction<'a, Postgres>, Error>,
-) -> Result<Transaction<'a, Postgres>, SynapseError> {
-    // get transaction
-    let transaction = match transaction {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            log::error!("Error starting transaction: {:?}", err);
-            return Err(SynapseError::CommonError(CommonError::Unknown));
-        }
-    };
-
+    transaction: Transaction<'static, Postgres>,
+) -> Result<Transaction<'static, Postgres>, SynapseError> {
     // store friendship update
     let is_active = new_status == FriendshipStatus::Friends;
     let (friendship_id_result, transaction) = store_friendship_update(
@@ -441,7 +432,7 @@ async fn update_friendship_status<'a>(
         }
     };
 
-    let room_event_string = match serde_json::to_string(&room_info.room_event) {
+    let room_event = match serde_json::to_string(&room_info.room_event) {
         Ok(room_event_string) => room_event_string,
         Err(err) => {
             log::error!("Error serializing room event: {:?}", err);
@@ -449,7 +440,6 @@ async fn update_friendship_status<'a>(
             return Err(SynapseError::CommonError(CommonError::Unknown));
         }
     };
-    let room_event = Box::leak(room_event_string.into_boxed_str());
 
     let metadata = room_info.room_message_body.map(|message| {
         sqlx::types::Json(FriendshipMetadata {
@@ -464,7 +454,7 @@ async fn update_friendship_status<'a>(
         .friendship_history_repository
         .create(
             friendship_id,
-            room_event,
+            &room_event,
             acting_user,
             metadata,
             Some(transaction),
@@ -483,14 +473,14 @@ async fn update_friendship_status<'a>(
     }
 }
 
-async fn store_friendship_update<'a>(
-    friendship: &'a Option<Friendship>,
+async fn store_friendship_update(
+    friendship: &Option<Friendship>,
     is_active: bool,
-    address_0: &'a str,
-    address_1: &'a str,
-    friendships_repository: &'a FriendshipsRepository,
-    transaction: Transaction<'a, Postgres>,
-) -> (Result<Uuid, SynapseError>, Transaction<'a, Postgres>) {
+    address_0: &str,
+    address_1: &str,
+    friendships_repository: &FriendshipsRepository,
+    transaction: Transaction<'static, Postgres>,
+) -> (Result<Uuid, SynapseError>, Transaction<'static, Postgres>) {
     match friendship {
         Some(friendship) => {
             let (res, transaction) = friendships_repository

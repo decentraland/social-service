@@ -60,14 +60,17 @@ impl FriendshipHistoryRepository {
         .bind(metadata)
     }
 
-    pub async fn create<'a>(
-        &'a self,
+    pub async fn create(
+        &self,
         friendship_id: Uuid,
-        event: &'a str,
-        acting_user: &'a str,
+        event: &str,
+        acting_user: &str,
         metadata: Option<Json<FriendshipMetadata>>,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
+        transaction: Option<Transaction<'static, Postgres>>,
+    ) -> (
+        Result<(), sqlx::Error>,
+        Option<Transaction<'static, Postgres>>,
+    ) {
         let executor = self.get_executor(transaction);
 
         let query = self.create_query(friendship_id, event, acting_user, metadata);
@@ -85,13 +88,13 @@ impl FriendshipHistoryRepository {
         }
     }
 
-    pub async fn get_last_history_for_friendship<'a>(
-        &'a self,
+    pub async fn get_last_history_for_friendship(
+        &self,
         friendship_id: Uuid,
-        transaction: Option<Transaction<'a, Postgres>>,
+        transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Option<FriendshipHistory>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
+        Option<Transaction<'static, Postgres>>,
     ) {
         let executor = self.get_executor(transaction);
         let query = sqlx::query("SELECT * FROM friendship_history where friendship_id = $1 ORDER BY timestamp DESC LIMIT 1")
@@ -131,9 +134,12 @@ impl FriendshipHistoryRepository {
         }
     }
 
-    fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
+    fn get_executor(
+        &self,
+        transaction: Option<Transaction<'static, Postgres>>,
+    ) -> Executor<'static> {
         transaction.map_or_else(
-            || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
+            || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection).clone()), // Clone because it's cheap and the pool use an Arc internally
             Executor::Transaction,
         )
     }

@@ -43,50 +43,57 @@ impl fmt::Debug for FriendshipsRepository {
 pub trait FriendshipRepositoryImplementation {
     fn get_db_connection(&self) -> &Arc<Option<DBConnection>>;
 
-    async fn create_new_friendships<'a>(
-        &'a self,
-        addresses: (&'a str, &'a str),
+    async fn create_new_friendships(
+        &self,
+        addresses: (&str, &str),
         is_active: bool,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>);
+        transaction: Option<Transaction<'static, Postgres>>,
+    ) -> (
+        Result<Uuid, sqlx::Error>,
+        Option<Transaction<'static, Postgres>>,
+    );
 
-    async fn get_friendship<'a>(
-        &'a self,
-        addresses: (&'a str, &'a str),
-        transaction: Option<Transaction<'a, Postgres>>,
+    async fn get_friendship(
+        &self,
+        addresses: (&str, &str),
+        transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Option<Friendship>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
+        Option<Transaction<'static, Postgres>>,
     );
 
-    async fn get_user_friends<'a>(
-        &'a self,
-        address: &'a str,
+    async fn get_user_friends(
+        &self,
+        address: &str,
         only_active: bool,
-        transaction: Option<Transaction<'a, Postgres>>,
+        transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Vec<Friendship>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
+        Option<Transaction<'static, Postgres>>,
     );
 
-    async fn update_friendship_status<'a>(
-        &'a self,
-        friendship_id: &'a Uuid,
+    async fn update_friendship_status(
+        &self,
+        friendship_id: &Uuid,
         is_active: bool,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>);
+        transaction: Option<Transaction<'static, Postgres>>,
+    ) -> (
+        Result<(), sqlx::Error>,
+        Option<Transaction<'static, Postgres>>,
+    );
 
-    async fn get_mutual_friends<'a>(
-        &'a self,
-        address_1: &'a str,
-        address_2: &'a str,
-        transaction: Option<Transaction<'a, Postgres>>,
+    async fn get_mutual_friends(
+        &self,
+        address_1: &str,
+        address_2: &str,
+        transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Vec<String>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
+        Option<Transaction<'static, Postgres>>,
     );
 
-    fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a>;
+    fn get_executor<'a>(&self, transaction: Option<Transaction<'static, Postgres>>)
+        -> Executor<'a>;
 }
 
 #[async_trait]
@@ -95,12 +102,15 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         &self.db_connection
     }
 
-    async fn create_new_friendships<'a>(
-        &'a self,
-        addresses: (&'a str, &'a str),
+    async fn create_new_friendships(
+        &self,
+        addresses: (&str, &str),
         is_active: bool,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (Result<Uuid, sqlx::Error>, Option<Transaction<'a, Postgres>>) {
+        transaction: Option<Transaction<'static, Postgres>>,
+    ) -> (
+        Result<Uuid, sqlx::Error>,
+        Option<Transaction<'static, Postgres>>,
+    ) {
         // The addresses are lexicographicly sorted to ensure that the friendship tuple is unique
         let (address1, address2) = sort_addresses(addresses);
 
@@ -126,13 +136,13 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         }
     }
 
-    async fn get_friendship<'a>(
-        &'a self,
-        addresses: (&'a str, &'a str),
-        transaction: Option<Transaction<'a, Postgres>>,
+    async fn get_friendship(
+        &self,
+        addresses: (&str, &str),
+        transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Option<Friendship>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
+        Option<Transaction<'static, Postgres>>,
     ) {
         let (address1, address2) = addresses;
         let address1_lowercase = address1.to_ascii_lowercase();
@@ -171,14 +181,14 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     /// If `only_active` is set to true, only the current friends will be returned.
     /// If set to false, all past and current friendships will be returned.
     #[tracing::instrument(name = "Get user friends from DB")]
-    async fn get_user_friends<'a>(
-        &'a self,
-        address: &'a str,
+    async fn get_user_friends(
+        &self,
+        address: &str,
         only_active: bool,
-        transaction: Option<Transaction<'a, Postgres>>,
+        transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Vec<Friendship>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
+        Option<Transaction<'static, Postgres>>,
     ) {
         let active_only_clause = " AND is_active";
 
@@ -224,14 +234,14 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]
-    async fn get_mutual_friends<'a>(
-        &'a self,
-        address_1: &'a str,
-        address_2: &'a str,
-        transaction: Option<Transaction<'a, Postgres>>,
+    async fn get_mutual_friends(
+        &self,
+        address_1: &str,
+        address_2: &str,
+        transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Vec<String>, sqlx::Error>,
-        Option<Transaction<'a, Postgres>>,
+        Option<Transaction<'static, Postgres>>,
     ) {
         let query = MUTUALS_FRIENDS_QUERY.to_string();
 
@@ -268,12 +278,15 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         }
     }
 
-    async fn update_friendship_status<'a>(
-        &'a self,
-        friendship_id: &'a Uuid,
+    async fn update_friendship_status(
+        &self,
+        friendship_id: &Uuid,
         is_active: bool,
-        transaction: Option<Transaction<'a, Postgres>>,
-    ) -> (Result<(), sqlx::Error>, Option<Transaction<'a, Postgres>>) {
+        transaction: Option<Transaction<'static, Postgres>>,
+    ) -> (
+        Result<(), sqlx::Error>,
+        Option<Transaction<'static, Postgres>>,
+    ) {
         let query = sqlx::query("UPDATE friendships SET is_active = $1 WHERE id = $2")
             .bind(is_active)
             .bind(friendship_id);
@@ -289,10 +302,17 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         }
     }
 
-    fn get_executor<'a>(&'a self, transaction: Option<Transaction<'a, Postgres>>) -> Executor<'a> {
+    fn get_executor<'a>(
+        &self,
+        transaction: Option<Transaction<'static, Postgres>>,
+    ) -> Executor<'a> {
         match transaction {
             Some(transaction) => Executor::Transaction(transaction),
-            None => Executor::Pool(DatabaseComponent::get_connection(&self.db_connection)),
+            None => {
+                // Clone because it's cheap and the pool use an Arc internally
+                let conn = DatabaseComponent::get_connection(&self.db_connection).clone();
+                Executor::Pool(conn)
+            }
         }
     }
 }
