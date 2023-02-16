@@ -72,10 +72,10 @@ impl DatabaseComponent {
         db_connection.as_ref().as_ref().unwrap()
     }
 
-    pub async fn execute_query(
+    pub async fn execute_query<'a>(
         query: Query<'_, Postgres, PgArguments>,
-        executor: Executor<'static>,
-    ) -> (Result<PgQueryResult, Error>, Option<Executor<'static>>) {
+        executor: Executor<'a>,
+    ) -> (Result<PgQueryResult, Error>, Option<Executor<'a>>) {
         match executor {
             Executor::Transaction(mut transaction) => (
                 query.execute(&mut transaction).await,
