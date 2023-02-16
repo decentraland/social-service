@@ -139,7 +139,7 @@ impl FriendshipHistoryRepository {
         transaction: Option<Transaction<'static, Postgres>>,
     ) -> Executor<'static> {
         transaction.map_or_else(
-            || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection).clone()), // Clone because it's cheap and the pool use an Arc internally
+            || Executor::Pool(DatabaseComponent::get_connection(&self.db_connection).clone()), // choose to Clone because it's cheap and the pool use an Arc internally
             Executor::Transaction,
         )
     }

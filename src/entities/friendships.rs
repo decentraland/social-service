@@ -309,7 +309,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         match transaction {
             Some(transaction) => Executor::Transaction(transaction),
             None => {
-                // Clone because it's cheap and the pool use an Arc internally
+                // choose to Clone because it's cheap and the pool use an Arc internally
                 let conn = DatabaseComponent::get_connection(&self.db_connection).clone();
                 Executor::Pool(conn)
             }
