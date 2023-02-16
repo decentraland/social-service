@@ -196,13 +196,13 @@ async fn process_room_event<'a>(
     }
 
     // Start transaction
-    let transaction = friendship_ports.db.start_transaction().await;
-    if let Err(error) = transaction {
-        log::error!("Couldn't start transaction to store friendship update {error}");
-        return Err(SynapseError::CommonError(CommonError::Unknown));
-    }
-
-    let transaction = transaction.unwrap();
+    let transaction = match friendship_ports.db.start_transaction().await {
+        Ok(tx) => tx,
+        Err(error) => {
+            log::error!("Couldn't start transaction to store friendship update {error}");
+            return Err(SynapseError::CommonError(CommonError::Unknown));
+        }
+    };
 
     // UPDATE FRIENDSHIP ACCORDINGLY IN DB
     let transaction = update_friendship_status(
