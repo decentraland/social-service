@@ -85,16 +85,12 @@ async fn should_create_a_user_feature() {
     let dbrepos = db.db_repos.as_ref().unwrap();
     dbrepos
         .user_features
-        .create(
-            "A".to_string(),
-            "exposure_level".to_string(),
-            "anyone".to_string(),
-        )
+        .create("A", "exposure_level", "anyone")
         .await
         .unwrap();
     let user_features = dbrepos
         .user_features
-        .get_all_user_features("A".to_string())
+        .get_all_user_features("A")
         .await
         .unwrap();
     assert!(user_features.is_some());
