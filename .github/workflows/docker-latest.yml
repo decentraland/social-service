@@ -10,8 +10,8 @@ jobs:
   cd:
     uses: decentraland/actions/.github/workflows/build-quay-main.yml@main
     with:
-      # Deploy to dev the new built image
       service-name: social-service
+      # Deploy to dev the new built image
       deployment-environment: dev
     secrets:
       QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
