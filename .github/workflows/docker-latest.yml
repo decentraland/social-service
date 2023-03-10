@@ -1,8 +1,6 @@
 name: Build Latest Docker image and Publish to dev
 
 on:
-  release:
-    types: [published]
   push:
     branches: [main]
 
