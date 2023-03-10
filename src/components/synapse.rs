@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::routes::{
+use crate::api::routes::{
     synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
     v1::error::CommonError,
 };

@@ -6,7 +6,7 @@ use actix_web::{test, web::Data};
 use social_service::{
     components::app::AppComponents,
     get_app_router,
-    routes::v1::friendships::types::{FriendshipFriend, FriendshipsResponse},
+    api::routes::v1::friendships::types::{FriendshipFriend, FriendshipsResponse},
 };
 
 use super::utils::add_friendship;

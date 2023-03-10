@@ -13,7 +13,7 @@ use sqlx::{
 use crate::{
     components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
-    routes::synapse::room_events::FriendshipEvent,
+    api::routes::synapse::room_events::FriendshipEvent,
 };
 
 use super::utils::get_transaction_result_from_executor;

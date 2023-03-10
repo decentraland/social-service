@@ -13,7 +13,7 @@ mod tests {
             synapse::{RoomMember, RoomMembersResponse},
         },
         entities::friendships::{Friendship, FriendshipRepositoryImplementation},
-        routes::synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
+        api::routes::synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
     };
     use uuid::Uuid;
     use wiremock::{

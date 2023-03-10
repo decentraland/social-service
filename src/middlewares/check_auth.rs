@@ -12,7 +12,7 @@ use actix_web::{
 use futures_util::future::LocalBoxFuture;
 use serde::{Deserialize, Serialize};
 
-use crate::{components::app::AppComponents, routes::v1::error::CommonError};
+use crate::{components::app::AppComponents, api::routes::v1::error::CommonError};
 
 pub struct CheckAuthToken {
     auth_routes: Vec<String>,

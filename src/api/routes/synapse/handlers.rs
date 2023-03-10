@@ -3,7 +3,7 @@ use crate::{
         app::AppComponents,
         synapse::{clean_synapse_user_id, SynapseLoginRequest},
     },
-    routes::v1::error::CommonError,
+    api::routes::v1::error::CommonError,
 };
 
 use actix_web::{

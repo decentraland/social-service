@@ -4,7 +4,7 @@ pub use common::*;
 
 use social_service::{
     entities::friendships::FriendshipRepositoryImplementation,
-    routes::synapse::room_events::FriendshipEvent,
+    api::routes::synapse::room_events::FriendshipEvent,
 };
 
 #[actix_web::test]

@@ -9,7 +9,7 @@ use crate::{
     components::{app::AppComponents, synapse::clean_synapse_user_id},
     entities::friendships::FriendshipRepositoryImplementation,
     middlewares::check_auth::UserId,
-    routes::v1::error::CommonError,
+    api::routes::v1::error::CommonError,
 };
 
 #[get("/v1/friendships/{userId}/mutuals")]

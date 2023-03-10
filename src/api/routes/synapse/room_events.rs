@@ -20,7 +20,7 @@ use crate::{
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::{Token, UserId},
-    routes::v1::error::CommonError,
+    api::routes::v1::error::CommonError,
 };
 
 use super::errors::SynapseError;
@@ -249,7 +249,7 @@ async fn get_friendship_from_db(
 
         log::warn!("Error getting friendship in room event {}", err);
         return Err(SynapseError::CommonError(
-            crate::routes::v1::error::CommonError::Unknown,
+            crate::api::routes::v1::error::CommonError::Unknown,
         ));
     }
 
@@ -276,7 +276,7 @@ async fn get_last_history_from_db(
 
         log::warn!("Error getting friendship history in room event {}", err);
         return Err(SynapseError::CommonError(
-            crate::routes::v1::error::CommonError::Unknown,
+            crate::api::routes::v1::error::CommonError::Unknown,
         ));
     }
 
@@ -504,7 +504,7 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::{
-        entities::friendship_history::FriendshipHistory, routes::synapse::errors::SynapseError,
+        entities::friendship_history::FriendshipHistory, api::routes::synapse::errors::SynapseError,
     };
 
     use super::{process_friendship_status, FriendshipEvent, FriendshipStatus};
