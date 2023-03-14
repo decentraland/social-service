@@ -6,4 +6,3 @@ pub mod redis;
 pub mod synapse;
 pub mod tracing;
 pub mod users_cache;
-

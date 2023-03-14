@@ -166,11 +166,13 @@ impl SynapseComponent {
         .await;
 
         response.map(|mut res| {
-            res.chunk.iter_mut()
-            .filter(|room_member| room_member.state_key.starts_with('@'))
-            .for_each(|mut room_member| {
-                room_member.social_user_id = Some(clean_synapse_user_id(&room_member.state_key));
-            });
+            res.chunk
+                .iter_mut()
+                .filter(|room_member| room_member.state_key.starts_with('@'))
+                .for_each(|mut room_member| {
+                    room_member.social_user_id =
+                        Some(clean_synapse_user_id(&room_member.state_key));
+                });
 
             res
         })
