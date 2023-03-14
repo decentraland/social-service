@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use actix_http::StatusCode;
 use actix_web::{test, web::Data};
 use social_service::{
+    api::routes::v1::friendships::types::FriendshipsResponse,
     components::{app::AppComponents, database::DatabaseComponentImplementation},
     get_app_router,
-    api::routes::v1::friendships::types::FriendshipsResponse,
 };
 
 use super::utils::add_friendship;

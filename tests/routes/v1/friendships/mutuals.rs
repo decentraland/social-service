@@ -4,9 +4,9 @@ use actix_http::StatusCode;
 
 use actix_web::{test, web::Data};
 use social_service::{
+    api::routes::v1::friendships::types::{FriendshipFriend, FriendshipsResponse},
     components::app::AppComponents,
     get_app_router,
-    api::routes::v1::friendships::types::{FriendshipFriend, FriendshipsResponse},
 };
 
 use super::utils::add_friendship;

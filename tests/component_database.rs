@@ -3,8 +3,8 @@ mod common;
 pub use common::*;
 
 use social_service::{
-    entities::friendships::FriendshipRepositoryImplementation,
     api::routes::synapse::room_events::FriendshipEvent,
+    entities::friendships::FriendshipRepositoryImplementation,
 };
 
 #[actix_web::test]

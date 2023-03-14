@@ -10,6 +10,7 @@ use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
+    api::routes::v1::error::CommonError,
     components::{
         app::AppComponents,
         database::{DatabaseComponent, DatabaseComponentImplementation},
@@ -20,7 +21,6 @@ use crate::{
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::{Token, UserId},
-    api::routes::v1::error::CommonError,
 };
 
 use super::errors::SynapseError;
@@ -551,7 +551,7 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::{
-        entities::friendship_history::FriendshipHistory, api::routes::synapse::errors::SynapseError,
+        api::routes::synapse::errors::SynapseError, entities::friendship_history::FriendshipHistory,
     };
 
     use super::{process_friendship_status, FriendshipEvent, FriendshipStatus};

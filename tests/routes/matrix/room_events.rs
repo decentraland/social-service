@@ -8,12 +8,14 @@ mod tests {
     use actix_http::Request;
 
     use social_service::{
+        api::routes::synapse::room_events::{
+            FriendshipEvent, RoomEventRequestBody, RoomEventResponse,
+        },
         components::{
             database::DBRepositories,
             synapse::{RoomMember, RoomMembersResponse},
         },
         entities::friendships::{Friendship, FriendshipRepositoryImplementation},
-        api::routes::synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
     };
     use uuid::Uuid;
     use wiremock::{

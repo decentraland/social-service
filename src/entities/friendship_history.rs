@@ -11,9 +11,9 @@ use sqlx::{
 };
 
 use crate::{
+    api::routes::synapse::room_events::FriendshipEvent,
     components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
-    api::routes::synapse::room_events::FriendshipEvent,
 };
 
 use super::utils::get_transaction_result_from_executor;

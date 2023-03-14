@@ -1,9 +1,9 @@
 use crate::{
+    api::routes::v1::error::CommonError,
     components::{
         app::AppComponents,
         synapse::{clean_synapse_user_id, SynapseLoginRequest},
     },
-    api::routes::v1::error::CommonError,
 };
 
 use actix_web::{

@@ -5,7 +5,7 @@ use actix_web::{get, http::StatusCode, web::Data, HttpResponse};
 use serde::Serialize;
 
 use super::consts::{FAIL, FAILED_STATUS, SUCCESSFUL_STATUS};
-use crate::{components::app::AppComponents, api::routes::health::consts::MIME};
+use crate::{api::routes::health::consts::MIME, components::app::AppComponents};
 
 #[derive(Debug, Default, Serialize)]
 struct HealthStatus {

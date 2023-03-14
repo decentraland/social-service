@@ -1,27 +1,27 @@
+pub mod api;
 pub mod components;
 pub mod entities;
 mod metrics;
 pub mod middlewares;
-pub mod api;
 mod utils;
 
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
 use actix_web::middleware;
 use actix_web::{web::Data, App, HttpServer};
-use middlewares::check_auth::CheckAuthToken;
 use api::routes::synapse::room_events::room_event_handler;
 use api::routes::v1::friendships::mutuals::get_mutual_friends;
+use middlewares::check_auth::CheckAuthToken;
 use tracing_actix_web::TracingLogger;
 
-use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
-use metrics::initialize_metrics;
-use middlewares::metrics_token::CheckMetricsToken;
 use api::routes::v1::friendships::get::get_user_friends;
 use api::routes::{
     health::handlers::{health, live},
     synapse::handlers::{login, version},
 };
+use components::{app::AppComponents, configuration::Config, tracing::init_telemetry};
+use metrics::initialize_metrics;
+use middlewares::metrics_token::CheckMetricsToken;
 
 #[derive(Clone)]
 pub struct AppOptions {

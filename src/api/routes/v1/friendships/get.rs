@@ -6,10 +6,10 @@ use actix_web::{
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
+    api::routes::v1::error::CommonError,
     components::{app::AppComponents, synapse::clean_synapse_user_id},
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     middlewares::check_auth::UserId,
-    api::routes::v1::error::CommonError,
 };
 
 const ME: &str = "me";
