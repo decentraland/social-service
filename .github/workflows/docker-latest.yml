@@ -1,8 +1,6 @@
-name: Publish Latest Docker image
+name: Build Latest Docker image and Publish to dev
 
 on:
-  release:
-    types: [published]
   push:
     branches: [main]
 
@@ -11,7 +9,8 @@ jobs:
     uses: decentraland/actions/.github/workflows/build-quay-main.yml@main
     with:
       service-name: social-service
-      deployment-environment: dev prd
+      # Deploy to dev the new built image
+      deployment-environment: dev
     secrets:
       QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
       QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
