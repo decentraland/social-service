@@ -57,7 +57,6 @@ async fn test_get_friendships_me_when_active() {
     assert_eq!(friend_address, other_user_id);
 }
 
-
 // Get friends should return list of friends
 #[actix_web::test]
 async fn test_get_friends_when_active() {

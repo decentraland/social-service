@@ -67,15 +67,19 @@ where
                 return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
             }
 
-            let token = match request.headers().get("authorization").map(|header| header.to_str()) {
+            let token = match request
+                .headers()
+                .get("authorization")
+                .map(|header| header.to_str())
+            {
                 Some(Ok(res)) => {
                     let split_header_bearer = res.split(' ').collect::<Vec<&str>>();
                     let token = split_header_bearer.get(1);
                     token.map_or("", |token| token.to_owned())
-                },
-                _ => ""
+                }
+                _ => "",
             };
-            
+
             if token.is_empty() || token != self.bearer_token {
                 let (request, _pl) = request.into_parts();
 
