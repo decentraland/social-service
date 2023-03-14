@@ -34,7 +34,9 @@ async fn test_should_return_no_connection_available() -> Result<(), String> {
     redis.stop();
 
     let mut user_cache_component = UsersCacheComponent::new(redis, TEST_KEY.to_string());
-    let res = user_cache_component.add_user(token, user_id, user_id, None).await;
+    let res = user_cache_component
+        .add_user(token, user_id, user_id, None)
+        .await;
 
     match res {
         Ok(_) => Err("Should return the expected error".to_string()),
