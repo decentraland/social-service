@@ -1,5 +1,5 @@
 on: [push, pull_request]
-name: Clippy checks
+name: Clippy and fmt checks
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
