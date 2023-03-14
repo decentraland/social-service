@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::SystemTime};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -81,6 +81,12 @@ pub struct RoomMembersResponse {
     pub chunk: Vec<RoomMember>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct MessageRequestEventBody {
+    pub msgtype: String,
+    pub body: String,
+}
+
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
@@ -146,6 +152,39 @@ impl SynapseComponent {
             &RoomEventRequestBody {
                 r#type: room_event,
                 message: room_message_body.map(|s| s.to_string()),
+            },
+        )
+        .await
+    }
+
+    #[tracing::instrument(name = "put send message event to the given room > Synapse components")]
+    pub async fn send_message_event_given_room(
+        &self,
+        token: &str,
+        room_id: &str,
+        room_event: FriendshipEvent,
+        room_message_body: &str,
+    ) -> Result<RoomEventResponse, CommonError> {
+        // The transaction ID for this event.
+        // Clients should generate an ID unique across requests with the same access token;
+        // it will be used by the server to ensure idempotency of requests.
+        let txn_id = format!(
+            "m.{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        );
+
+        let path = format!("/_matrix/client/r0/rooms/{room_id}/send/m.room.message/{txn_id}");
+
+        Self::authenticated_put_request(
+            &path,
+            token,
+            &self.synapse_url,
+            &MessageRequestEventBody {
+                msgtype: "m.text".to_string(),
+                body: room_message_body.to_string(),
             },
         )
         .await

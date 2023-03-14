@@ -26,9 +26,9 @@ impl UserFeaturesRepository {
 
     pub async fn create(
         &self,
-        user: String,
-        feature_name: String,
-        feature_value: String,
+        user: &str,
+        feature_name: &str,
+        feature_value: &str,
     ) -> Result<(), sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
 
@@ -46,11 +46,11 @@ impl UserFeaturesRepository {
 
     pub async fn get_all_user_features(
         &self,
-        user: String,
+        user: &str,
     ) -> Result<Option<UserFeatures>, sqlx::Error> {
         let db_conn = DatabaseComponent::get_connection(&self.db_connection);
         match sqlx::query("SELECT * FROM user_features WHERE \"user\" = $1")
-            .bind(user.as_str())
+            .bind(user)
             .fetch_all(db_conn)
             .await
         {
@@ -59,7 +59,7 @@ impl UserFeaturesRepository {
                     Ok(None)
                 } else {
                     let mut all_user_features = UserFeatures {
-                        user,
+                        user: user.to_string(),
                         features: Vec::new(),
                     };
                     for result in row {
