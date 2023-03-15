@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, ResponseError};
 use reqwest::StatusCode;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Serialize, Deserialize)]

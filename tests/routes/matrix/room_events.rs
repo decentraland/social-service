@@ -17,13 +17,15 @@ mod tests {
     };
     use uuid::Uuid;
     use wiremock::{
-        matchers::{method, path},
+        matchers::{method, path, path_regex},
         Mock, MockServer, ResponseTemplate,
     };
 
     const ROOM_STATE_URI: &str =
         "/_matrix/client/r0/rooms/a_room_id/state/org.decentraland.friendship";
     const ROOM_MEMBERS_URI: &str = "/_matrix/client/r0/rooms/a_room_id/members";
+    const ROOM_MESSAGE_EVENT_URI: &str =
+        r"^/_matrix/client/r0/rooms/a_room_id/send/m.room.message/[m\.0-9-~_]{1,}"; // Matches m.1675968342200
 
     async fn get_synapse_mocked_server_with_room(
         token_to_user_id: HashMap<String, String>,
@@ -52,6 +54,10 @@ mod tests {
             event_id: "anState".to_string(),
         };
 
+        let room_message_event_response = RoomEventResponse {
+            event_id: "anState".to_string(),
+        };
+
         Mock::given(method("GET"))
             .and(path(ROOM_MEMBERS_URI))
             .respond_with(ResponseTemplate::new(200).set_body_json(room_members_response))
@@ -60,6 +66,11 @@ mod tests {
         Mock::given(method("PUT"))
             .and(path(ROOM_STATE_URI))
             .respond_with(ResponseTemplate::new(200).set_body_json(room_state_response))
+            .mount(&synapse_server)
+            .await;
+        Mock::given(method("PUT"))
+            .and(path_regex(ROOM_MESSAGE_EVENT_URI))
+            .respond_with(ResponseTemplate::new(200).set_body_json(room_message_event_response))
             .mount(&synapse_server)
             .await;
 
