@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
 
+# TODO: Install protoc?
+
 jobs:
   cd:
     uses: decentraland/actions/.github/workflows/build-quay-main.yml@main

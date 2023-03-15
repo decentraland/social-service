@@ -17,6 +17,8 @@ on:
         type: string
         description: "Docker tag (quay.io)"
 
+# TODO: Install protoc?
+
 jobs:
   deployment:
     if: ${{ inputs.deployment-environment }}
