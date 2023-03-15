@@ -1,4 +1,3 @@
-
 use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
 use actix_web::middleware;
@@ -12,13 +11,12 @@ use crate::metrics::initialize_metrics;
 use crate::middlewares::check_auth::CheckAuthToken;
 use crate::middlewares::metrics_token::CheckMetricsToken;
 
-use super::routes::health::handlers::live;
 use super::routes::health::handlers::health;
-use super::routes::synapse::handlers::{version, login};
+use super::routes::health::handlers::live;
+use super::routes::synapse::handlers::{login, version};
 use super::routes::synapse::room_events::room_event_handler;
 use super::routes::v1::friendships::get::get_user_friends;
 use super::routes::v1::friendships::mutuals::get_mutual_friends;
-
 
 #[derive(Clone)]
 pub struct AppOptions {

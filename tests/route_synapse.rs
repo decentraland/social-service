@@ -9,11 +9,12 @@ use wiremock::{
 
 use actix_web::{test, web::Data};
 use social_service::{
+    api::lib::get_app_router,
     components::{
         app::AppComponents,
         synapse::{AuthChain, LoginIdentifier, SynapseLoginRequest, SynapseLoginResponse},
     },
-    middlewares::check_auth::UserId, api::lib::get_app_router,
+    middlewares::check_auth::UserId,
 };
 
 const URL: &str = "/_matrix/client/r0/login";
