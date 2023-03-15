@@ -527,17 +527,20 @@ async fn store_message_in_synapse_room<'a>(
 
     // Check if there is a message, if any, send the message event to the given room.
     if let Some(val) = room_message_body {
-        for retry_count in 0..3 {
-            match synapse
-                .send_message_event_given_room(token, room_id, room_event, val)
-                .await
-            {
-                Ok(_) => {
-                    return Ok(());
-                }
-                Err(err) => {
-                    if retry_count == 2 {
-                        return Err(SynapseError::CommonError(err));
+        // Check if the message body is not empty
+        if !val.is_empty() {
+            for retry_count in 0..3 {
+                match synapse
+                    .send_message_event_given_room(token, room_id, room_event, val)
+                    .await
+                {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(err) => {
+                        if retry_count == 2 {
+                            return Err(SynapseError::CommonError(err));
+                        }
                     }
                 }
             }
