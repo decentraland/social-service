@@ -2,13 +2,11 @@ use dcl_rpc::{
     server::{RpcServer, RpcServerPort},
     transports::web_socket::{WebSocketServer, WebSocketTransport},
 };
-use deadpool_redis::redis::aio::tokio;
 
-use social_service::{
-    service::friendships_service, FriendshipsServiceRegistration, MyExampleContext, User,
-};
+// TODO!: suspicious imports ?) 0.0
+use crate::{ws::service::friendships_service, FriendshipsServiceRegistration, User};
 
-async fn run_ws_transport() {
+pub async fn run_ws_transport() {
     let ws_server = WebSocketServer::new("127.0.0.1:8085");
 
     let mut connection_listener = ws_server.listen().await.unwrap();
@@ -19,10 +17,10 @@ async fn run_ws_transport() {
 
     let mut server = RpcServer::create(ctx);
     server.set_handler(|port: &mut RpcServerPort<MyExampleContext>| {
-        println!("Registering Rust Echo WS Server");
+        println!("Registering Rust Social WS Server");
         FriendshipsServiceRegistration::register_service(
             port,
-            friendships_service::MyEchoService {},
+            friendships_service::MyFriendshipsService {},
         );
     });
 
@@ -34,10 +32,10 @@ async fn run_ws_transport() {
             let transport = WebSocketTransport::new(connection);
             match server_events_sender.send_attach_transport(transport) {
                 Ok(_) => {
-                    println!("> RpcServer > transport attached successfully");
+                    println!("> RpcServer > Transport attached successfully.");
                 }
                 Err(_) => {
-                    println!("> RpcServer > unable to attach transport");
+                    println!("> RpcServer > Unable to attach transport.");
                     panic!()
                 }
             }
