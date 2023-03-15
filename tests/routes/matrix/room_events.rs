@@ -402,7 +402,7 @@ mod tests {
             message: body,
         };
 
-        let header = ("authorization", format!("Bearer {}", token));
+        let header = ("authorization", format!("Bearer {token}"));
 
         actix_web::test::TestRequest::put()
             .uri(ROOM_STATE_URI)
@@ -449,7 +449,7 @@ mod tests {
         let message_body = result
             .metadata
             .and_then(|j| j.message.clone())
-            .map(|j| j.to_string())
+            .map(|j| j)
             .unwrap_or("".to_string());
         assert_eq!(message_body, message.unwrap_or("".to_string()));
     }

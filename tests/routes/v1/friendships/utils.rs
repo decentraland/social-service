@@ -17,5 +17,5 @@ pub async fn add_friendship(
         .0
         .expect("can create friendship");
 
-    return response;
+    response
 }

@@ -42,10 +42,7 @@ async fn test_should_return_no_connection_available() -> Result<(), String> {
         Ok(_) => Err("Should return the expected error".to_string()),
         Err(err) => {
             assert_eq!(
-                format!(
-                    "Couldn't cache user {}, redis has no connection available",
-                    user_id
-                ),
+                format!("Couldn't cache user {user_id}, redis has no connection available"),
                 err
             );
             Ok(())
@@ -63,7 +60,7 @@ async fn test_can_store_and_get_user() {
     let store = component.add_user(token, user_id, user_id, None).await;
 
     if let Err(err) = store {
-        panic!("Couldn't store the user {} due to {}", user_id, err);
+        panic!("Couldn't store the user {user_id} due to {err}");
     }
 
     let res = component.get_user(token).await;
@@ -77,7 +74,7 @@ async fn test_can_store_and_get_user() {
             }
         ),
         Err(err) => {
-            panic!("Couldn't get the user {} due to {}", user_id, err)
+            panic!("Couldn't get the user {user_id} due to {err}")
         }
     }
 }
@@ -95,7 +92,7 @@ async fn test_obtain_expired_key_returns_none() {
         .await;
 
     if let Err(err) = store {
-        panic!("Couldn't store the user {} due to {}", user_id, err);
+        panic!("Couldn't store the user {user_id} due to {err}");
     }
 
     // wait for the key to expire
@@ -104,7 +101,7 @@ async fn test_obtain_expired_key_returns_none() {
     let res = component.get_user(token).await;
 
     match res {
-        Ok(_) => panic!("Got the user {}", user_id),
+        Ok(_) => panic!("Got the user {user_id}"),
         Err(err) => {
             assert!(err.contains("(response was nil)"))
         }

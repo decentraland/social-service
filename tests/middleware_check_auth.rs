@@ -59,7 +59,7 @@ async fn should_not_call_synapse_when_token_available_in_redis() {
             .route("/need-auth", web::get().to(HttpResponse::Ok)),
     )
     .await;
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
 
     let req = actix_web::test::TestRequest::get()
         .uri("/need-auth")
@@ -96,7 +96,7 @@ async fn should_call_synapse_when_token_not_available_in_redis_and_store_a_clean
 
     let app = test::init_service(get_app(config, None).await).await;
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
 
     let req = actix_web::test::TestRequest::get()
         .uri("/v1/friendships/0xb")

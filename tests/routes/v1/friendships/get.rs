@@ -34,9 +34,9 @@ async fn test_get_friendships_me_when_active() {
 
     add_friendship(&app_data.db, (user_id, other_user_id), true).await;
 
-    let url = format!("/v1/friendships/me");
+    let url = "/v1/friendships/me".to_string();
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
     let req = test::TestRequest::get()
         .uri(url.as_str())
         .append_header(header)
@@ -80,9 +80,9 @@ async fn test_get_friends_when_active() {
 
     add_friendship(&app_data.db, (user_id, other_user_id), true).await;
 
-    let url = format!("/v1/friendships/a_user_Id/");
+    let url = "/v1/friendships/a_user_Id/".to_string();
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
     let req = test::TestRequest::get()
         .uri(url.as_str())
         .append_header(header)
@@ -126,9 +126,9 @@ async fn test_get_friends_when_inactive() {
 
     add_friendship(&app_data.db, (user_id, other_user_id), false).await;
 
-    let url = format!("/v1/friendships/a_user_Id");
+    let url = "/v1/friendships/a_user_Id".to_string();
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
     let req = test::TestRequest::get()
         .uri(url.as_str())
         .append_header(header)
@@ -162,7 +162,7 @@ async fn should_return_forbidden_when_requester_asks_for_different_user() {
 
     let url = "/v1/friendships/other_user_id";
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
     let req = test::TestRequest::get()
         .uri(url)
         .append_header(header)
@@ -195,7 +195,7 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
 
     let url = format!("/v1/friendships/{user_id}");
 
-    let header = ("Authorization", format!("Bearer {}", token));
+    let header = ("Authorization", format!("Bearer {token}"));
     let req = test::TestRequest::get()
         .uri(url.as_str())
         .append_header(header)
@@ -231,9 +231,9 @@ async fn test_get_user_friends_should_return_the_address_list() {
     add_friendship(&app_data.db, (user_id, other_user), true).await;
     add_friendship(&app_data.db, (user_id, other_user_2), true).await;
 
-    let url = format!("/v1/friendships/a_uSer_ID");
+    let url = "/v1/friendships/a_uSer_ID".to_string();
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
     let req = test::TestRequest::get()
         .uri(url.as_str())
         .append_header(header)

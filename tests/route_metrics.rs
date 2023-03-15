@@ -13,7 +13,7 @@ async fn metrics_endpoint_should_work() {
 
     let app = test::init_service(get_app(config, None).await).await;
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
 
     let req = test::TestRequest::get()
         .uri(METRICS_URI)
