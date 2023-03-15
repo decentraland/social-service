@@ -1,2 +1,2 @@
-pub mod lib;
+pub mod app;
 pub mod routes;

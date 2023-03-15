@@ -5,7 +5,7 @@ use actix_http::StatusCode;
 use actix_web::{test, web::Data};
 use social_service::{
     api::{
-        lib::get_app_router,
+        app::get_app_router,
         routes::v1::friendships::types::{FriendshipFriend, FriendshipsResponse},
     },
     components::app::AppComponents,

@@ -1,6 +1,6 @@
 use std::io;
 
-use social_service::api::lib::{get_app_data, run_service};
+use social_service::api::app::{get_app_data, run_service};
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {

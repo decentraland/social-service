@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use actix_web::{body::MessageBody, dev::ServiceFactory, web::Data, App};
 use social_service::{
-    api::lib::get_app_router,
+    api::app::get_app_router,
     components::{
         app::AppComponents,
         configuration::{Config, Database},
