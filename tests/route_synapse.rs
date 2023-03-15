@@ -9,11 +9,11 @@ use wiremock::{
 
 use actix_web::{test, web::Data};
 use social_service::{
+    api::app::get_app_router,
     components::{
         app::AppComponents,
         synapse::{AuthChain, LoginIdentifier, SynapseLoginRequest, SynapseLoginResponse},
     },
-    get_app_router,
     middlewares::check_auth::UserId,
 };
 
