@@ -13,8 +13,7 @@ use social_service::{
         app::AppComponents,
         synapse::{AuthChain, LoginIdentifier, SynapseLoginRequest, SynapseLoginResponse},
     },
-    get_app_router,
-    middlewares::check_auth::UserId,
+    middlewares::check_auth::UserId, api::lib::get_app_router,
 };
 
 const URL: &str = "/_matrix/client/r0/login";

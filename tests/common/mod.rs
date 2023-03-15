@@ -7,8 +7,7 @@ use social_service::{
         configuration::{Config, Database},
         database::{DatabaseComponent, DatabaseComponentImplementation},
         synapse::{WhoAmIResponse, WHO_AM_I_URI},
-    },
-    get_app_router,
+    }, api::lib::get_app_router,
 };
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use wiremock::{
