@@ -10,3 +10,6 @@
 **/*.rs.bk
 postgres_data
 postgres_data_*
+
+# MAC
+*.DS_Store
