@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt};
 
 use async_trait::async_trait;
 
-use crate::routes::health::{
+use crate::api::routes::health::{
     consts::{FAIL, PASS},
     handlers::ComponentHealthStatus,
 };
