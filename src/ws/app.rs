@@ -24,8 +24,9 @@ pub async fn run_ws_transport() {
         );
     });
 
-    // It has to use the server events sender to attach transport because it has to wait for client connections
-    // and keep waiting for new ones
+    // The WebSocket Server listens for incoming connections, when a connection is established,
+    // it creates a new WebSocketTransport with that connection and attaches it to the server event sender.
+    // The loop continues to listen for incoming connections and attach transports until it is stopped.
     let server_events_sender = server.get_server_events_sender();
     tokio::spawn(async move {
         while let Some(Ok(connection)) = connection_listener.recv().await {
