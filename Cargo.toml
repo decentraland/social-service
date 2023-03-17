@@ -45,6 +45,8 @@ tokio = {version = "1.0.0", default-features = false, features = ["io-util", "io
 [build-dependencies]
 prost-build = "0.11.5"
 dcl-rpc-codegen = "0.1.0"
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+serde_json = "1.0.94"
 
 [dev-dependencies]
 serial_test = "0.9.0"
