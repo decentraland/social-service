@@ -449,7 +449,6 @@ mod tests {
         let message_body = result
             .metadata
             .and_then(|j| j.message.clone())
-            .map(|j| j)
             .unwrap_or("".to_string());
         assert_eq!(message_body, message.unwrap_or("".to_string()));
     }
