@@ -15,7 +15,6 @@ const PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
 
 fn main() -> Result<()> {
     download_proto_from_github()?;
-
     // Tell Cargo that if the given file changes, to rerun this build script.
     println!("cargo:rerun-if-changed=ext-proto/friendships.proto");
 
