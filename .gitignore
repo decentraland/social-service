@@ -13,3 +13,6 @@ postgres_data_*
 
 # MAC
 *.DS_Store
+
+# Downloaded proto
+ext-proto

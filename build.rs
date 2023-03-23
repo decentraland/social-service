@@ -39,7 +39,11 @@ fn download_proto_from_github() -> Result<()> {
 
 fn save_content_to_file(content: reqwest::blocking::Response) -> Result<()> {
     let cwd = env::current_dir()?;
+    // Create folder if missing
+    std::fs::create_dir_all(String::from(cwd.to_string_lossy()) + "/" + DEFINITIONS_FOLDER)?;
+
     let file_path: String = String::from(cwd.to_string_lossy()) + "/" + PROTO_FILE_DEST;
+    // Create destination file
     let mut file = std::fs::File::create(file_path)?;
     let inner = match content.bytes() {
         Ok(i) => i,
