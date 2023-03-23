@@ -26,7 +26,7 @@ impl SharedFriendshipsService<MyContext> for MyFriendshipsService {
             Some(repos) => {
                 let (friendships, _) = repos
                     .friendships
-                    .get_user_friends(&user_id, true, None)
+                    .get_user_friends(user_id, true, None)
                     .await;
                 match friendships {
                     Err(_) => todo!(),
