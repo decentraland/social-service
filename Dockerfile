@@ -1,7 +1,6 @@
 FROM rust as builder
 COPY . /app
 WORKDIR /app
-RUN apt update
 RUN apt update && apt-get install -y protobuf-compiler
 RUN cargo build --release
 
