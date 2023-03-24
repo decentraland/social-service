@@ -10,7 +10,7 @@ use crate::{
         database::{DatabaseComponent, DatabaseComponentImplementation},
     },
     ws::service::friendships_service,
-    FriendshipsServiceRegistration, User,
+    FriendshipsServiceRegistration,
 };
 
 pub async fn run_ws_transport() {
@@ -21,7 +21,6 @@ pub async fn run_ws_transport() {
     let config = Config::new().expect("Couldn't read the configuration");
 
     let ctx = MyContext {
-        hardcoded_database: create_db(),
         db: init_db_component(&config.db).await,
     };
 
@@ -56,14 +55,6 @@ pub async fn run_ws_transport() {
     server.run().await;
 }
 
-fn create_db() -> Vec<User> {
-    let user_1 = User {
-        address: "0x111".to_string(),
-    };
-
-    vec![user_1]
-}
-
 async fn init_db_component(db_config: &Database) -> DatabaseComponent {
     let mut db = DatabaseComponent::new(db_config);
     if let Err(err) = db.run().await {
@@ -74,6 +65,5 @@ async fn init_db_component(db_config: &Database) -> DatabaseComponent {
 }
 
 pub struct MyContext {
-    pub hardcoded_database: Vec<User>,
     pub db: DatabaseComponent,
 }
