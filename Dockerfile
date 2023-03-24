@@ -3,7 +3,7 @@ COPY . /app
 WORKDIR /app
 RUN apt update
 RUN apt-get install -y protobuf-compiler
-COPY ./Cargo.toml ./Cargo.lock ./
+COPY . .
 RUN cargo build --release
 
 FROM gcr.io/distroless/cc-debian11 as runtime
