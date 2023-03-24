@@ -15,13 +15,13 @@ const PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
 
 fn main() -> Result<()> {
     download_proto_from_github()?;
-
     // Tell Cargo that if the given file changes, to rerun this build script.
     println!("cargo:rerun-if-changed=ext-proto/friendships.proto");
 
-    let mut conf = prost_build::Config::new();
-    conf.service_generator(Box::new(dcl_rpc::codegen::RPCServiceGenerator::new()));
-    conf.compile_protos(&[PROTO_FILE_DEST], &[DEFINITIONS_FOLDER])?;
+    let mut prost_config = prost_build::Config::new();
+    prost_config.protoc_arg("--experimental_allow_proto3_optional");
+    prost_config.service_generator(Box::new(dcl_rpc::codegen::RPCServiceGenerator::new()));
+    prost_config.compile_protos(&[PROTO_FILE_DEST], &[DEFINITIONS_FOLDER])?;
     Ok(())
 }
 
