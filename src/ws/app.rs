@@ -6,19 +6,17 @@ use dcl_rpc::{
 };
 
 // TODO!: suspicious imports ?) 0.0
-use crate::{ws::service::friendships_service, FriendshipsServiceRegistration, User};
+use crate::{ws::service::friendships_service, FriendshipsServiceRegistration};
 
 pub async fn run_ws_transport() {
     let ws_server = WebSocketServer::new("127.0.0.1:8085");
 
     let mut connection_listener = ws_server.listen().await.unwrap();
 
-    let ctx = MyExampleContext {
-        hardcoded_database: create_db(),
-    };
+    let ctx = MyContext {};
 
     let mut server = RpcServer::create(ctx);
-    server.set_handler(|port: &mut RpcServerPort<MyExampleContext>| {
+    server.set_handler(|port: &mut RpcServerPort<MyContext>| {
         println!("Registering Rust Social WS Server");
         FriendshipsServiceRegistration::register_service(
             port,
@@ -48,14 +46,4 @@ pub async fn run_ws_transport() {
     server.run().await;
 }
 
-fn create_db() -> Vec<User> {
-    let user_1 = User {
-        address: "0x111".to_string(),
-    };
-
-    vec![user_1]
-}
-
-pub struct MyExampleContext {
-    pub hardcoded_database: Vec<User>,
-}
+pub struct MyContext {}
