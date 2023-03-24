@@ -1,27 +1,19 @@
 use std::sync::Arc;
 
 use crate::{
-    ws::app::MyExampleContext, Empty, RequestEvents, ServerStreamResponse,
-    SharedFriendshipsService, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
-    UpdateFriendshipResponse, Users,
+    ws::app::MyExampleContext, FriendshipsServiceServer, RequestEvents, ServerStreamResponse,
+    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
+    Users,
 };
 
 pub struct MyFriendshipsService {}
 
 #[async_trait::async_trait]
-impl SharedFriendshipsService<MyExampleContext> for MyFriendshipsService {
-    async fn get_friends(
-        &self,
-        _request: Empty,
-        _context: Arc<MyExampleContext>,
-    ) -> ServerStreamResponse<Users> {
+impl FriendshipsServiceServer<MyExampleContext> for MyFriendshipsService {
+    async fn get_friends(&self, _context: Arc<MyExampleContext>) -> ServerStreamResponse<Users> {
         todo!()
     }
-    async fn get_request_events(
-        &self,
-        _request: Empty,
-        _context: Arc<MyExampleContext>,
-    ) -> RequestEvents {
+    async fn get_request_events(&self, _context: Arc<MyExampleContext>) -> RequestEvents {
         todo!()
     }
 
@@ -35,7 +27,6 @@ impl SharedFriendshipsService<MyExampleContext> for MyFriendshipsService {
 
     async fn subscribe_friendship_events_updates(
         &self,
-        _request: Empty,
         _context: Arc<MyExampleContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
         todo!()

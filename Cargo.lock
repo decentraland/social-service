@@ -668,9 +668,9 @@ dependencies = [
 
 [[package]]
 name = "dcl-rpc"
-version = "0.1.3"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9d59c11a44af0d5ab578c58eb04f9db6cf1292c3c730cda0c5ecc9b8bbe3a14"
+checksum = "b351ba9be89b5fb1dbe0773d44ab3040082573102c429db15032294e312e8691"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -678,24 +678,15 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "log",
+ "proc-macro2",
  "prost",
  "prost-build",
  "quinn",
+ "quote",
  "rustls",
  "tokio",
  "tokio-tungstenite",
  "tokio-util",
-]
-
-[[package]]
-name = "dcl-rpc-codegen"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4b7dd3c5361aa6bd58264d7ab8948ac32f9bc94d6366a8c74f853278a9f63d1"
-dependencies = [
- "proc-macro2",
- "prost-build",
- "quote",
 ]
 
 [[package]]
@@ -2457,9 +2448,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.89"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
+checksum = "1c533a59c9d8a93a09c6ab31f0fd5e5f4dd1b8fc9434804029839884765d04ea"
 dependencies = [
  "itoa",
  "ryu",
@@ -2583,7 +2574,6 @@ dependencies = [
  "clap",
  "config",
  "dcl-rpc",
- "dcl-rpc-codegen",
  "deadpool-redis",
  "env_logger",
  "futures-util",
