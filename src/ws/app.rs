@@ -16,7 +16,7 @@ pub async fn run_ws_transport() {
 
     let mut server = RpcServer::create(ctx);
     server.set_handler(|port: &mut RpcServerPort<SocialContext>| {
-        println!("Registering Rust Social WS Server");
+        log::debug!("Registering Rust Social WS Server");
         FriendshipsServiceRegistration::register_service(
             port,
             friendships_service::MyFriendshipsService {},
@@ -32,10 +32,10 @@ pub async fn run_ws_transport() {
             let transport = Arc::new(WebSocketTransport::new(connection));
             match server_events_sender.send_attach_transport(transport) {
                 Ok(_) => {
-                    println!("> RpcServer > Transport attached successfully.");
+                    log::debug!("> RpcServer > Transport attached successfully.");
                 }
                 Err(_) => {
-                    println!("> RpcServer > Unable to attach transport.");
+                    log::debug!("> RpcServer > Unable to attach transport.");
                     panic!()
                 }
             }

@@ -47,7 +47,7 @@ fn save_content_to_file(content: reqwest::blocking::Response) -> Result<()> {
     let mut file = std::fs::File::create(file_path)?;
     let inner = match content.bytes() {
         Ok(i) => i,
-        Err(err) => panic!("There was an error reading content, {}", err),
+        Err(err) => panic!("There was an error reading content, {err}"),
     };
     let mut content = Cursor::new(inner);
     std::io::copy(&mut content, &mut file)?;
@@ -61,7 +61,7 @@ fn download_file(client: reqwest::blocking::Client, file_url: Url) -> reqwest::b
         .send()
     {
         Ok(it) => it,
-        Err(err) => panic!("Failed to download the friendship proto def with {}", err),
+        Err(err) => panic!("Failed to download the friendship proto def with {err}"),
     }
 }
 
@@ -76,22 +76,21 @@ fn extract_file_url(body: serde_json::Value) -> Url {
 fn get_file_info(client: &reqwest::blocking::Client, url: Url) -> serde_json::Value {
     let res = match client.get(url).header(USER_AGENT, "Social Service").send() {
         Ok(it) => it,
-        Err(err) => panic!("Failed to get file info with {}", err),
+        Err(err) => panic!("Failed to get file info with {err}"),
     };
     match res.json::<serde_json::Value>() {
         Ok(body) => body,
-        Err(err) => panic!("Failed to parse response as JSON: {}", err),
+        Err(err) => panic!("Failed to parse response as JSON: {err}"),
     }
 }
 
 fn build_github_url_to_download() -> Url {
     let github_url = format!(
-        "{}{}?ref={}",
-        DCL_PROTOCOL_REPO_URL, FRIENDSHIP_PROTO_PATH, FRIENDSHIPS_PROTOCOL_VERSION
+        "{DCL_PROTOCOL_REPO_URL}{FRIENDSHIP_PROTO_PATH}?ref={FRIENDSHIPS_PROTOCOL_VERSION}"
     );
 
     match Url::parse(&github_url) {
         Ok(it) => it,
-        Err(err) => panic!("Failed parse URL with {}", err),
+        Err(err) => panic!("Failed parse URL with {err}"),
     }
 }
