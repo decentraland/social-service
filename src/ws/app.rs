@@ -2,13 +2,15 @@ use std::sync::Arc;
 
 use dcl_rpc::{
     server::{RpcServer, RpcServerPort},
-    transports::web_socket::{WebSocketServer, WebSocketTransport},
+    transports::web_socket::WebSocketTransport,
 };
 
 use crate::{ws::service::friendships_service, FriendshipsServiceRegistration};
 
+use super::authentication::web_socket_auth::WebSocketServerWithAuth;
+
 pub async fn run_ws_transport() {
-    let ws_server = WebSocketServer::new("127.0.0.1:8085");
+    let mut ws_server = WebSocketServerWithAuth::new("127.0.0.1:8085");
 
     let mut connection_listener = ws_server.listen().await.unwrap();
 

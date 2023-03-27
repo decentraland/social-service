@@ -2595,6 +2595,8 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
  "tracing",
  "tracing-actix-web",
  "tracing-bunyan-formatter",
