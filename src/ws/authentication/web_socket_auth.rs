@@ -1,22 +1,13 @@
-use dcl_rpc::transports::{Transport, TransportError, TransportEvent};
-use futures_util::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt, TryStreamExt,
-};
-use std::sync::atomic::{AtomicBool, Ordering};
-use tokio_tungstenite::{accept_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
+use dcl_rpc::transports::TransportError;
 
-use async_trait::async_trait;
+use tokio_tungstenite::{accept_async, MaybeTlsStream, WebSocketStream};
+
 use log::{debug, error};
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver},
-        Mutex,
-    },
+    sync::mpsc::{unbounded_channel, UnboundedReceiver},
     task::JoinHandle,
 };
-use tokio_tungstenite::connect_async;
 
 /// WebSocketServerWithAuthusing [`tokio_tungstenite`] to receive connections
 ///
