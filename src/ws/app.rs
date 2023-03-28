@@ -5,7 +5,6 @@ use dcl_rpc::{
     transports::web_socket::{WebSocketServer, WebSocketTransport},
 };
 
-// TODO!: suspicious imports ?) 0.0
 use crate::{
     components::{
         configuration::{Config, Database},
@@ -28,7 +27,7 @@ pub async fn run_ws_transport() {
 
     let mut server = RpcServer::create(ctx);
     server.set_handler(|port: &mut RpcServerPort<SocialContext>| {
-        println!("Registering Rust Social WS Server");
+        log::debug!("Registering Rust Social WS Server");
         FriendshipsServiceRegistration::register_service(
             port,
             friendships_service::MyFriendshipsService {},
