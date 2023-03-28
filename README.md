@@ -32,6 +32,13 @@ There are two recommended editors/IDEs at the moment:
 #### Debug Rust in VS Code
 
 - Follow the instructions [in the following post](https://www.forrestthewoods.com/blog/how-to-debug-rust-with-visual-studio-code/) to add the extension for VS Code for debugging LLVM programs in VS Code
+
+
+### Building the server
+
+The main of this project will run an HTTP Server and a Websocket Server.
+
+The Websocket server implements the protocol definition defined in https://github.com/decentraland/protocol/blob/main/proto/decentraland/social/friendships/friendships.proto which is automatically downloaded from GitHub during the build time. If a build fails, it could be related to that.
 ### Running the server
 
 ```

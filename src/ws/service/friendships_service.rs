@@ -3,8 +3,8 @@ use std::sync::Arc;
 use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
-    entities::friendships::FriendshipRepositoryImplementation, ws::app::MyContext, Empty,
-    RequestEvents, ServerStreamResponse, SharedFriendshipsService,
+    entities::friendships::FriendshipRepositoryImplementation, ws::app::SocialContext,
+    FriendshipsServiceServer, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
 };
@@ -12,12 +12,8 @@ use crate::{
 pub struct MyFriendshipsService {}
 
 #[async_trait::async_trait]
-impl SharedFriendshipsService<MyContext> for MyFriendshipsService {
-    async fn get_friends(
-        &self,
-        _request: Empty,
-        context: Arc<MyContext>,
-    ) -> ServerStreamResponse<Users> {
+impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
+    async fn get_friends(&self, context: Arc<SocialContext>) -> ServerStreamResponse<Users> {
         // Get user_id from somewhere in the ether
         let user_id = "";
 
@@ -48,23 +44,21 @@ impl SharedFriendshipsService<MyContext> for MyFriendshipsService {
 
         generator
     }
-
-    async fn get_request_events(&self, _request: Empty, _context: Arc<MyContext>) -> RequestEvents {
+    async fn get_request_events(&self, _context: Arc<SocialContext>) -> RequestEvents {
         todo!()
     }
 
     async fn update_friendship_event(
         &self,
         _request: UpdateFriendshipPayload,
-        _context: Arc<MyContext>,
+        _context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
         todo!()
     }
 
     async fn subscribe_friendship_events_updates(
         &self,
-        _request: Empty,
-        _context: Arc<MyContext>,
+        _context: Arc<SocialContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
         todo!()
     }
