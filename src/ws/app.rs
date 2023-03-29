@@ -14,6 +14,7 @@ use futures_util::{
 };
 use tokio::sync::Mutex;
 use warp::{
+    reject,
     ws::{Message as WarpWSMessage, WebSocket},
     Filter,
 };
@@ -33,12 +34,21 @@ pub async fn run_ws_transport() -> (tokio::task::JoinHandle<()>, tokio::task::Jo
     let server_events_sender = server.get_server_events_sender();
 
     let routes = warp::path("ws")
-        // Check Auth
-        // .add
+        // Check Auth Token
+        .and(
+            warp::header::<String>("authorization").and_then(|auth| async move {
+                // It'll reject the connection before upgrading it.
+                if auth == "" {
+                    Ok(auth)
+                } else {
+                    Err(reject()) // Reject with 404 Not Found.
+                }
+            }),
+        )
         // Check if the connection wants to be upgraded to have a WebSocket Connection.
         .and(warp::ws())
         // Get the connection and set a callback to send the WebSocket Transport to the RpcServer once the connection is finally upgraded.
-        .map(move |ws: warp::ws::Ws| {
+        .map(move |_auth: String, ws: warp::ws::Ws| {
             let server_events_sender = server_events_sender.clone();
             ws.on_upgrade(|websocket| async move {
                 server_events_sender
