@@ -20,7 +20,7 @@ use warp::{
 
 use crate::{ws::service::friendships_service, FriendshipsServiceRegistration, SocialContext};
 
-pub async fn upgrade_to_ws() -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
+pub async fn run_ws_transport() -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
     let ctx = SocialContext {};
 
     // Create RPC Server
