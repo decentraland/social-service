@@ -18,7 +18,9 @@ use warp::{
     Filter,
 };
 
-use crate::{ws::service::friendships_service, FriendshipsServiceRegistration, SocialContext};
+use crate::{ws::service::friendships_service, FriendshipsServiceRegistration};
+
+pub struct SocialContext {}
 
 pub async fn run_ws_transport() -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
     let ctx = SocialContext {};

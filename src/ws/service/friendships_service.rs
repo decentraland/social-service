@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    FriendshipsServiceServer, RequestEvents, ServerStreamResponse, SocialContext,
+    ws::app::SocialContext, FriendshipsServiceServer, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     Users,
 };
