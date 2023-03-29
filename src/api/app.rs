@@ -17,6 +17,7 @@ use super::routes::synapse::handlers::{login, version};
 use super::routes::synapse::room_events::room_event_handler;
 use super::routes::v1::friendships::get::get_user_friends;
 use super::routes::v1::friendships::mutuals::get_mutual_friends;
+use super::routes::ws::websocket::upgrade_to_ws;
 
 #[derive(Clone)]
 pub struct AppOptions {
@@ -41,11 +42,12 @@ pub async fn get_app_data(custom_config: Option<Config>) -> Data<AppComponents> 
     Data::new(app_data)
 }
 
-const ROUTES_NEED_AUTH_TOKEN: [&str; 3] = [
+const ROUTES_NEED_AUTH_TOKEN: [&str; 4] = [
     "/v1/friendships/{userId}",
     "/v1/friendships/{userId}/mutuals",
     "/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship",
-]; // should fill this array to protect routes
+    "/ws",
+]; // Should fill this array to protect routes
 
 pub fn get_app_router(
     data: &Data<AppComponents>,
@@ -79,4 +81,5 @@ pub fn get_app_router(
         .service(get_mutual_friends)
         .service(login)
         .service(room_event_handler)
+        .service(upgrade_to_ws)
 }
