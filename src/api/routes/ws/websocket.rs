@@ -21,9 +21,8 @@ use warp::{
 };
 
 use crate::{
-    api::routes::v1::friendships::errors::FriendshipsError,
-    ws::{app::SocialContext, service::friendships_service},
-    FriendshipsServiceRegistration,
+    api::routes::v1::friendships::errors::FriendshipsError, ws::service::friendships_service,
+    FriendshipsServiceRegistration, SocialContext,
 };
 
 #[get("/ws")]

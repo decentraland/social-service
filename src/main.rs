@@ -1,9 +1,6 @@
 use std::io;
 
-use social_service::{
-    api::app::{get_app_data, run_service},
-    ws::app::run_ws_transport,
-};
+use social_service::api::app::{get_app_data, run_service};
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
@@ -13,8 +10,6 @@ async fn main() -> io::Result<()> {
     if let Ok(server) = server {
         server.await?;
     }
-
-    run_ws_transport().await;
 
     Ok(())
 }

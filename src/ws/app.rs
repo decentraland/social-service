@@ -5,7 +5,7 @@ use dcl_rpc::{
     transports::web_socket::{WebSocketServer, WebSocketTransport},
 };
 
-use crate::{ws::service::friendships_service, FriendshipsServiceRegistration};
+use crate::{ws::service::friendships_service, FriendshipsServiceRegistration, SocialContext};
 
 pub async fn run_ws_transport() {
     let ws_server = WebSocketServer::new("127.0.0.1:8085");
@@ -44,5 +44,3 @@ pub async fn run_ws_transport() {
 
     server.run().await;
 }
-
-pub struct SocialContext {}
