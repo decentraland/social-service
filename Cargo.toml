@@ -41,6 +41,7 @@ dcl-rpc = "1.0.0"
 prost = "0.11.5"
 tokio = {version = "1.0.0", default-features = false, features = ["io-util", "io-std", "macros", "net", "rt-multi-thread", "time", "sync"]}
 warp = "0.3"
+tokio-tungstenite = "0.18.0"
 
 [build-dependencies]
 dcl-rpc = "1.0.0"
@@ -52,4 +53,7 @@ serde_json = "1.0.94"
 serial_test = "0.9.0"
 actix-rt = "2.7.0"
 wiremock = "0.5.15"
-tokio-tungstenite = "0.18.0"
+
+[[bin]]
+name = "client-ws"
+path = "src/client.rs"
