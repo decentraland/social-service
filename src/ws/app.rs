@@ -36,9 +36,9 @@ pub async fn run_ws_transport() -> (tokio::task::JoinHandle<()>, tokio::task::Jo
     let routes = warp::path("ws")
         // Check Auth Token
         .and(
-            warp::header::<String>("authorization").and_then(|auth| async move {
+            warp::header::<String>("authorization").and_then(|auth: String| async move {
                 // It'll reject the connection before upgrading it.
-                if auth == "" {
+                if auth.is_empty() {
                     Ok(auth)
                 } else {
                     Err(reject()) // Reject with 404 Not Found.
