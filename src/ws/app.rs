@@ -47,10 +47,9 @@ pub async fn run_ws_transport(app_components: Arc<AppComponents>) -> tokio::task
         }
     });
 
-    let rpc_server_handle = tokio::spawn(async move {
+    tokio::spawn(async move {
         server.run().await;
-    });
-    rpc_server_handle
+    })
 }
 
 pub struct SocialContext {
