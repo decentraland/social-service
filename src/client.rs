@@ -23,11 +23,14 @@ async fn main() {
     // Get All Friends message
     let mut friends_response = module
         .get_friends(AuthToken {
-            synapse_token: "syt_MHg1YzkxNTE4MGEzZGMyNWVhMThmZTE2ZTQ4OWFhNTFjNGEzYTA1MDM3_zklROxxrnmcVKtkBmgkX_3YcQma".to_string(),
+            synapse_token: "".to_string(),
         })
         .await;
 
-    while let Some(book) = friends_response.next().await {
-        println!("> Server Streams > Response > QueryBooks {:?}", book)
+    while let Some(friend) = friends_response.next().await {
+        println!(
+            "> Server Streams > Response > GetAllFriendsResponse {:?}",
+            friend.users
+        )
     }
 }
