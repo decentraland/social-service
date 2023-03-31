@@ -6,23 +6,17 @@ use dcl_rpc::{
 };
 
 use crate::{
-    components::{
-        configuration::{Config, Database},
-        database::{DatabaseComponent, DatabaseComponentImplementation},
-    },
-    ws::service::friendships_service,
+    components::app::AppComponents, ws::service::friendships_service,
     FriendshipsServiceRegistration,
 };
 
-pub async fn run_ws_transport() {
+pub async fn run_ws_transport(app_components: Arc<AppComponents>) {
     let ws_server = WebSocketServer::new("127.0.0.1:8085");
 
     let mut connection_listener = ws_server.listen().await.unwrap();
 
-    let config = Config::new().expect("Couldn't read the configuration");
-
     let ctx = SocialContext {
-        db: init_db_component(&config.db).await,
+        app_components: app_components.clone(),
     };
 
     let mut server = RpcServer::create(ctx);
@@ -56,15 +50,6 @@ pub async fn run_ws_transport() {
     server.run().await;
 }
 
-async fn init_db_component(db_config: &Database) -> DatabaseComponent {
-    let mut db = DatabaseComponent::new(db_config);
-    if let Err(err) = db.run().await {
-        log::debug!("Error on running the DB: {:?}", err);
-        panic!("Unable to run the DB")
-    }
-    db
-}
-
 pub struct SocialContext {
-    pub db: DatabaseComponent,
+    pub app_components: Arc<AppComponents>,
 }

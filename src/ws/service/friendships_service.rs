@@ -3,7 +3,7 @@ use std::sync::Arc;
 use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
-    entities::friendships::FriendshipRepositoryImplementation, ws::app::SocialContext,
+    entities::friendships::FriendshipRepositoryImplementation, ws::app::SocialContext, AuthToken,
     FriendshipsServiceServer, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
@@ -13,12 +13,18 @@ pub struct MyFriendshipsService {}
 
 #[async_trait::async_trait]
 impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
-    async fn get_friends(&self, context: Arc<SocialContext>) -> ServerStreamResponse<Users> {
+    async fn get_friends(
+        &self,
+        _synapse_token: AuthToken,
+        context: Arc<SocialContext>,
+    ) -> ServerStreamResponse<Users> {
         // Get user_id from somewhere in the ether
-        let user_id = "";
+        let user_id = "0x1E205073F466D1544133B18Ad3f5634C4086A4d1";
+
+        let cxt = &*context.clone();
 
         // Look for friendships and build friend addresses list
-        let friendships = match &context.db.db_repos {
+        let friendships = match cxt.app_components.db.db_repos.clone() {
             Some(repos) => {
                 let (friendships, _) = repos
                     .friendships
