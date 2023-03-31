@@ -72,13 +72,6 @@ pub trait FriendshipRepositoryImplementation {
         Option<Transaction<'static, Postgres>>,
     );
 
-    // fn get_user_friends_stream(
-    //     &self,
-    //     address: &str,
-    //     only_active: bool,
-    //     transaction: Option<Transaction<'static, Postgres>>,
-    // ) -> Result<BoxStream<Friendship>, sqlx::Error>;
-
     async fn update_friendship_status(
         &self,
         friendship_id: &Uuid,
@@ -239,38 +232,6 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
             },
         }
     }
-
-    // /// Fetches the friendships of a given user.
-    // /// If `only_active` is set to true, only the current friends will be returned.
-    // /// If set to false, all past and current friendships will be returned.
-    // #[tracing::instrument(name = "Get user friends from DB stream")]
-    // fn get_user_friends_stream(
-    //     &self,
-    //     address: &str,
-    //     only_active: bool,
-    //     transaction: Option<Transaction<'static, Postgres>>,
-    // ) -> Pin<Box<dyn futures_util::Stream<Item = Result<PgRow, sqlx::Error>> + std::marker::Send>>
-    //     BoxStream<'e, Result<DB::Row, Error>>
-    //      {
-    //     let active_only_clause = " AND is_active";
-
-    //     let mut query =
-    //         "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)"
-    //             .to_owned();
-
-    //     if only_active {
-    //         query.push_str(active_only_clause);
-    //     }
-
-    //     let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
-
-    //     let conn = DatabaseComponent::get_connection(&self.db_connection).clone();
-
-    //     let executor = Executor::Pool(conn);
-
-    //     query.fetch(&executor)
-
-    // }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]
     async fn get_mutual_friends(

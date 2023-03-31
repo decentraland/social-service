@@ -16,7 +16,6 @@ const DEFINITIONS_FOLDER: &str = "ext-proto";
 const PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
 
 fn main() -> Result<()> {
-    // Avoid the GitHub Request only if the file has been recently modified
     if should_download_proto() {
         download_proto_from_github()?;
     }
@@ -30,6 +29,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+// Avoid the GitHub Request only if the file has been recently modified
 fn should_download_proto() -> bool {
     if let Ok(cwd) = env::current_dir() {
         let path = format!("{}/{}", cwd.to_string_lossy(), PROTO_FILE_DEST);
