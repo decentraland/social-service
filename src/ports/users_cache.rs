@@ -15,7 +15,8 @@ pub async fn get_user_id_from_token(
     components: Arc<AppComponents>,
     token: &String,
 ) -> Result<UserId, CommonError> {
-    let user_id = {
+    // drop mutex lock at the end of scope
+    {
         let mut user_cache = components.users_cache.lock().await;
         match user_cache.get_user(token).await {
             Ok(user_id) => Ok(user_id),
@@ -44,7 +45,5 @@ pub async fn get_user_id_from_token(
                 }
             }
         }
-    };
-    // drop mutex lock at the end of scope
-    user_id
+    }
 }

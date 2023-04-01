@@ -36,7 +36,7 @@ fn should_download_proto() -> bool {
         if let Ok(attr) = std::fs::metadata(path) {
             if let Ok(modified) = attr.modified() {
                 if let Ok(difference) = SystemTime::now().duration_since(modified) {
-                    let one_hour = Duration::new(1 * 60 * 60, 0);
+                    let one_hour = Duration::new(60 * 60, 0);
                     return difference > one_hour;
                 }
             }
