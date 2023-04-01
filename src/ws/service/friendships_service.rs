@@ -3,10 +3,11 @@ use std::sync::Arc;
 use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
-    entities::friendships::FriendshipRepositoryImplementation, middlewares::check_auth::UserId,
-    ws::app::SocialContext, AuthToken, FriendshipsServiceServer, RequestEvents,
-    ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
-    UpdateFriendshipResponse, User, Users,
+    entities::friendships::FriendshipRepositoryImplementation,
+    ports::users_cache::get_user_id_from_token, ws::app::SocialContext, AuthToken,
+    FriendshipsServiceServer, RequestEvents, ServerStreamResponse,
+    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
+    User, Users,
 };
 
 pub struct MyFriendshipsService {}
@@ -18,47 +19,8 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         auth_token: AuthToken,
         context: Arc<SocialContext>,
     ) -> ServerStreamResponse<Users> {
-        // TODO: move this to a shared function
-        let user_id = {
-            let mut user_cache = context.app_components.users_cache.lock().await;
-            match user_cache.get_user(&auth_token.synapse_token).await {
-                Ok(user_id) => Ok(user_id),
-                Err(e) => {
-                    log::info!("trying to get user {} but {}", auth_token.synapse_token, e);
-                    match context
-                        .app_components
-                        .synapse
-                        .who_am_i(&auth_token.synapse_token)
-                        .await
-                    {
-                        Ok(response) => {
-                            let user_id = UserId {
-                                social_id: response.social_user_id.unwrap(),
-                                synapse_id: response.user_id,
-                            };
-
-                            if let Err(err) = user_cache
-                                .add_user(
-                                    &auth_token.synapse_token,
-                                    &user_id.social_id,
-                                    &user_id.synapse_id,
-                                    None,
-                                )
-                                .await
-                            {
-                                log::error!(
-                                    "check_auth.rs > Error on storing token into Redis: {:?}",
-                                    err
-                                )
-                            }
-
-                            Ok(user_id)
-                        }
-                        Err(err) => Err(err),
-                    }
-                }
-            }
-        }; // drop mutex lock at the end of scope
+        let user_id =
+            get_user_id_from_token(context.app_components.clone(), &auth_token.synapse_token).await;
 
         match user_id {
             Ok(user_id) => {

@@ -1,6 +1,6 @@
 use deadpool_redis::redis::{cmd, RedisResult};
 
-use crate::{middlewares::check_auth::UserId, utils::encrypt_string::hash_with_key};
+use crate::{ports::users_cache::UserId, utils::encrypt_string::hash_with_key};
 
 use super::redis::Redis;
 
