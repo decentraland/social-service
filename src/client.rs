@@ -23,7 +23,7 @@ async fn main() {
     // Get All Friends message
     let mut friends_response = module
         .get_friends(AuthToken {
-            synapse_token: "".to_string(),
+            synapse_token: "syt_MHg1YzkxNTE4MGEzZGMyNWVhMThmZTE2ZTQ4OWFhNTFjNGEzYTA1MDM3_zklROxxrnmcVKtkBmgkX_3YcQma".to_string(),
         })
         .await;
 

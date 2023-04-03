@@ -1,6 +1,5 @@
 extern crate prost_build;
 use reqwest::{header::USER_AGENT, Url};
-use std::time::SystemTime;
 use std::{
     env,
     io::{Cursor, Result},
@@ -10,7 +9,7 @@ use std::{
 const DCL_PROTOCOL_REPO_URL: &str =
     "https://api.github.com/repos/decentraland/protocol/contents/proto/decentraland";
 const FRIENDSHIP_PROTO_PATH: &str = "/social/friendships/friendships.proto";
-// Modify this value to update the proto version, it is the commit sha from protocol repo used for downloading the proto file
+/// Modify this value to update the proto version, it is the commit sha from protocol repo used for downloading the proto file
 const FRIENDSHIPS_PROTOCOL_VERSION: &str = "c858f8a15323fd86a18474c8b650deea28507d3b";
 const DEFINITIONS_FOLDER: &str = "ext-proto";
 const PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
@@ -29,20 +28,25 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// Avoid the GitHub Request only if the file has been recently modified
+/// Avoid the GitHub Request if the file has been modified in the last hour.
+/// It will return `true` if the file has not been modified in the last hour.
+/// If the file has been modified within the last hour, the function will return `false`.
 fn should_download_proto() -> bool {
     if let Ok(cwd) = env::current_dir() {
-        let path = format!("{}/{}", cwd.to_string_lossy(), PROTO_FILE_DEST);
-        if let Ok(attr) = std::fs::metadata(path) {
-            if let Ok(modified) = attr.modified() {
-                if let Ok(difference) = SystemTime::now().duration_since(modified) {
-                    let one_hour = Duration::new(60 * 60, 0);
-                    return difference > one_hour;
+        let path = cwd.join(PROTO_FILE_DEST);
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if let Ok(modified) = metadata.modified() {
+                if modified
+                    .elapsed()
+                    .unwrap_or_else(|_| Duration::from_secs(0))
+                    > Duration::from_secs(3600)
+                {
+                    return true;
                 }
             }
         }
     }
-    true
+    false
 }
 
 fn download_proto_from_github() -> Result<()> {

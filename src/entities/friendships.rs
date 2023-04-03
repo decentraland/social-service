@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use futures_util::TryStreamExt;
 use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, sync::Arc};
 
@@ -10,6 +11,7 @@ use crate::{
 
 use super::utils::get_transaction_result_from_executor;
 
+#[derive(Default)]
 pub struct Friendship {
     pub id: Uuid,
     pub address_1: String,
@@ -71,6 +73,12 @@ pub trait FriendshipRepositoryImplementation {
         Result<Vec<Friendship>, sqlx::Error>,
         Option<Transaction<'static, Postgres>>,
     );
+
+    async fn get_user_friends_stream(
+        &self,
+        address: &str,
+        only_active: bool,
+    ) -> Result<Friendship, sqlx::Error>;
 
     async fn update_friendship_status(
         &self,
@@ -231,6 +239,43 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 }
             },
         }
+    }
+
+    #[tracing::instrument(name = "Get user friends from DB stream")]
+    async fn get_user_friends_stream(
+        &self,
+        address: &str,
+        only_active: bool,
+    ) -> Result<Friendship, sqlx::Error> {
+        let active_only_clause = " AND is_active";
+
+        let mut query =
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)"
+                .to_owned();
+
+        if only_active {
+            query.push_str(active_only_clause);
+        }
+
+        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
+
+        let executor = self.get_executor(None);
+
+        let mut res = DatabaseComponent::fetch_stream(query, executor);
+
+        let mut friendship = Friendship::default(); // create a mutable variable to hold the Friendship object
+
+        while let Ok(Some(row)) = res.try_next().await {
+            // map the row into a user-defined domain type
+            friendship = Friendship {
+                id: row.try_get("id").unwrap(),
+                address_1: row.try_get("address_1").unwrap(),
+                address_2: row.try_get("address_2").unwrap(),
+                is_active: row.try_get("is_active").unwrap(),
+            };
+        }
+
+        Ok(friendship)
     }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]
