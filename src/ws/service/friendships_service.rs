@@ -25,7 +25,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
         match user_id {
             Ok(user_id) => {
-                // Look for friendships and build friend addresses list
+                // Look for friendships
                 let mut friendship = match context.app_components.db.db_repos.clone() {
                     Some(repos) => {
                         let friendship = repos
