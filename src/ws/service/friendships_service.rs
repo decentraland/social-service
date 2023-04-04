@@ -7,7 +7,7 @@ use crate::{
     ports::users_cache::get_user_id_from_token, ws::app::SocialContext, AuthToken,
     FriendshipsServiceServer, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
-    User, Users,
+    User,
 };
 
 pub struct MyFriendshipsService {}
@@ -18,7 +18,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         &self,
         auth_token: AuthToken,
         context: Arc<SocialContext>,
-    ) -> ServerStreamResponse<Users> {
+    ) -> ServerStreamResponse<User> {
         let user_id =
             get_user_id_from_token(context.app_components.clone(), &auth_token.synapse_token).await;
 
@@ -40,7 +40,6 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                 };
 
                 let (generator, generator_yielder) = Generator::create();
-                let mut users = Users::default();
 
                 let user = User {
                     address: match friendship
@@ -51,19 +50,22 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         false => friendship.address_1.to_string(),
                     },
                 };
-                users.users.push(user);
 
-                generator_yielder.r#yield(users).await.unwrap();
-
+                generator_yielder.r#yield(user).await.unwrap();
                 generator
             }
             Err(_er) => {
+                // TODO: empty generator
                 let (g, _) = Generator::create();
                 g
             }
         }
     }
-    async fn get_request_events(&self, _context: Arc<SocialContext>) -> RequestEvents {
+    async fn get_request_events(
+        &self,
+        _request: AuthToken,
+        _context: Arc<SocialContext>,
+    ) -> RequestEvents {
         todo!()
     }
 
@@ -77,6 +79,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
     async fn subscribe_friendship_events_updates(
         &self,
+        _request: AuthToken,
         _context: Arc<SocialContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
         todo!()
