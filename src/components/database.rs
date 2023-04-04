@@ -115,10 +115,10 @@ impl DatabaseComponent {
         }
     }
 
-    pub fn fetch_stream<'a>(
-        query: Query<'a, Postgres, PgArguments>,
+    pub fn fetch_stream(
+        query: Query<'_, Postgres, PgArguments>,
         pool: Pool<Postgres>,
-    ) -> BoxStream<'a, Result<PgRow, Error>> {
+    ) -> BoxStream<'_, Result<PgRow, Error>> {
         query.fetch(&pool)
     }
 }
