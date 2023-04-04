@@ -241,30 +241,27 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         }
     }
 
+    /// If `only_active` is set to true, only the current friends will be returned.
+    /// If set to false, all past and current friendships will be returned.
     #[tracing::instrument(name = "Get user friends from DB stream")]
     async fn get_user_friends_stream(
         &self,
         address: &str,
         only_active: bool,
     ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error> {
-        let query_active = "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1) AND is_active";
-
-        let query_inactive =
+        let active = "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1) AND is_active";
+        let inactive =
             "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)";
 
-        let query = if only_active {
-            query_active
-        } else {
-            query_inactive
-        };
+        let query = if only_active { active } else { inactive };
 
         let query = sqlx::query(query).bind(address.to_ascii_lowercase());
 
-        let executor = self.get_executor(None);
+        let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
 
-        let res = DatabaseComponent::fetch_stream(query, executor);
+        let response = DatabaseComponent::fetch_stream(query, pool);
 
-        let response = res.map(|row| match row {
+        let friends_stream = response.map(|row| match row {
             Ok(row) => Friendship {
                 id: row.try_get("id").unwrap(),
                 address_1: row.try_get("address_1").unwrap(),
@@ -274,7 +271,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
             Err(_) => todo!(),
         });
 
-        Ok(Box::pin(response))
+        Ok(Box::pin(friends_stream))
     }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]

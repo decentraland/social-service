@@ -117,14 +117,9 @@ impl DatabaseComponent {
 
     pub fn fetch_stream<'a>(
         query: Query<'a, Postgres, PgArguments>,
-        // TODO: Receive a Pool
-        executor: Executor<'a>,
+        pool: Pool<Postgres>,
     ) -> BoxStream<'a, Result<PgRow, Error>> {
-        match executor {
-            Executor::Transaction(mut _transaction) => todo!(),
-            // we don't return the pool because the connection was consumed
-            Executor::Pool(pool) => query.fetch(&pool),
-        }
+        query.fetch(&pool)
     }
 }
 
