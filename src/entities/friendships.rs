@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use futures_util::TryStreamExt;
+use futures_util::{Stream, StreamExt};
 use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
-use std::{fmt, sync::Arc};
+use std::{fmt, pin::Pin, sync::Arc};
 
 use super::queries::MUTUALS_FRIENDS_QUERY;
 use crate::{
@@ -78,7 +78,7 @@ pub trait FriendshipRepositoryImplementation {
         &self,
         address: &str,
         only_active: bool,
-    ) -> Result<Friendship, sqlx::Error>;
+    ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error>;
 
     async fn update_friendship_status(
         &self,
@@ -246,36 +246,38 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         &self,
         address: &str,
         only_active: bool,
-    ) -> Result<Friendship, sqlx::Error> {
-        let active_only_clause = " AND is_active";
+    ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error> {
+        let query_active = "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1) AND is_active";
 
-        let mut query =
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)"
-                .to_owned();
+        let query_inactive =
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)";
 
-        if only_active {
-            query.push_str(active_only_clause);
-        }
+        let query = if only_active {
+            query_active
+        } else {
+            query_inactive
+        };
 
-        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
+        let query = sqlx::query(query).bind(address.to_ascii_lowercase());
 
         let executor = self.get_executor(None);
 
-        let mut res = DatabaseComponent::fetch_stream(query, executor);
+        let res = DatabaseComponent::fetch_stream(query, executor);
 
-        let mut friendship = Friendship::default(); // create a mutable variable to hold the Friendship object
+        let response = res.map(|row| match row {
+            Ok(row) => {
+                let friendship = Friendship {
+                    id: row.try_get("id").unwrap(),
+                    address_1: row.try_get("address_1").unwrap(),
+                    address_2: row.try_get("address_2").unwrap(),
+                    is_active: row.try_get("is_active").unwrap(),
+                };
+                friendship
+            }
+            Err(_) => todo!(),
+        });
 
-        while let Ok(Some(row)) = res.try_next().await {
-            // map the row into a user-defined domain type
-            friendship = Friendship {
-                id: row.try_get("id").unwrap(),
-                address_1: row.try_get("address_1").unwrap(),
-                address_2: row.try_get("address_2").unwrap(),
-                is_active: row.try_get("is_active").unwrap(),
-            };
-        }
-
-        Ok(friendship)
+        Ok(Box::pin(response))
     }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]
