@@ -1,6 +1,7 @@
 use async_trait::async_trait;
+use futures_util::{Stream, StreamExt};
 use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
-use std::{fmt, sync::Arc};
+use std::{fmt, pin::Pin, sync::Arc};
 
 use super::queries::MUTUALS_FRIENDS_QUERY;
 use crate::{
@@ -10,6 +11,7 @@ use crate::{
 
 use super::utils::get_transaction_result_from_executor;
 
+#[derive(Default)]
 pub struct Friendship {
     pub id: Uuid,
     pub address_1: String,
@@ -71,6 +73,12 @@ pub trait FriendshipRepositoryImplementation {
         Result<Vec<Friendship>, sqlx::Error>,
         Option<Transaction<'static, Postgres>>,
     );
+
+    async fn get_user_friends_stream(
+        &self,
+        address: &str,
+        only_active: bool,
+    ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error>;
 
     async fn update_friendship_status(
         &self,
@@ -231,6 +239,39 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 }
             },
         }
+    }
+
+    /// If `only_active` is set to true, only the current friends will be returned.
+    /// If set to false, all past and current friendships will be returned.
+    #[tracing::instrument(name = "Get user friends from DB stream")]
+    async fn get_user_friends_stream(
+        &self,
+        address: &str,
+        only_active: bool,
+    ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error> {
+        let active = "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1) AND is_active";
+        let inactive =
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)";
+
+        let query = if only_active { active } else { inactive };
+
+        let query = sqlx::query(query).bind(address.to_ascii_lowercase());
+
+        let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
+
+        let response = DatabaseComponent::fetch_stream(query, pool);
+
+        let friends_stream = response.map(|row| match row {
+            Ok(row) => Friendship {
+                id: row.try_get("id").unwrap(),
+                address_1: row.try_get("address_1").unwrap(),
+                address_2: row.try_get("address_2").unwrap(),
+                is_active: row.try_get("is_active").unwrap(),
+            },
+            Err(_) => todo!(),
+        });
+
+        Ok(Box::pin(friends_stream))
     }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]

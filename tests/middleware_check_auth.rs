@@ -9,8 +9,8 @@ use actix_web::{
     App, HttpMessage, HttpResponse,
 };
 use social_service::{
-    components::app::AppComponents,
-    middlewares::check_auth::{CheckAuthToken, UserId},
+    components::app::AppComponents, middlewares::check_auth::CheckAuthToken,
+    ports::users_cache::UserId,
 };
 
 #[actix_web::test]

@@ -20,7 +20,8 @@ use crate::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    middlewares::check_auth::{Token, UserId},
+    middlewares::check_auth::Token,
+    ports::users_cache::UserId,
 };
 
 use super::errors::SynapseError;

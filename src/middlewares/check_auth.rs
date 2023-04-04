@@ -10,9 +10,11 @@ use actix_web::{
     Error, HttpMessage, HttpResponse,
 };
 use futures_util::future::LocalBoxFuture;
-use serde::{Deserialize, Serialize};
 
-use crate::{api::routes::v1::error::CommonError, components::app::AppComponents};
+use crate::{
+    api::routes::v1::error::CommonError, components::app::AppComponents,
+    ports::users_cache::get_user_id_from_token,
+};
 
 pub struct CheckAuthToken {
     auth_routes: Vec<String>,
@@ -52,12 +54,6 @@ const AUTH_TOKEN_HEADER: &str = "authorization";
 
 fn is_auth_route(routes: &[String], path: &str) -> bool {
     routes.iter().any(|x| *x == path)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct UserId {
-    pub social_id: String,
-    pub synapse_id: String,
 }
 
 #[derive(Debug)]
@@ -125,36 +121,7 @@ where
         let svc = self.service.clone();
 
         Box::pin(async move {
-            let user_id = {
-                let mut user_cache = components.users_cache.lock().await;
-                match user_cache.get_user(&token).await {
-                    Ok(user_id) => Ok(user_id),
-                    Err(e) => {
-                        log::info!("trying to get user {token} but {e}");
-                        match components.synapse.who_am_i(&token).await {
-                            Ok(response) => {
-                                let user_id = UserId {
-                                    social_id: response.social_user_id.unwrap(),
-                                    synapse_id: response.user_id,
-                                };
-
-                                if let Err(err) = user_cache
-                                    .add_user(&token, &user_id.social_id, &user_id.synapse_id, None)
-                                    .await
-                                {
-                                    log::error!(
-                                        "check_auth.rs > Error on storing token into Redis: {:?}",
-                                        err
-                                    )
-                                }
-
-                                Ok(user_id)
-                            }
-                            Err(err) => Err(err),
-                        }
-                    }
-                }
-            }; // drop mutex lock at the end of scope
+            let user_id = get_user_id_from_token(components.into_inner(), &token).await;
 
             if let Ok(user_id) = user_id {
                 {

@@ -4,7 +4,7 @@ use social_service::{
     components::{
         configuration::Redis as RedisConfig, redis::Redis, users_cache::UsersCacheComponent,
     },
-    middlewares::check_auth::UserId,
+    ports::users_cache::UserId,
 };
 
 use actix_rt::time::sleep;

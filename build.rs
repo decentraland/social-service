@@ -3,18 +3,21 @@ use reqwest::{header::USER_AGENT, Url};
 use std::{
     env,
     io::{Cursor, Result},
+    time::Duration,
 };
 
 const DCL_PROTOCOL_REPO_URL: &str =
     "https://api.github.com/repos/decentraland/protocol/contents/proto/decentraland";
 const FRIENDSHIP_PROTO_PATH: &str = "/social/friendships/friendships.proto";
-// Modify this value to update the proto version, it is the commit sha from protocol repo used for downloading the proto file
-const FRIENDSHIPS_PROTOCOL_VERSION: &str = "99457c7233d41df5478aac4a144bc17382487345";
+/// Modify this value to update the proto version, it is the commit sha from protocol repo used for downloading the proto file
+const FRIENDSHIPS_PROTOCOL_VERSION: &str = "c394fb08587101a6bcc0416bcbbcb8e707ba50db";
 const DEFINITIONS_FOLDER: &str = "ext-proto";
 const PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
 
 fn main() -> Result<()> {
-    download_proto_from_github()?;
+    if should_download_proto() {
+        download_proto_from_github()?;
+    }
     // Tell Cargo that if the given file changes, to rerun this build script.
     println!("cargo:rerun-if-changed=ext-proto/friendships.proto");
 
@@ -23,6 +26,27 @@ fn main() -> Result<()> {
     prost_config.service_generator(Box::new(dcl_rpc::codegen::RPCServiceGenerator::new()));
     prost_config.compile_protos(&[PROTO_FILE_DEST], &[DEFINITIONS_FOLDER])?;
     Ok(())
+}
+
+/// Avoid the GitHub Request if the file exists and has been modified in the last hour.
+/// It will return `true` if the file has not been modified in the last hour or doesn't exist.
+/// If the file has been modified within the last hour, the function will return `false`.
+fn should_download_proto() -> bool {
+    if let Ok(cwd) = env::current_dir() {
+        let path = cwd.join(PROTO_FILE_DEST);
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if let Ok(modified) = metadata.modified() {
+                if modified
+                    .elapsed()
+                    .unwrap_or_else(|_| Duration::from_secs(0))
+                    < Duration::from_secs(3600)
+                {
+                    return false;
+                }
+            }
+        }
+    }
+    true
 }
 
 fn download_proto_from_github() -> Result<()> {

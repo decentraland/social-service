@@ -5,14 +5,19 @@ use dcl_rpc::{
     transports::web_socket::{WebSocketServer, WebSocketTransport},
 };
 
-use crate::{ws::service::friendships_service, FriendshipsServiceRegistration};
+use crate::{
+    components::app::AppComponents, ws::service::friendships_service,
+    FriendshipsServiceRegistration,
+};
 
-pub async fn run_ws_transport() {
+pub async fn run_ws_transport(app_components: Arc<AppComponents>) -> tokio::task::JoinHandle<()> {
     let ws_server = WebSocketServer::new("127.0.0.1:8085");
 
     let mut connection_listener = ws_server.listen().await.unwrap();
 
-    let ctx = SocialContext {};
+    let ctx = SocialContext {
+        app_components: app_components.clone(),
+    };
 
     let mut server = RpcServer::create(ctx);
     server.set_handler(|port: &mut RpcServerPort<SocialContext>| {
@@ -42,7 +47,11 @@ pub async fn run_ws_transport() {
         }
     });
 
-    server.run().await;
+    tokio::spawn(async move {
+        server.run().await;
+    })
 }
 
-pub struct SocialContext {}
+pub struct SocialContext {
+    pub app_components: Arc<AppComponents>,
+}
