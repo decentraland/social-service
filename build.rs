@@ -16,6 +16,7 @@ const PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
 
 fn main() -> Result<()> {
     if should_download_proto() {
+        println!("downloading");
         download_proto_from_github()?;
     }
     // Tell Cargo that if the given file changes, to rerun this build script.
@@ -28,8 +29,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Avoid the GitHub Request if the file has been modified in the last hour.
-/// It will return `true` if the file has not been modified in the last hour.
+/// Avoid the GitHub Request if the file exists and has been modified in the last hour.
+/// It will return `true` if the file has not been modified in the last hour or doesn't exist.
 /// If the file has been modified within the last hour, the function will return `false`.
 fn should_download_proto() -> bool {
     if let Ok(cwd) = env::current_dir() {
@@ -39,14 +40,14 @@ fn should_download_proto() -> bool {
                 if modified
                     .elapsed()
                     .unwrap_or_else(|_| Duration::from_secs(0))
-                    > Duration::from_secs(3600)
+                    < Duration::from_secs(3600)
                 {
-                    return true;
+                    return false;
                 }
             }
         }
     }
-    false
+    true
 }
 
 fn download_proto_from_github() -> Result<()> {
