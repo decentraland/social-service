@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::DateTime;
 
+use futures_util::stream::BoxStream;
 use mockall::automock;
 use sqlx::{
     postgres::{PgArguments, PgPoolOptions, PgQueryResult, PgRow},
@@ -112,6 +113,13 @@ impl DatabaseComponent {
             // we don't return the pool because the connection was consumed
             Executor::Pool(pool) => (query.fetch_all(&pool).await, None),
         }
+    }
+
+    pub fn fetch_stream(
+        query: Query<'_, Postgres, PgArguments>,
+        pool: Pool<Postgres>,
+    ) -> BoxStream<'_, Result<PgRow, Error>> {
+        query.fetch(&pool)
     }
 }
 
