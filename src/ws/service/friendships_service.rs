@@ -5,10 +5,9 @@ use futures_util::StreamExt;
 
 use crate::{
     entities::friendships::FriendshipRepositoryImplementation,
-    ports::users_cache::get_user_id_from_token, ws::app::SocialContext, AuthToken,
-    FriendshipsServiceServer, RequestEvents, ServerStreamResponse,
-    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
-    User, Users,
+    ports::users_cache::get_user_id_from_token, ws::app::SocialContext, FriendshipsServiceServer,
+    Payload, RequestEvents, ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse,
+    UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users,
 };
 
 pub struct MyFriendshipsService {}
@@ -17,11 +16,15 @@ pub struct MyFriendshipsService {}
 impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
     async fn get_friends(
         &self,
-        auth_token: AuthToken,
+        auth_token: Payload,
         context: Arc<SocialContext>,
     ) -> ServerStreamResponse<Users> {
-        let user_id =
-            get_user_id_from_token(context.app_components.clone(), &auth_token.synapse_token).await;
+        // TODO: revisit this unwrap.
+        let user_id = get_user_id_from_token(
+            context.app_components.clone(),
+            &auth_token.synapse_token.unwrap(),
+        )
+        .await;
 
         match user_id {
             Ok(user_id) => {
@@ -86,7 +89,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
     }
     async fn get_request_events(
         &self,
-        _request: AuthToken,
+        _request: Payload,
         _context: Arc<SocialContext>,
     ) -> RequestEvents {
         todo!()
@@ -102,7 +105,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
     async fn subscribe_friendship_events_updates(
         &self,
-        _request: AuthToken,
+        _request: Payload,
         _context: Arc<SocialContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
         todo!()

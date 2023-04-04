@@ -3,7 +3,7 @@ use dcl_rpc::{
     transports::web_socket::{WebSocketClient, WebSocketTransport},
 };
 
-use social_service::{AuthToken, FriendshipsServiceClient, RPCServiceClient};
+use social_service::{FriendshipsServiceClient, Payload, RPCServiceClient};
 
 #[tokio::main]
 async fn main() {
@@ -22,8 +22,8 @@ async fn main() {
 
     // Get All Friends message
     let mut friends_response = module
-        .get_friends(AuthToken {
-            synapse_token: "".to_string(),
+        .get_friends(Payload {
+            synapse_token: Some("".to_string()),
         })
         .await;
 
