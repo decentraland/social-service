@@ -117,6 +117,7 @@ impl DatabaseComponent {
 
     pub fn fetch_stream<'a>(
         query: Query<'a, Postgres, PgArguments>,
+        // TODO: Receive a Pool
         executor: Executor<'a>,
     ) -> BoxStream<'a, Result<PgRow, Error>> {
         match executor {

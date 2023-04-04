@@ -265,15 +265,12 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let res = DatabaseComponent::fetch_stream(query, executor);
 
         let response = res.map(|row| match row {
-            Ok(row) => {
-                let friendship = Friendship {
-                    id: row.try_get("id").unwrap(),
-                    address_1: row.try_get("address_1").unwrap(),
-                    address_2: row.try_get("address_2").unwrap(),
-                    is_active: row.try_get("is_active").unwrap(),
-                };
-                friendship
-            }
+            Ok(row) => Friendship {
+                id: row.try_get("id").unwrap(),
+                address_1: row.try_get("address_1").unwrap(),
+                address_2: row.try_get("address_2").unwrap(),
+                is_active: row.try_get("is_active").unwrap(),
+            },
             Err(_) => todo!(),
         });
 
