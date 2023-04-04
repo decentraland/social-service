@@ -45,23 +45,32 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                 tokio::spawn(async move {
                     let mut users = Users::default();
 
-                    while let Some(friendship) = friendship.next().await {
-                        let user: User = {
-                            let address1: String = friendship.address_1;
-                            let address2: String = friendship.address_2;
-                            match address1.eq_ignore_ascii_case(&user_id.social_id) {
-                                true => User { address: address2 },
-                                false => User { address: address1 },
+                    loop {
+                        let friendship = friendship.next().await;
+                        match friendship {
+                            Some(friendship) => {
+                                let user: User = {
+                                    let address1: String = friendship.address_1;
+                                    let address2: String = friendship.address_2;
+                                    match address1.eq_ignore_ascii_case(&user_id.social_id) {
+                                        true => User { address: address2 },
+                                        false => User { address: address1 },
+                                    }
+                                };
+
+                                let users_len = users.users.len();
+
+                                users.users.push(user);
+
+                                if users_len == 5 {
+                                    generator_yielder.r#yield(users).await.unwrap();
+                                    users = Users::default();
+                                }
                             }
-                        };
-
-                        let users_len = users.users.len();
-
-                        users.users.push(user);
-
-                        if users_len == 5 {
-                            generator_yielder.r#yield(users).await.unwrap();
-                            users = Users::default();
+                            None => {
+                                generator_yielder.r#yield(users).await.unwrap();
+                                break;
+                            }
                         }
                     }
                 });
