@@ -37,6 +37,16 @@ serde_json = "1.0.89"
 mockall = "0.11.3"
 lazy_static = "1.4.0"
 actix-http = "3.2.2"
+dcl-rpc = "1.0.0"
+prost = "0.11.5"
+tokio = {version = "1.0.0", default-features = false, features = ["io-util", "io-std", "macros", "net", "rt-multi-thread", "time", "sync"]}
+
+
+[build-dependencies]
+dcl-rpc = "1.0.0"
+prost-build = "0.11.5"
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+serde_json = "1.0.94"
 
 [dev-dependencies]
 serial_test = "0.9.0"

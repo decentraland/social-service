@@ -56,9 +56,9 @@ async fn test_get_mutual_friends() {
     add_friendship(&app_data.db, (user_id_f, user_id_a), true).await;
     add_friendship(&app_data.db, (user_id_f, user_id_b), true).await;
 
-    let url = format!("/v1/friendships/user-b/mutuals");
+    let url = "/v1/friendships/user-b/mutuals".to_string();
 
-    let header = ("authorization", format!("Bearer {}", token));
+    let header = ("authorization", format!("Bearer {token}"));
     let req = test::TestRequest::get()
         .uri(url.as_str())
         .append_header(header)
