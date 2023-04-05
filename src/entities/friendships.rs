@@ -268,6 +268,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 address_2: row.try_get("address_2").unwrap(),
                 is_active: row.try_get("is_active").unwrap(),
             },
+            // TODO: Handle error
             Err(_) => todo!(),
         });
 

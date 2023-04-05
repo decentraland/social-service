@@ -16,19 +16,23 @@ pub struct MyFriendshipsService {}
 impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
     async fn get_friends(
         &self,
-        auth_token: Payload,
+        request: Payload,
         context: Arc<SocialContext>,
     ) -> ServerStreamResponse<Users> {
-        // TODO: revisit this unwrap.
-        let user_id = get_user_id_from_token(
-            context.app_components.clone(),
-            &auth_token.synapse_token.unwrap(),
-        )
-        .await;
+        // Get user id from the auth token
+        let user_id = match request.synapse_token {
+            Some(token) => get_user_id_from_token(context.app_components.clone(), &token).await,
+            None => {
+                // TODO: Handle no auth token.
+                log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
+                // Err(FriendshipsError::CommonError(CommonError::Unauthorized)),
+                todo!()
+            }
+        };
 
         match user_id {
             Ok(user_id) => {
-                // Look for friendships
+                // Look for users friends
                 let mut friendship = match context.app_components.db.db_repos.clone() {
                     Some(repos) => {
                         let friendship = repos
@@ -36,18 +40,30 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                             .get_user_friends_stream(&user_id.social_id, true)
                             .await;
                         match friendship {
-                            Err(_) => todo!(),
+                            // TODO: Handle get friends stream query response error.
+                            Err(err) => {
+                                log::debug!(
+                                    "Get Friends > Get User Friends Stream > Error: {err}."
+                                );
+                                // Err(FriendshipsError::CommonError(CommonError::Unknown)),
+                                todo!()
+                            }
                             Ok(it) => it,
                         }
                     }
-                    None => todo!(),
+                    // TODO: Handle repos None.
+                    None => {
+                        // Err(FriendshipsError::CommonError(CommonError::NotFound))
+                        log::debug!("Get Friends > Db Repositories > `repos` is None.");
+                        todo!()
+                    }
                 };
 
                 let (generator, generator_yielder) = Generator::create();
 
                 tokio::spawn(async move {
                     let mut users = Users::default();
-
+                    // Map Frienships to Users
                     loop {
                         let friendship = friendship.next().await;
                         match friendship {
@@ -65,6 +81,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
                                 users.users.push(user);
 
+                                // TODO: Move this value (5) to a Env Variable, Config or sth like that
                                 if users_len == 5 {
                                     generator_yielder.r#yield(users).await.unwrap();
                                     users = Users::default();
@@ -80,8 +97,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
                 generator
             }
-            Err(_er) => {
-                // TODO: empty generator
+            Err(err) => {
+                // TODO: Handle error when trying to get User Id.
+                log::debug!("Get Friends > Get User ID from Token > Error: {err}.");
+                // Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 let (g, _) = Generator::create();
                 g
             }

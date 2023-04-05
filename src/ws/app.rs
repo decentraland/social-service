@@ -21,7 +21,7 @@ pub async fn run_ws_transport(app_components: Arc<AppComponents>) -> tokio::task
 
     let mut server = RpcServer::create(ctx);
     server.set_handler(|port: &mut RpcServerPort<SocialContext>| {
-        log::debug!("Registering Rust Social WS Server");
+        log::debug!("Registering Rust Social WebSocket Server.");
         FriendshipsServiceRegistration::register_service(
             port,
             friendships_service::MyFriendshipsService {},
@@ -53,5 +53,6 @@ pub async fn run_ws_transport(app_components: Arc<AppComponents>) -> tokio::task
 }
 
 pub struct SocialContext {
+    // TODO: We won't need all the AppComponents
     pub app_components: Arc<AppComponents>,
 }

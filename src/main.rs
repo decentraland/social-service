@@ -17,6 +17,7 @@ async fn main() -> io::Result<()> {
     let rpc_server_handle = run_ws_transport(app_components).await;
 
     // Wait for all tasks to complete
+    // TODO: Handle gracefully shootdown
     let _ = join!(server, rpc_server_handle);
 
     Ok(())
