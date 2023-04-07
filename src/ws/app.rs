@@ -63,6 +63,7 @@ pub async fn run_ws_transport(
 
     let rest_routes = warp::path("health")
         .and(warp::path("live"))
+        .and(warp::path::end())
         .map(|| "alive".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
     let http_server_handle = tokio::spawn(async move {
