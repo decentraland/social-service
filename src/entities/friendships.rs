@@ -108,6 +108,7 @@ pub trait FriendshipRepositoryImplementation {
         Option<Transaction<'static, Postgres>>,
     );
 
+    /// Fetches the request events of the given user.
     async fn get_user_request_events(
         &self,
         address: &str,
@@ -357,7 +358,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         }
     }
 
-    /// Fetches the friendship requests, both incoming and outgoing, of the given user.
+    /// Fetches the request events of the given user.
     async fn get_user_request_events(
         &self,
         address: &str,
