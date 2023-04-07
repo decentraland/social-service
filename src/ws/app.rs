@@ -52,6 +52,7 @@ pub async fn run_ws_transport(
     let rpc_route = warp::path::end()
         // Check if the connection wants to be upgraded to have a WebSocket Connection.
         .and(warp::ws())
+        // Get the connection and set a callback to send the WebSocket Transport to the RpcServer once the connection is finally upgraded.
         .map(move |ws: warp::ws::Ws| {
             let server_events_sender = server_events_sender.clone();
             ws.on_upgrade(|websocket| async move {
