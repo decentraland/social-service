@@ -14,11 +14,11 @@ async fn main() -> io::Result<()> {
 
     // Run WebSocket transport
     let app_components = app_data.into_inner();
-    let rpc_server_handle = run_ws_transport(app_components).await;
+    let (rpc_server_handle, http_server_handle) = run_ws_transport(app_components).await;
 
     // Wait for all tasks to complete
     // TODO: Handle gracefully shootdown
-    let _ = join!(server, rpc_server_handle);
+    let _ = join!(server, rpc_server_handle, http_server_handle);
 
     Ok(())
 }

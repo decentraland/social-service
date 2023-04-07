@@ -40,7 +40,8 @@ actix-http = "3.2.2"
 dcl-rpc = "1.0.0"
 prost = "0.11.5"
 tokio = {version = "1.0.0", default-features = false, features = ["io-util", "io-std", "macros", "net", "rt-multi-thread", "time", "sync"]}
-
+warp = "0.3"
+tokio-tungstenite = "0.18.0"
 
 [build-dependencies]
 dcl-rpc = "1.0.0"
