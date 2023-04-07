@@ -31,9 +31,7 @@ pub struct SocialContext {
 pub async fn run_ws_transport(
     app_components: Arc<AppComponents>,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
-    let ctx = SocialContext {
-        app_components: app_components.clone(),
-    };
+    let ctx = SocialContext { app_components };
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
         dcl_rpc::server::RpcServer::create(ctx);
@@ -65,7 +63,7 @@ pub async fn run_ws_transport(
 
     let rest_routes = warp::path("health")
         .and(warp::path("live"))
-        .map(|| format!("alive"));
+        .map(|| "alive".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
     let http_server_handle = tokio::spawn(async move {
         warp::serve(routes).run(([127, 0, 0, 1], 8085)).await;
