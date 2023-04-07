@@ -170,7 +170,7 @@ async fn get_user_id_from_request(
         // Get User Id
         Some(token) => get_user_id_from_token(context.app_components.clone(), &token)
             .await
-            .map_err(|err| FriendshipsError::CommonError(err)),
+            .map_err(FriendshipsError::CommonError),
         // If no authentication token was provided, return an Unauthorized error.
         None => {
             log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
