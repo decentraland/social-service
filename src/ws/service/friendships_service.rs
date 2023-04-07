@@ -4,10 +4,13 @@ use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 
 use crate::{
+    api::routes::v1::{error::CommonError, friendships::errors::FriendshipsError},
     entities::friendships::FriendshipRepositoryImplementation,
-    ports::users_cache::get_user_id_from_token, ws::app::SocialContext, FriendshipsServiceServer,
-    Payload, RequestEvents, ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse,
-    UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users,
+    ports::users_cache::{get_user_id_from_token, UserId},
+    ws::app::SocialContext,
+    FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
+    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
+    User, Users,
 };
 
 pub struct MyFriendshipsService {}
@@ -19,16 +22,8 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         request: Payload,
         context: Arc<SocialContext>,
     ) -> ServerStreamResponse<Users> {
-        // Get user id from the auth token
-        let user_id = match request.synapse_token {
-            Some(token) => get_user_id_from_token(context.app_components.clone(), &token).await,
-            None => {
-                // TODO: Handle no auth token.
-                log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
-                // Err(FriendshipsError::CommonError(CommonError::Unauthorized)),
-                todo!()
-            }
-        };
+        // Get user id with the given Authentication Token.
+        let user_id = get_user_id_from_request(&request, &context).await;
 
         match user_id {
             Ok(user_id) => {
@@ -100,18 +95,53 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
             Err(err) => {
                 // TODO: Handle error when trying to get User Id.
                 log::debug!("Get Friends > Get User ID from Token > Error: {err}.");
-                // Err(FriendshipsError::CommonError(CommonError::Unknown)),
-                let (g, _) = Generator::create();
-                g
+                // Err(FriendshipsError::CommonError(CommonError::err)),
+                todo!()
             }
         }
     }
     async fn get_request_events(
         &self,
-        _request: Payload,
-        _context: Arc<SocialContext>,
+        request: Payload,
+        context: Arc<SocialContext>,
     ) -> RequestEvents {
-        todo!()
+        // Get user id with the given Authentication Token.
+        let user_id = get_user_id_from_request(&request, &context).await;
+
+        match user_id {
+            Ok(user_id) => {
+                // Look for users requests
+                let mut _requests = match context.app_components.db.db_repos.clone() {
+                    Some(repos) => {
+                        let requests = repos
+                            .friendships
+                            .get_user_requests(&user_id.social_id)
+                            .await;
+                        match requests {
+                            // TODO: Handle get user requests query response error.
+                            Err(err) => {
+                                log::debug!("Get Friends > Get User Requests > Error: {err}.");
+                                // Err(FriendshipsError::CommonError(CommonError::Unknown)),
+                                todo!()
+                            }
+                            Ok(_it) => todo!(),
+                        }
+                    }
+                    // TODO: Handle repos None.
+                    None => {
+                        // Err(FriendshipsError::CommonError(CommonError::NotFound))
+                        log::debug!("Get Friends > Db Repositories > `repos` is None.");
+                        todo!()
+                    }
+                };
+            }
+            Err(err) => {
+                // TODO: Handle error when trying to get User Id.
+                log::debug!("Get Friends > Get User ID from Token > Error: {err}.");
+                // Err(FriendshipsError::CommonError(CommonError::err)),
+                todo!()
+            }
+        }
     }
 
     async fn update_friendship_event(
@@ -128,5 +158,23 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         _context: Arc<SocialContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
         todo!()
+    }
+}
+
+/// Retrieve the User Id associated with the given Authentication Token.
+async fn get_user_id_from_request(
+    request: &Payload,
+    context: &Arc<SocialContext>,
+) -> Result<UserId, FriendshipsError> {
+    match request.synapse_token.clone() {
+        // Get User Id
+        Some(token) => get_user_id_from_token(context.app_components.clone(), &token)
+            .await
+            .map_err(|err| FriendshipsError::CommonError(err)),
+        // If no authentication token was provided, return an Unauthorized error.
+        None => {
+            log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
+            Err(FriendshipsError::CommonError(CommonError::Unauthorized))
+        }
     }
 }

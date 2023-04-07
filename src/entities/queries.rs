@@ -41,3 +41,16 @@ WHERE
           )
       ) as friends_b
   );";
+
+pub const USER_REQUESTS_QUERY: &str = "SELECT fh.*
+  FROM friendship_history fh
+  JOIN (
+    SELECT friendship_id, MAX(timestamp) AS last_timestamp
+      FROM friendship_history
+      WHERE event = 'REQUEST'
+      GROUP BY friendship_id
+  ) h ON fh.friendship_id = h.friendship_id 
+    AND fh.timestamp = h.last_timestamp
+  JOIN friendships f ON f.id = fh.friendship_id 
+    AND (LOWER(f.address_1) = $1 
+    OR LOWER(f.address_2) = $1);";
