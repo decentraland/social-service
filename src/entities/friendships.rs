@@ -108,8 +108,10 @@ pub trait FriendshipRepositoryImplementation {
         Option<Transaction<'static, Postgres>>,
     );
 
-    async fn get_user_requests(&self, address: &str)
-        -> Result<Vec<FriendshipHistory>, sqlx::Error>;
+    async fn get_user_request_events(
+        &self,
+        address: &str,
+    ) -> Result<Vec<FriendshipHistory>, sqlx::Error>;
 
     fn get_executor<'a>(&self, transaction: Option<Transaction<'static, Postgres>>)
         -> Executor<'a>;
@@ -356,7 +358,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     }
 
     /// Fetches the friendship requests, both incoming and outgoing, of the given user.
-    async fn get_user_requests(
+    async fn get_user_request_events(
         &self,
         address: &str,
     ) -> Result<Vec<FriendshipHistory>, sqlx::Error> {

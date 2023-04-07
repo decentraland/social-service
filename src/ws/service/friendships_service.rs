@@ -115,7 +115,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     Some(repos) => {
                         let requests = repos
                             .friendships
-                            .get_user_requests(&user_id.social_id)
+                            .get_user_request_events(&user_id.social_id)
                             .await;
                         match requests {
                             // TODO: Handle get user requests query response error.
