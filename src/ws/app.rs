@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use dcl_rpc::{
@@ -31,6 +34,7 @@ pub struct SocialContext {
 pub async fn run_ws_transport(
     app_components: Arc<AppComponents>,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
+    let config = app_components.config.clone();
     let ctx = SocialContext { app_components };
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
@@ -67,8 +71,10 @@ pub async fn run_ws_transport(
         .and(warp::path::end())
         .map(|| "alive".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
+    let host = IpAddr::V4(config.rpc_server.host.parse::<Ipv4Addr>().unwrap());
+    let port = config.rpc_server.port;
     let http_server_handle = tokio::spawn(async move {
-        warp::serve(routes).run(([127, 0, 0, 1], 8085)).await;
+        warp::serve(routes).run(SocketAddr::new(host, port)).await;
     });
 
     (rpc_server_handle, http_server_handle)

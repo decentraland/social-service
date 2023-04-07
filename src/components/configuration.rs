@@ -41,6 +41,7 @@ pub struct Database {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub server: Server,
+    pub rpc_server: Server,
     pub synapse: Synapse,
     pub db: Database,
     pub env: String, // prd / stg / dev / biz
