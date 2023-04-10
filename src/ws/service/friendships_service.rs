@@ -200,7 +200,7 @@ fn map_request_events(requests: Vec<FriendshipRequestEvents>, user_id: String) -
         let acting_user_id = request.acting_user.clone();
 
         // Determine the address of the other user involved in the request event
-        let address = if request.address_1 == user_id {
+        let address = if request.address_1.eq_ignore_ascii_case(&user_id) {
             request.address_2.clone()
         } else {
             request.address_1.clone()
