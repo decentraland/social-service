@@ -15,6 +15,7 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
+
 use tokio::sync::Mutex;
 use warp::{
     ws::{Message as WarpWSMessage, WebSocket},
@@ -22,20 +23,38 @@ use warp::{
 };
 
 use crate::{
-    components::app::AppComponents, ws::service::friendships_service,
+    components::{
+        configuration::Server, database::DatabaseComponent, synapse::SynapseComponent,
+        users_cache::UsersCacheComponent,
+    },
+    ws::service::friendships_service,
     FriendshipsServiceRegistration,
 };
 
+pub struct ConfigRpcServer {
+    rpc_server: Server,
+}
+
 pub struct SocialContext {
-    // TODO: We won't need all the AppComponents
-    pub app_components: Arc<AppComponents>,
+    pub synapse: Arc<SynapseComponent>,
+    pub db: Arc<DatabaseComponent>,
+    pub users_cache: Arc<futures_util::lock::Mutex<UsersCacheComponent>>,
+    pub config: ConfigRpcServer,
 }
 
 pub async fn run_ws_transport(
-    app_components: Arc<AppComponents>,
+    ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
-    let config = app_components.config.clone();
-    let ctx = SocialContext { app_components };
+    let port = ctx.config.rpc_server.port.clone();
+    let host = IpAddr::V4(
+        ctx.config
+            .rpc_server
+            .host
+            .as_str()
+            .to_string()
+            .parse::<Ipv4Addr>()
+            .unwrap(),
+    );
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
         dcl_rpc::server::RpcServer::create(ctx);
@@ -69,10 +88,8 @@ pub async fn run_ws_transport(
     let rest_routes = warp::path("health")
         .and(warp::path("live"))
         .and(warp::path::end())
-        .map(|| "alive".to_string());
+        .map(|| "\"alive\"".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
-    let host = IpAddr::V4(config.rpc_server.host.parse::<Ipv4Addr>().unwrap());
-    let port = config.rpc_server.port;
     let http_server_handle = tokio::spawn(async move {
         warp::serve(routes).run(SocketAddr::new(host, port)).await;
     });

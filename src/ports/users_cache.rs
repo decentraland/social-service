@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::components::app::AppComponents;
+use crate::components::{synapse::SynapseComponent, users_cache::UsersCacheComponent};
 use serde::{Deserialize, Serialize};
 
 use crate::api::routes::v1::error::CommonError;
@@ -12,17 +12,18 @@ pub struct UserId {
 }
 
 pub async fn get_user_id_from_token(
-    components: Arc<AppComponents>,
+    synapse: Arc<SynapseComponent>,
+    users_cache: Arc<futures_util::lock::Mutex<UsersCacheComponent>>,
     token: &String,
 ) -> Result<UserId, CommonError> {
     // drop mutex lock at the end of scope
     {
-        let mut user_cache = components.users_cache.lock().await;
+        let mut user_cache = users_cache.lock().await;
         match user_cache.get_user(token).await {
             Ok(user_id) => Ok(user_id),
             Err(e) => {
                 log::info!("trying to get user {token} but {e}");
-                match components.synapse.who_am_i(token).await {
+                match synapse.who_am_i(token).await {
                     Ok(response) => {
                         let user_id = UserId {
                             social_id: response.social_user_id.unwrap(),

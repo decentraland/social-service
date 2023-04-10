@@ -1,6 +1,7 @@
 use std::{
     future::{ready, Ready},
     rc::Rc,
+    sync::Arc,
 };
 
 use actix_web::{
@@ -12,7 +13,8 @@ use actix_web::{
 use futures_util::future::LocalBoxFuture;
 
 use crate::{
-    api::routes::v1::error::CommonError, components::app::AppComponents,
+    api::routes::v1::error::CommonError,
+    components::{app::AppComponents, users_cache},
     ports::users_cache::get_user_id_from_token,
 };
 
@@ -117,11 +119,16 @@ where
 
         let token = token.to_string();
 
-        let components = request.app_data::<Data<AppComponents>>().unwrap().clone();
         let svc = self.service.clone();
-
         Box::pin(async move {
-            let user_id = get_user_id_from_token(components.into_inner(), &token).await;
+            let components = request.app_data::<Data<AppComponents>>().unwrap().clone();
+            let context = components.into_inner();
+            let user_id = get_user_id_from_token(
+                Arc::new(context.synapse.clone()),
+                Arc::new(context.users_cache),
+                &token,
+            )
+            .await;
 
             if let Ok(user_id) = user_id {
                 {

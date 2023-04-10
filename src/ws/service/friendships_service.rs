@@ -21,7 +21,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
     ) -> ServerStreamResponse<Users> {
         // Get user id from the auth token
         let user_id = match request.synapse_token {
-            Some(token) => get_user_id_from_token(context.app_components.clone(), &token).await,
+            Some(token) => {
+                get_user_id_from_token(context.synapse.clone(), context.users_cache.clone(), &token)
+                    .await
+            }
             None => {
                 // TODO: Handle no auth token.
                 log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
@@ -33,7 +36,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         match user_id {
             Ok(user_id) => {
                 // Look for users friends
-                let mut friendship = match context.app_components.db.db_repos.clone() {
+                let mut friendship = match context.db.db_repos.clone() {
                     Some(repos) => {
                         let friendship = repos
                             .friendships
