@@ -6,13 +6,14 @@ use futures_util::StreamExt;
 use crate::{
     api::routes::v1::{error::CommonError, friendships::errors::FriendshipsError},
     entities::{
-        friendship_history::FriendshipHistory, friendships::FriendshipRepositoryImplementation,
+        friendship_history::FriendshipRequestEvents,
+        friendships::FriendshipRepositoryImplementation,
     },
     ports::users_cache::{get_user_id_from_token, UserId},
     ws::app::SocialContext,
-    FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
-    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
-    User, Users,
+    FriendshipsServiceServer, Payload, RequestEvents, RequestResponse, Requests,
+    ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
+    UpdateFriendshipResponse, User, Users,
 };
 
 pub struct MyFriendshipsService {}
@@ -113,7 +114,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         match user_id {
             Ok(user_id) => {
                 // Look for users requests
-                let mut _requests = match context.app_components.db.db_repos.clone() {
+                let requests = match context.app_components.db.db_repos.clone() {
                     Some(repos) => {
                         let requests = repos
                             .friendship_history
@@ -126,7 +127,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                                 // Err(FriendshipsError::CommonError(CommonError::Unknown)),
                                 todo!()
                             }
-                            Ok(_it) => todo!(),
+                            Ok(it) => map_request_events(it, user_id.social_id),
                         }
                     }
                     // TODO: Handle repos None.
@@ -136,6 +137,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         todo!()
                     }
                 };
+                requests
             }
             Err(err) => {
                 // TODO: Handle error when trying to get User Id.
@@ -181,6 +183,44 @@ async fn get_user_id_from_request(
     }
 }
 
-fn map_request_events(requests: Vec<FriendshipHistory>) -> RequestEvents {
-    todo!()
+fn map_request_events(requests: Vec<FriendshipRequestEvents>, user_id: String) -> RequestEvents {
+    let mut outgoing_requests: Vec<RequestResponse> = Vec::new();
+    let mut incoming_requests: Vec<RequestResponse> = Vec::new();
+
+    for request in requests {
+        let acting_user_id = request.acting_user.clone();
+
+        let address = if request.address_1 == user_id {
+            request.address_2.clone()
+        } else {
+            request.address_1.clone()
+        };
+        let message = request
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.message.clone());
+
+        let request_response = RequestResponse {
+            user: Some(User { address }),
+            created_at: request.timestamp.timestamp(),
+            message,
+        };
+
+        if acting_user_id == user_id {
+            outgoing_requests.push(request_response);
+        } else {
+            incoming_requests.push(request_response);
+        }
+    }
+
+    RequestEvents {
+        outgoing: Some(Requests {
+            total: outgoing_requests.len() as i64,
+            items: outgoing_requests,
+        }),
+        incoming: Some(Requests {
+            total: incoming_requests.len() as i64,
+            items: incoming_requests,
+        }),
+    }
 }

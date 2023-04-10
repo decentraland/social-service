@@ -38,6 +38,14 @@ pub struct FriendshipHistory {
     pub metadata: Option<Json<FriendshipMetadata>>,
 }
 
+pub struct FriendshipRequestEvents {
+    pub address_1: String,
+    pub address_2: String,
+    pub acting_user: String,
+    pub timestamp: NaiveDateTime,
+    pub metadata: Option<Json<FriendshipMetadata>>,
+}
+
 impl FriendshipHistoryRepository {
     pub fn new(db: Arc<Option<DBConnection>>) -> Self {
         Self { db_connection: db }
@@ -138,7 +146,7 @@ impl FriendshipHistoryRepository {
     pub async fn get_user_request_events(
         &self,
         address: &str,
-    ) -> Result<Vec<FriendshipHistory>, sqlx::Error> {
+    ) -> Result<Vec<FriendshipRequestEvents>, sqlx::Error> {
         let query = USER_REQUESTS_QUERY.to_string();
 
         let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
@@ -151,16 +159,16 @@ impl FriendshipHistoryRepository {
             Ok(rows) => {
                 let response = Ok(rows
                     .iter()
-                    .map(|row| -> FriendshipHistory {
-                        FriendshipHistory {
-                            friendship_id: row.try_get("").unwrap(),
-                            event: todo!(),
+                    .map(|row| -> FriendshipRequestEvents {
+                        FriendshipRequestEvents {
+                            address_1: row.try_get("address_1").unwrap(),
+                            address_2: row.try_get("address_2").unwrap(),
                             acting_user: row.try_get("acting_user").unwrap(),
                             timestamp: row.try_get("timestamp").unwrap(),
                             metadata: row.try_get("metadata").unwrap(),
                         }
                     })
-                    .collect::<Vec<FriendshipHistory>>());
+                    .collect::<Vec<FriendshipRequestEvents>>());
                 response
             }
             Err(err) => match err {
