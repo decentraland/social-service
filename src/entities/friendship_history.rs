@@ -143,7 +143,7 @@ impl FriendshipHistoryRepository {
     }
 
     /// Fetches the request events of the given user.
-    pub async fn get_user_request_events(
+    pub async fn get_user_pending_request_events(
         &self,
         address: &str,
     ) -> Result<Vec<FriendshipRequestEvents>, sqlx::Error> {
@@ -171,13 +171,11 @@ impl FriendshipHistoryRepository {
                     .collect::<Vec<FriendshipRequestEvents>>());
                 response
             }
-            Err(err) => match err {
-                Error::RowNotFound => Ok(vec![]),
-                _ => {
-                    log::error!("Couldn't fetch user {} requests, {}", address, err);
-                    Err(err)
-                }
-            },
+            Err(Error::RowNotFound) => Ok(vec![]),
+            Err(err) => {
+                log::error!("Couldn't fetch user {} requests, {}", address, err);
+                Err(err)
+            }
         }
     }
 

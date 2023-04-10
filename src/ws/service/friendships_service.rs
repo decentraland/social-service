@@ -4,13 +4,13 @@ use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 
 use crate::{
-    api::routes::v1::{error::CommonError, friendships::errors::FriendshipsError},
     entities::{
         friendship_history::FriendshipRequestEvents,
         friendships::FriendshipRepositoryImplementation,
     },
     ports::users_cache::{get_user_id_from_token, UserId},
-    ws::app::SocialContext,
+    ws::service::error::FriendshipsServiceErrorResponse,
+    ws::{app::SocialContext, service::error::FriendshipsServiceError},
     FriendshipsServiceServer, Payload, RequestEvents, RequestResponse, Requests,
     ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
     UpdateFriendshipResponse, User, Users,
@@ -43,7 +43,6 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                                 log::debug!(
                                     "Get Friends > Get User Friends Stream > Error: {err}."
                                 );
-                                // Err(FriendshipsError::CommonError(CommonError::Unknown)),
                                 todo!()
                             }
                             Ok(it) => it,
@@ -51,7 +50,6 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     }
                     // TODO: Handle repos None.
                     None => {
-                        // Err(FriendshipsError::CommonError(CommonError::NotFound))
                         log::debug!("Get Friends > Db Repositories > `repos` is None.");
                         todo!()
                     }
@@ -95,10 +93,9 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
                 generator
             }
-            Err(err) => {
+            Err(_err) => {
                 // TODO: Handle error when trying to get User Id.
-                log::debug!("Get Friends > Get User ID from Token > Error: {err}.");
-                // Err(FriendshipsError::CommonError(CommonError::err)),
+                log::debug!("Get Friends > Get User ID from Token > Error.");
                 todo!()
             }
         }
@@ -118,30 +115,27 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     Some(repos) => {
                         let requests = repos
                             .friendship_history
-                            .get_user_request_events(&user_id.social_id)
+                            .get_user_pending_request_events(&user_id.social_id)
                             .await;
                         match requests {
                             // TODO: Handle get user requests query response error.
                             Err(err) => {
                                 log::debug!("Get Friends > Get User Requests > Error: {err}.");
-                                // Err(FriendshipsError::CommonError(CommonError::Unknown)),
                                 todo!()
                             }
-                            Ok(it) => map_request_events(it, user_id.social_id),
+                            Ok(requests) => map_request_events(requests, user_id.social_id),
                         }
                     }
                     // TODO: Handle repos None.
                     None => {
-                        // Err(FriendshipsError::CommonError(CommonError::NotFound))
                         log::debug!("Get Friends > Db Repositories > `repos` is None.");
                         todo!()
                     }
                 }
             }
-            Err(err) => {
+            Err(_err) => {
                 // TODO: Handle error when trying to get User Id.
-                log::debug!("Get Friends > Get User ID from Token > Error: {err}.");
-                // Err(FriendshipsError::CommonError(CommonError::err)),
+                log::debug!("Get Friends > Get User ID from Token > Error.");
                 todo!()
             }
         }
@@ -167,25 +161,27 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 /// Retrieve the User Id associated with the given Authentication Token.
 ///
 /// If an authentication token was provided in the request, this function gets the
-/// user id from the token and returns it as a `Result<UserId, FriendshipsError>`. If no
-/// authentication token was provided, this function returns a `FriendshipsError::Unauthorized`
+/// user id from the token and returns it as a `Result<UserId, Error>`. If no
+/// authentication token was provided, this function returns a `Unauthorized`
 /// error.
 ///
-/// * `requests` -
+/// * `request` -
 /// * `context` -
 async fn get_user_id_from_request(
     request: &Payload,
     context: &Arc<SocialContext>,
-) -> Result<UserId, FriendshipsError> {
+) -> Result<UserId, FriendshipsServiceErrorResponse> {
     match request.synapse_token.clone() {
         // If an authentication token was provided, get the user id from the token
         Some(token) => get_user_id_from_token(context.app_components.clone(), &token)
             .await
-            .map_err(FriendshipsError::CommonError),
+            .map_err(|_err| -> FriendshipsServiceErrorResponse {
+                FriendshipsServiceError::InternalServerError.into()
+            }),
         // If no authentication token was provided, return an Unauthorized error.
         None => {
             log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
-            Err(FriendshipsError::CommonError(CommonError::Unauthorized))
+            Err(FriendshipsServiceError::Unauthorized.into())
         }
     }
 }
@@ -222,7 +218,7 @@ fn map_request_events(requests: Vec<FriendshipRequestEvents>, user_id: String) -
             message,
         };
 
-        if acting_user_id == user_id {
+        if acting_user_id.eq_ignore_ascii_case(&user_id) {
             // If the acting user is the same as the user ID, then the request is outgoing
             outgoing_requests.push(request_response);
         } else {
