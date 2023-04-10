@@ -165,12 +165,20 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 }
 
 /// Retrieve the User Id associated with the given Authentication Token.
+///
+/// If an authentication token was provided in the request, this function gets the
+/// user id from the token and returns it as a `Result<UserId, FriendshipsError>`. If no
+/// authentication token was provided, this function returns a `FriendshipsError::Unauthorized`
+/// error.
+///
+/// * `requests` -
+/// * `context` -
 async fn get_user_id_from_request(
     request: &Payload,
     context: &Arc<SocialContext>,
 ) -> Result<UserId, FriendshipsError> {
     match request.synapse_token.clone() {
-        // Get User Id
+        // If an authentication token was provided, get the user id from the token
         Some(token) => get_user_id_from_token(context.app_components.clone(), &token)
             .await
             .map_err(FriendshipsError::CommonError),
@@ -182,18 +190,27 @@ async fn get_user_id_from_request(
     }
 }
 
+/// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.
+///
+/// * `requests` - A vector of `FriendshipRequestEvents` to map to `RequestResponse` struct.
+/// * `user_id` - The id of the auth user.
 fn map_request_events(requests: Vec<FriendshipRequestEvents>, user_id: String) -> RequestEvents {
     let mut outgoing_requests: Vec<RequestResponse> = Vec::new();
     let mut incoming_requests: Vec<RequestResponse> = Vec::new();
 
+    // Iterate through each friendship request event
     for request in requests {
+        // Get the user id of the acting user for the request
         let acting_user_id = request.acting_user.clone();
 
+        // Determine the address of the other user involved in the request event
         let address = if request.address_1 == user_id {
             request.address_2.clone()
         } else {
             request.address_1.clone()
         };
+
+        // Get the message (if any) associated with the request
         let message = request
             .metadata
             .as_ref()
@@ -206,12 +223,15 @@ fn map_request_events(requests: Vec<FriendshipRequestEvents>, user_id: String) -
         };
 
         if acting_user_id == user_id {
+            // If the acting user is the same as the user ID, then the request is outgoing
             outgoing_requests.push(request_response);
         } else {
+            // Otherwise, the request is incoming
             incoming_requests.push(request_response);
         }
     }
 
+    // Return a RequestEvents struct containing the incoming and outgoing request lists
     RequestEvents {
         outgoing: Some(Requests {
             total: outgoing_requests.len() as i64,

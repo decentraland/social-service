@@ -10,12 +10,16 @@ pub struct UserId {
     pub social_id: String,
     pub synapse_id: String,
 }
-
+/// Retrieve the user id associated with the given token.
+///
+/// It first checks the user cache for the user id associated with the token.
+/// If the user id is not found in the cache, it calls `who_am_i` on the `SynapseComponent` to get the user id,
+/// then adds the token and user id to the cache before returning the user id.
 pub async fn get_user_id_from_token(
     components: Arc<AppComponents>,
     token: &String,
 ) -> Result<UserId, CommonError> {
-    // drop mutex lock at the end of scope
+    // Drop mutex lock at the end of scope.
     {
         let mut user_cache = components.users_cache.lock().await;
         match user_cache.get_user(token).await {
