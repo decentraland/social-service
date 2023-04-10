@@ -12,6 +12,14 @@ pub struct Args {
     /// Port to expose the server
     #[clap(short, long, value_parser)]
     port: Option<i16>,
+
+    /// RPC WS Host
+    #[clap(long, value_parser)]
+    rpc_host: Option<String>,
+
+    /// RPC WS Port to expose the server
+    #[clap(long, value_parser)]
+    rpc_port: Option<i16>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -41,6 +49,7 @@ pub struct Database {
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub server: Server,
+    pub rpc_server: Server,
     pub synapse: Synapse,
     pub db: Database,
     pub env: String, // prd / stg / dev / biz
@@ -88,6 +97,8 @@ impl Config {
             )
             .set_override_option("server.host", args.host)?
             .set_override_option("server.port", args.port)?
+            .set_override_option("rpc_server.host", args.rpc_host)?
+            .set_override_option("rpc_server.port", args.rpc_port)?
             .set_default("synapse.url", "https://synapse.decentraland.zone")?
             .set_default("env", "dev")?
             .set_default("wkc_metrics_bearer_token", "")?
