@@ -14,11 +14,11 @@ pub struct Args {
     port: Option<i16>,
 
     /// RPC WS Host
-    #[clap(short, long, value_parser)]
+    #[clap(long, value_parser)]
     rpc_host: Option<String>,
 
     /// RPC WS Port to expose the server
-    #[clap(short, long, value_parser)]
+    #[clap(long, value_parser)]
     rpc_port: Option<i16>,
 }
 
