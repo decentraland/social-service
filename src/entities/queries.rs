@@ -42,8 +42,10 @@ WHERE
       ) as friends_b
   );";
 
-pub const USER_REQUESTS_QUERY: &str = "SELECT fh.*
-  FROM friendship_history fh
+/// This query fetches the rows where the last event of a friendship_id is a REQUEST, and either address_1 or address_2 is equal to the given user's address.
+pub const USER_REQUESTS_QUERY: &str = "SELECT f.address_1, f.address_2, 
+fh.acting_user, fh.timestamp, fh.metadata
+FROM friendship_history fh
   JOIN (
     SELECT friendship_id, MAX(timestamp) AS last_timestamp
       FROM friendship_history
