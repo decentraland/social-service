@@ -71,7 +71,13 @@ pub async fn run_ws_transport(
         .and(warp::path::end())
         .map(|| "alive".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
-    let host = IpAddr::V4(config.rpc_server.host.parse::<Ipv4Addr>().unwrap());
+    let host = IpAddr::V4(
+        config
+            .rpc_server
+            .host
+            .parse::<Ipv4Addr>()
+            .expect("No Host configured for RPC WebSocket Server"),
+    );
     let port = config.rpc_server.port;
     let http_server_handle = tokio::spawn(async move {
         warp::serve(routes).run(SocketAddr::new(host, port)).await;
