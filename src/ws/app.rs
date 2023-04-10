@@ -34,6 +34,10 @@ pub struct SocialContext {
 pub async fn run_ws_transport(
     app_components: Arc<AppComponents>,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
+    if env_logger::try_init().is_err() {
+        log::debug!("Logger already init")
+    }
+
     let config = app_components.config.clone();
     let ctx = SocialContext { app_components };
 
@@ -71,16 +75,15 @@ pub async fn run_ws_transport(
         .and(warp::path::end())
         .map(|| "alive".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
-    let host = IpAddr::V4(
-        config
-            .rpc_server
-            .host
-            .parse::<Ipv4Addr>()
-            .expect("No Host configured for RPC WebSocket Server"),
-    );
-    let port = config.rpc_server.port;
+    let addr = match config.rpc_server.host.parse::<Ipv4Addr>() {
+        Ok(v) => SocketAddr::new(IpAddr::V4(v), config.rpc_server.port),
+        Err(err) => {
+            log::debug!("Running websocket server with default values as an error was found with the configuration: {:?}", err);
+            ([0, 0, 0, 0], 8085).into()
+        }
+    };
     let http_server_handle = tokio::spawn(async move {
-        warp::serve(routes).run(SocketAddr::new(host, port)).await;
+        warp::serve(routes).run(addr).await;
     });
 
     (rpc_server_handle, http_server_handle)
