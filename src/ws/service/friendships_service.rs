@@ -114,7 +114,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         match user_id {
             Ok(user_id) => {
                 // Look for users requests
-                let requests = match context.app_components.db.db_repos.clone() {
+                match context.app_components.db.db_repos.clone() {
                     Some(repos) => {
                         let requests = repos
                             .friendship_history
@@ -136,8 +136,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         log::debug!("Get Friends > Db Repositories > `repos` is None.");
                         todo!()
                     }
-                };
-                requests
+                }
             }
             Err(err) => {
                 // TODO: Handle error when trying to get User Id.
