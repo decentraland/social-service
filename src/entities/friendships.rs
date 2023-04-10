@@ -3,7 +3,7 @@ use futures_util::{Stream, StreamExt};
 use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, pin::Pin, sync::Arc};
 
-use super::queries::{MUTUALS_FRIENDS_QUERY, USER_REQUESTS_QUERY};
+use super::queries::MUTUALS_FRIENDS_QUERY;
 
 use crate::{
     components::database::{DBConnection, DatabaseComponent, Executor},
@@ -18,13 +18,6 @@ pub struct Friendship {
     pub address_1: String,
     pub address_2: String,
     pub is_active: bool,
-}
-
-pub struct FriendshipHistory {
-    pub id: Uuid,
-    pub acting_user: String,
-    pub timestamp: String,
-    pub metadata: Option<String>,
 }
 
 #[derive(Clone)]
@@ -107,12 +100,6 @@ pub trait FriendshipRepositoryImplementation {
         Result<Vec<String>, sqlx::Error>,
         Option<Transaction<'static, Postgres>>,
     );
-
-    /// Fetches the request events of the given user.
-    async fn get_user_request_events(
-        &self,
-        address: &str,
-    ) -> Result<Vec<FriendshipHistory>, sqlx::Error>;
 
     fn get_executor<'a>(&self, transaction: Option<Transaction<'static, Postgres>>)
         -> Executor<'a>;
@@ -355,44 +342,6 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         match res {
             Ok(_) => (Ok(()), transaction_to_return),
             Err(err) => (Err(err), transaction_to_return),
-        }
-    }
-
-    /// Fetches the request events of the given user.
-    async fn get_user_request_events(
-        &self,
-        address: &str,
-    ) -> Result<Vec<FriendshipHistory>, sqlx::Error> {
-        let query = USER_REQUESTS_QUERY.to_string();
-
-        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
-
-        let executor = self.get_executor(None);
-
-        let (res, _) = DatabaseComponent::fetch_all(query, executor).await;
-
-        match res {
-            Ok(rows) => {
-                let response = Ok(rows
-                    .iter()
-                    .map(|row| -> FriendshipHistory {
-                        FriendshipHistory {
-                            id: row.try_get("id").unwrap(),
-                            acting_user: row.try_get("acting_user").unwrap(),
-                            timestamp: row.try_get("timestamp").unwrap(),
-                            metadata: row.try_get("metadata").unwrap(),
-                        }
-                    })
-                    .collect::<Vec<FriendshipHistory>>());
-                response
-            }
-            Err(err) => match err {
-                Error::RowNotFound => Ok(vec![]),
-                _ => {
-                    log::error!("Couldn't fetch user {} requests, {}", address, err);
-                    Err(err)
-                }
-            },
         }
     }
 

@@ -5,7 +5,9 @@ use futures_util::StreamExt;
 
 use crate::{
     api::routes::v1::{error::CommonError, friendships::errors::FriendshipsError},
-    entities::friendships::FriendshipRepositoryImplementation,
+    entities::{
+        friendship_history::FriendshipHistory, friendships::FriendshipRepositoryImplementation,
+    },
     ports::users_cache::{get_user_id_from_token, UserId},
     ws::app::SocialContext,
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
@@ -114,7 +116,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                 let mut _requests = match context.app_components.db.db_repos.clone() {
                     Some(repos) => {
                         let requests = repos
-                            .friendships
+                            .friendship_history
                             .get_user_request_events(&user_id.social_id)
                             .await;
                         match requests {
@@ -177,4 +179,8 @@ async fn get_user_id_from_request(
             Err(FriendshipsError::CommonError(CommonError::Unauthorized))
         }
     }
+}
+
+fn map_request_events(requests: Vec<FriendshipHistory>) -> RequestEvents {
+    todo!()
 }

@@ -16,7 +16,7 @@ use crate::{
     generate_uuid_v4,
 };
 
-use super::utils::get_transaction_result_from_executor;
+use super::{queries::USER_REQUESTS_QUERY, utils::get_transaction_result_from_executor};
 
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {
@@ -130,6 +130,45 @@ impl FriendshipHistoryRepository {
             Err(err) => match err {
                 Error::RowNotFound => (Ok(None), transaction_to_return),
                 _ => (Err(err), transaction_to_return),
+            },
+        }
+    }
+
+    /// Fetches the request events of the given user.
+    pub async fn get_user_request_events(
+        &self,
+        address: &str,
+    ) -> Result<Vec<FriendshipHistory>, sqlx::Error> {
+        let query = USER_REQUESTS_QUERY.to_string();
+
+        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
+
+        let executor = self.get_executor(None);
+
+        let (res, _) = DatabaseComponent::fetch_all(query, executor).await;
+
+        match res {
+            Ok(rows) => {
+                let response = Ok(rows
+                    .iter()
+                    .map(|row| -> FriendshipHistory {
+                        FriendshipHistory {
+                            friendship_id: row.try_get("").unwrap(),
+                            event: todo!(),
+                            acting_user: row.try_get("acting_user").unwrap(),
+                            timestamp: row.try_get("timestamp").unwrap(),
+                            metadata: row.try_get("metadata").unwrap(),
+                        }
+                    })
+                    .collect::<Vec<FriendshipHistory>>());
+                response
+            }
+            Err(err) => match err {
+                Error::RowNotFound => Ok(vec![]),
+                _ => {
+                    log::error!("Couldn't fetch user {} requests, {}", address, err);
+                    Err(err)
+                }
             },
         }
     }
