@@ -45,7 +45,7 @@ pub struct SocialContext {
 pub async fn run_ws_transport(
     ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
-    let port = ctx.config.rpc_server.port.clone();
+    let port = ctx.config.rpc_server.port;
     let host = ctx.config.rpc_server.host.clone();
 
     if env_logger::try_init().is_err() {
