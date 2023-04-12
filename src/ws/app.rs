@@ -1,9 +1,6 @@
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 use dcl_rpc::{
@@ -36,9 +33,9 @@ pub struct ConfigRpcServer {
 }
 
 pub struct SocialContext {
-    pub synapse: Arc<SynapseComponent>,
-    pub db: Arc<DatabaseComponent>,
-    pub users_cache: Arc<futures_util::lock::Mutex<UsersCacheComponent>>,
+    pub synapse: SynapseComponent,
+    pub db: DatabaseComponent,
+    pub users_cache: Arc<Mutex<UsersCacheComponent>>,
     pub config: ConfigRpcServer,
 }
 
@@ -46,7 +43,6 @@ pub async fn run_ws_transport(
     ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
     let port = ctx.config.rpc_server.port;
-    let host = ctx.config.rpc_server.host.clone();
 
     if env_logger::try_init().is_err() {
         log::debug!("Logger already init")
@@ -87,15 +83,8 @@ pub async fn run_ws_transport(
         .map(|| "\"alive\"".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
 
-    let addr = match host.parse::<Ipv4Addr>() {
-        Ok(ip) => SocketAddr::new(IpAddr::V4(ip), port),
-        Err(err) => {
-            log::debug!("Running websocket server with default values as an error was found with the configuration: {:?}", err);
-            ([0, 0, 0, 0], 8085).into()
-        }
-    };
     let http_server_handle = tokio::spawn(async move {
-        warp::serve(routes).run(addr).await;
+        warp::serve(routes).run(([0, 0, 0, 0], port)).await;
     });
 
     (rpc_server_handle, http_server_handle)

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::components::{synapse::SynapseComponent, users_cache::UsersCacheComponent};
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 use crate::api::routes::v1::error::CommonError;
 
@@ -12,8 +13,8 @@ pub struct UserId {
 }
 
 pub async fn get_user_id_from_token(
-    synapse: Arc<SynapseComponent>,
-    users_cache: Arc<futures_util::lock::Mutex<UsersCacheComponent>>,
+    synapse: SynapseComponent,
+    users_cache: Arc<Mutex<UsersCacheComponent>>,
     token: &String,
 ) -> Result<UserId, CommonError> {
     // drop mutex lock at the end of scope
