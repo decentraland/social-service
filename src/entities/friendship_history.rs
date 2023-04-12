@@ -7,7 +7,7 @@ use sqlx::{
     postgres::Postgres,
     query::Query,
     types::{Json, Uuid},
-    Error, Row, Transaction,
+    Error, FromRow, Row, Transaction,
 };
 
 use crate::{
@@ -38,7 +38,8 @@ pub struct FriendshipHistory {
     pub metadata: Option<Json<FriendshipMetadata>>,
 }
 
-pub struct FriendshipRequestEvents {
+#[derive(FromRow)]
+pub struct FriendshipRequestEvent {
     pub address_1: String,
     pub address_2: String,
     pub acting_user: String,
@@ -146,7 +147,7 @@ impl FriendshipHistoryRepository {
     pub async fn get_user_pending_request_events(
         &self,
         address: &str,
-    ) -> Result<Vec<FriendshipRequestEvents>, sqlx::Error> {
+    ) -> Result<Vec<FriendshipRequestEvent>, sqlx::Error> {
         let query = USER_REQUESTS_QUERY.to_string();
 
         let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
@@ -159,16 +160,11 @@ impl FriendshipHistoryRepository {
             Ok(rows) => {
                 let response = Ok(rows
                     .iter()
-                    .map(|row| -> FriendshipRequestEvents {
-                        FriendshipRequestEvents {
-                            address_1: row.try_get("address_1").unwrap(),
-                            address_2: row.try_get("address_2").unwrap(),
-                            acting_user: row.try_get("acting_user").unwrap(),
-                            timestamp: row.try_get("timestamp").unwrap(),
-                            metadata: row.try_get("metadata").unwrap(),
-                        }
+                    .map(|row| -> FriendshipRequestEvent {
+                        FriendshipRequestEvent::from_row(row)
+                            .expect("to be a friendship request event")
                     })
-                    .collect::<Vec<FriendshipRequestEvents>>());
+                    .collect::<Vec<FriendshipRequestEvent>>());
                 response
             }
             Err(Error::RowNotFound) => Ok(vec![]),

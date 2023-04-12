@@ -5,8 +5,7 @@ use futures_util::StreamExt;
 
 use crate::{
     entities::{
-        friendship_history::FriendshipRequestEvents,
-        friendships::FriendshipRepositoryImplementation,
+        friendship_history::FriendshipRequestEvent, friendships::FriendshipRepositoryImplementation,
     },
     ports::users_cache::{get_user_id_from_token, UserId},
     ws::service::error::FriendshipsServiceErrorResponse,
@@ -190,7 +189,7 @@ async fn get_user_id_from_request(
 ///
 /// * `requests` - A vector of `FriendshipRequestEvents` to map to `RequestResponse` struct.
 /// * `user_id` - The id of the auth user.
-fn map_request_events(requests: Vec<FriendshipRequestEvents>, user_id: String) -> RequestEvents {
+fn map_request_events(requests: Vec<FriendshipRequestEvent>, user_id: String) -> RequestEvents {
     let mut outgoing_requests: Vec<RequestResponse> = Vec::new();
     let mut incoming_requests: Vec<RequestResponse> = Vec::new();
 
