@@ -27,7 +27,7 @@ impl From<FriendshipsServiceError> for FriendshipsServiceErrorResponse {
             FriendshipsServiceError::Unauthorized => FriendshipsServiceErrorResponse {
                 code: 401,
                 error: "Unauthorized".to_string(),
-                message: "Missing authentication token".to_string(),
+                message: "Invalid or missing authentication token".to_string(),
             },
         }
     }
