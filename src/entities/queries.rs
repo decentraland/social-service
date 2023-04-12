@@ -42,17 +42,16 @@ WHERE
       ) as friends_b
   );";
 
-/// This query fetches the rows where the last event of a friendship_id is a REQUEST, and either address_1 or address_2 is equal to the given user's address.
-pub const USER_REQUESTS_QUERY: &str = "SELECT f.address_1, f.address_2, 
-fh.acting_user, fh.timestamp, fh.metadata
-FROM friendship_history fh
-  JOIN (
-    SELECT friendship_id, MAX(timestamp) AS last_timestamp
-      FROM friendship_history
-      WHERE event = 'REQUEST'
-      GROUP BY friendship_id
-  ) h ON fh.friendship_id = h.friendship_id 
-    AND fh.timestamp = h.last_timestamp
-  JOIN friendships f ON f.id = fh.friendship_id 
-    AND (LOWER(f.address_1) = $1 
-    OR LOWER(f.address_2) = $1);";
+/// This query fetches the rows where the lastest event of a friendship_id is a REQUEST,
+/// and either address_1 or address_2 is equal to the given user's address.
+pub const USER_REQUESTS_QUERY: &str =
+    "SELECT f.address_1, f.address_2, fh.acting_user, fh.timestamp, fh.metadata
+      FROM friendships f
+      INNER JOIN friendship_history fh ON f.id = fh.friendship_id
+      WHERE (f.address_1 = 'given_address' OR f.address_2 = 'given_address')
+      AND fh.event = 'REQUEST'
+      AND fh.timestamp = (
+        SELECT MAX(fh2.timestamp)
+        FROM friendship_history fh2
+        WHERE fh2.friendship_id = fh.friendship_id
+      );";
