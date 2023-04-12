@@ -83,6 +83,7 @@ pub async fn run_ws_transport(
         }
     };
     let http_server_handle = tokio::spawn(async move {
+        log::info!("Running RPC WebSocket Server at: {}", addr);
         warp::serve(routes).run(addr).await;
     });
 

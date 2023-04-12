@@ -24,7 +24,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
             Some(token) => get_user_id_from_token(context.app_components.clone(), &token).await,
             None => {
                 // TODO: Handle no auth token.
-                log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
+                log::error!("Get Friends > Get User ID from Token > `synapse_token` is None.");
                 // Err(FriendshipsError::CommonError(CommonError::Unauthorized)),
                 todo!()
             }
@@ -32,6 +32,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
         match user_id {
             Ok(user_id) => {
+                log::info!("Getting all friends for user: {}", user_id.social_id);
                 // Look for users friends
                 let mut friendship = match context.app_components.db.db_repos.clone() {
                     Some(repos) => {
@@ -42,7 +43,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         match friendship {
                             // TODO: Handle get friends stream query response error.
                             Err(err) => {
-                                log::debug!(
+                                log::error!(
                                     "Get Friends > Get User Friends Stream > Error: {err}."
                                 );
                                 // Err(FriendshipsError::CommonError(CommonError::Unknown)),
@@ -54,7 +55,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     // TODO: Handle repos None.
                     None => {
                         // Err(FriendshipsError::CommonError(CommonError::NotFound))
-                        log::debug!("Get Friends > Db Repositories > `repos` is None.");
+                        log::error!("Get Friends > Db Repositories > `repos` is None.");
                         todo!()
                     }
                 };
@@ -95,11 +96,12 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     }
                 });
 
+                log::info!("Returning generator for all friends");
                 generator
             }
             Err(err) => {
                 // TODO: Handle error when trying to get User Id.
-                log::debug!("Get Friends > Get User ID from Token > Error: {err}.");
+                log::error!("Get Friends > Get User ID from Token > Error: {err}.");
                 // Err(FriendshipsError::CommonError(CommonError::Unknown)),
                 let (g, _) = Generator::create();
                 g
