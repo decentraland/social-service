@@ -13,8 +13,7 @@ use actix_web::{
 use futures_util::future::LocalBoxFuture;
 
 use crate::{
-    api::routes::v1::error::CommonError,
-    components::{app::AppComponents, users_cache},
+    api::routes::v1::error::CommonError, components::app::AppComponents,
     ports::users_cache::get_user_id_from_token,
 };
 
@@ -124,8 +123,8 @@ where
             let components = request.app_data::<Data<AppComponents>>().unwrap().clone();
             let context = components.into_inner();
             let user_id = get_user_id_from_token(
-                Arc::new(context.synapse.clone()),
-                Arc::new(context.users_cache),
+                Arc::clone(&context.synapse),
+                Arc::clone(&context.users_cache),
                 &token,
             )
             .await;

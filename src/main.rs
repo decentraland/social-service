@@ -1,8 +1,8 @@
-use std::io;
+use std::{io, sync::Arc};
 
 use social_service::{
     api::app::{get_app_data, run_service},
-    ws::app::{run_ws_transport, ConfigRpcServer},
+    ws::app::{run_ws_transport, ConfigRpcServer, SocialContext},
 };
 use tokio::join;
 
@@ -14,11 +14,11 @@ async fn main() -> io::Result<()> {
 
     // Run WebSocket transport
     let ctx = SocialContext {
-        synapse: Arc::new(app_data.clone().synapse),
-        db: Arc::new(app_data.clone().db),
-        users_cache: Arc::new(app_data.clone().users_cache),
+        synapse: Arc::clone(&app_data.synapse),
+        db: Arc::clone(&app_data.db),
+        users_cache: Arc::clone(&app_data.users_cache),
         config: ConfigRpcServer {
-            rpc_server: app_data.into_inner().config.rpc_server,
+            rpc_server: app_data.config.rpc_server.clone(),
         },
     };
 

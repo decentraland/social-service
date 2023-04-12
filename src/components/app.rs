@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures_util::lock::Mutex;
 
 use super::configuration::Database;
@@ -13,10 +15,10 @@ use super::{
 
 pub struct AppComponents {
     pub health: HealthComponent,
-    pub synapse: SynapseComponent,
+    pub synapse: Arc<SynapseComponent>,
     pub config: Config,
-    pub db: DatabaseComponent,
-    pub users_cache: Mutex<UsersCacheComponent>,
+    pub db: Arc<DatabaseComponent>,
+    pub users_cache: Arc<Mutex<UsersCacheComponent>>,
 }
 
 impl AppComponents {
@@ -41,9 +43,9 @@ impl AppComponents {
 
         Self {
             health,
-            db,
-            synapse,
-            users_cache: Mutex::new(users_cache),
+            db: Arc::new(db),
+            synapse: Arc::new(synapse),
+            users_cache: Arc::new(Mutex::new(users_cache)),
             config,
         }
     }

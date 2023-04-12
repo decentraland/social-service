@@ -32,7 +32,7 @@ use crate::{
 };
 
 pub struct ConfigRpcServer {
-    rpc_server: Server,
+    pub rpc_server: Server,
 }
 
 pub struct SocialContext {
@@ -45,6 +45,9 @@ pub struct SocialContext {
 pub async fn run_ws_transport(
     ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
+    let port = ctx.config.rpc_server.port.clone();
+    let host = ctx.config.rpc_server.host.clone();
+
     if env_logger::try_init().is_err() {
         log::debug!("Logger already init")
     }
@@ -84,8 +87,8 @@ pub async fn run_ws_transport(
         .map(|| "\"alive\"".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
 
-    let addr = match ctx.config.rpc_server.host.parse::<Ipv4Addr>() {
-        Ok(v) => SocketAddr::new(IpAddr::V4(v), ctx.config.rpc_server.port),
+    let addr = match host.parse::<Ipv4Addr>() {
+        Ok(v) => SocketAddr::new(IpAddr::V4(v), port),
         Err(err) => {
             log::debug!("Running websocket server with default values as an error was found with the configuration: {:?}", err);
             ([0, 0, 0, 0], 8085).into()
