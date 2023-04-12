@@ -88,7 +88,7 @@ pub async fn run_ws_transport(
     let routes = warp::get().and(rpc_route.or(rest_routes));
 
     let addr = match host.parse::<Ipv4Addr>() {
-        Ok(v) => SocketAddr::new(IpAddr::V4(v), port),
+        Ok(ip) => SocketAddr::new(IpAddr::V4(ip), port),
         Err(err) => {
             log::debug!("Running websocket server with default values as an error was found with the configuration: {:?}", err);
             ([0, 0, 0, 0], 8085).into()

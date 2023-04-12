@@ -121,10 +121,9 @@ where
         let svc = self.service.clone();
         Box::pin(async move {
             let components = request.app_data::<Data<AppComponents>>().unwrap().clone();
-            let context = components.into_inner();
             let user_id = get_user_id_from_token(
-                Arc::clone(&context.synapse),
-                Arc::clone(&context.users_cache),
+                Arc::clone(&components.synapse),
+                Arc::clone(&components.users_cache),
                 &token,
             )
             .await;
