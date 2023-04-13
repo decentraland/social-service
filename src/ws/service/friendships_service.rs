@@ -10,10 +10,12 @@ use crate::{
     UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users,
 };
 
+#[derive(Debug)]
 pub struct MyFriendshipsService {}
 
 #[async_trait::async_trait]
 impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
+    #[tracing::instrument(name = "RPC SERVER > Get Friends Generator", skip(request, context))]
     async fn get_friends(
         &self,
         request: Payload,
@@ -108,6 +110,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
             }
         }
     }
+    #[tracing::instrument(name = "RPC SERVER > Get Request Events", skip(_request, _context))]
     async fn get_request_events(
         &self,
         _request: Payload,
@@ -116,6 +119,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         todo!()
     }
 
+    #[tracing::instrument(
+        name = "RPC SERVER > Update Friendship Event",
+        skip(_request, _context)
+    )]
     async fn update_friendship_event(
         &self,
         _request: UpdateFriendshipPayload,
@@ -124,6 +131,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         todo!()
     }
 
+    #[tracing::instrument(
+        name = "RPC SERVER > Subscribe to friendship updates",
+        skip(_request, _context)
+    )]
     async fn subscribe_friendship_events_updates(
         &self,
         _request: Payload,
