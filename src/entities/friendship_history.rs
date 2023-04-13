@@ -13,10 +13,10 @@ use sqlx::{
 use crate::{
     api::routes::synapse::room_events::FriendshipEvent,
     components::database::{DBConnection, DatabaseComponent, Executor},
+    entities::queries::USER_REQUESTS_QUERY,
+    entities::utils::get_transaction_result_from_executor,
     generate_uuid_v4,
 };
-
-use super::{queries::USER_REQUESTS_QUERY, utils::get_transaction_result_from_executor};
 
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {

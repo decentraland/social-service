@@ -49,7 +49,7 @@ pub const USER_REQUESTS_QUERY: &str =
       FROM friendships f
       INNER JOIN friendship_history fh ON f.id = fh.friendship_id
       WHERE (LOWER(f.address_1) = $1 OR LOWER(f.address_2) = $1)
-      AND fh.event = 'REQUEST'
+      AND fh.event = '\"request\"'
       AND fh.timestamp = (
         SELECT MAX(fh2.timestamp)
         FROM friendship_history fh2
