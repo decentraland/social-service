@@ -1,9 +1,6 @@
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 use dcl_rpc::{
@@ -15,6 +12,7 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
+
 use tokio::sync::Mutex;
 use warp::{
     ws::{Message as WarpWSMessage, WebSocket},
@@ -22,24 +20,33 @@ use warp::{
 };
 
 use crate::{
-    components::app::AppComponents, ws::service::friendships_service,
+    components::{
+        configuration::Server, database::DatabaseComponent, synapse::SynapseComponent,
+        users_cache::UsersCacheComponent,
+    },
+    ws::service::friendships_service,
     FriendshipsServiceRegistration,
 };
 
+pub struct ConfigRpcServer {
+    pub rpc_server: Server,
+}
+
 pub struct SocialContext {
-    // TODO: We won't need all the AppComponents
-    pub app_components: Arc<AppComponents>,
+    pub synapse: SynapseComponent,
+    pub db: DatabaseComponent,
+    pub users_cache: Arc<Mutex<UsersCacheComponent>>,
+    pub config: ConfigRpcServer,
 }
 
 pub async fn run_ws_transport(
-    app_components: Arc<AppComponents>,
+    ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
+    let port = ctx.config.rpc_server.port;
+
     if env_logger::try_init().is_err() {
         log::debug!("Logger already init")
     }
-
-    let config = app_components.config.clone();
-    let ctx = SocialContext { app_components };
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
         dcl_rpc::server::RpcServer::create(ctx);
@@ -73,17 +80,11 @@ pub async fn run_ws_transport(
     let rest_routes = warp::path("health")
         .and(warp::path("live"))
         .and(warp::path::end())
-        .map(|| "alive".to_string());
+        .map(|| "\"alive\"".to_string());
     let routes = warp::get().and(rpc_route.or(rest_routes));
-    let addr = match config.rpc_server.host.parse::<Ipv4Addr>() {
-        Ok(v) => SocketAddr::new(IpAddr::V4(v), config.rpc_server.port),
-        Err(err) => {
-            log::debug!("Running websocket server with default values as an error was found with the configuration: {:?}", err);
-            ([0, 0, 0, 0], 8085).into()
-        }
-    };
+
     let http_server_handle = tokio::spawn(async move {
-        warp::serve(routes).run(addr).await;
+        warp::serve(routes).run(([0, 0, 0, 0], port)).await;
     });
 
     (rpc_server_handle, http_server_handle)

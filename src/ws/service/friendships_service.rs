@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
+use tokio::sync::Mutex;
 
 use crate::{
+    components::{synapse::SynapseComponent, users_cache::UsersCacheComponent},
     entities::{
         friendship_history::FriendshipRequestEvent, friendships::FriendshipRepositoryImplementation,
     },
@@ -25,12 +27,17 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         context: Arc<SocialContext>,
     ) -> ServerStreamResponse<Users> {
         // Get user id with the given Authentication Token.
-        let user_id = get_user_id_from_request(&request, &context).await;
+        let user_id = get_user_id_from_request(
+            &request,
+            context.synapse.clone(),
+            context.users_cache.clone(),
+        )
+        .await;
 
         match user_id {
             Ok(user_id) => {
                 // Look for users friends
-                let mut friendship = match context.app_components.db.db_repos.clone() {
+                let mut friendship = match context.db.db_repos.clone() {
                     Some(repos) => {
                         let friendship = repos
                             .friendships
@@ -105,12 +112,17 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         context: Arc<SocialContext>,
     ) -> RequestEvents {
         // Get user id with the given Authentication Token.
-        let user_id = get_user_id_from_request(&request, &context).await;
+        let user_id = get_user_id_from_request(
+            &request,
+            context.synapse.clone(),
+            context.users_cache.clone(),
+        )
+        .await;
 
         match user_id {
             Ok(user_id) => {
                 // Look for users requests
-                match context.app_components.db.db_repos.clone() {
+                match context.db.db_repos.clone() {
                     Some(repos) => {
                         let requests = repos
                             .friendship_history
@@ -168,11 +180,12 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 /// * `context` -
 async fn get_user_id_from_request(
     request: &Payload,
-    context: &Arc<SocialContext>,
+    synapse: SynapseComponent,
+    users_cache: Arc<Mutex<UsersCacheComponent>>,
 ) -> Result<UserId, FriendshipsServiceErrorResponse> {
     match request.synapse_token.clone() {
         // If an authentication token was provided, get the user id from the token
-        Some(token) => get_user_id_from_token(context.app_components.clone(), &token)
+        Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
             .await
             .map_err(|_err| -> FriendshipsServiceErrorResponse {
                 FriendshipsServiceError::InternalServerError.into()

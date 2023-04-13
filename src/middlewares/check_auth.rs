@@ -1,6 +1,7 @@
 use std::{
     future::{ready, Ready},
     rc::Rc,
+    sync::Arc,
 };
 
 use actix_web::{
@@ -117,26 +118,39 @@ where
 
         let token = token.to_string();
 
-        let components = request.app_data::<Data<AppComponents>>().unwrap().clone();
         let svc = self.service.clone();
-
         Box::pin(async move {
-            let user_id = get_user_id_from_token(components.into_inner(), &token).await;
+            match request.app_data::<Data<AppComponents>>() {
+                Some(components) => {
+                    let user_id = get_user_id_from_token(
+                        components.synapse.clone(),
+                        Arc::clone(&components.users_cache),
+                        &token,
+                    )
+                    .await;
 
-            if let Ok(user_id) = user_id {
-                {
-                    let mut extensions = request.extensions_mut();
-                    extensions.insert(user_id);
-                    extensions.insert(Token(token));
-                } // drop extension
+                    if let Ok(user_id) = user_id {
+                        {
+                            let mut extensions = request.extensions_mut();
+                            extensions.insert(user_id);
+                            extensions.insert(Token(token));
+                        } // drop extension
 
-                let res = svc.call(request);
-                res.await.map(ServiceResponse::map_into_left_body)
-            } else {
-                let (request, _pl) = request.into_parts();
-                let response =
-                    HttpResponse::from_error(user_id.err().unwrap()).map_into_right_body();
-                Ok(ServiceResponse::new(request, response))
+                        let res = svc.call(request);
+                        res.await.map(ServiceResponse::map_into_left_body)
+                    } else {
+                        let (request, _pl) = request.into_parts();
+                        let response =
+                            HttpResponse::from_error(user_id.err().unwrap()).map_into_right_body();
+                        Ok(ServiceResponse::new(request, response))
+                    }
+                }
+                None => {
+                    let (request, _pl) = request.into_parts();
+                    let response =
+                        HttpResponse::from_error(CommonError::Unknown).map_into_right_body();
+                    Ok(ServiceResponse::new(request, response))
+                }
             }
         })
     }

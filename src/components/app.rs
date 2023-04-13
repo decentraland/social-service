@@ -1,4 +1,6 @@
-use futures_util::lock::Mutex;
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 use super::configuration::Database;
 use super::{
@@ -16,7 +18,7 @@ pub struct AppComponents {
     pub synapse: SynapseComponent,
     pub config: Config,
     pub db: DatabaseComponent,
-    pub users_cache: Mutex<UsersCacheComponent>,
+    pub users_cache: Arc<Mutex<UsersCacheComponent>>,
 }
 
 impl AppComponents {
@@ -43,7 +45,7 @@ impl AppComponents {
             health,
             db,
             synapse,
-            users_cache: Mutex::new(users_cache),
+            users_cache: Arc::new(Mutex::new(users_cache)),
             config,
         }
     }
