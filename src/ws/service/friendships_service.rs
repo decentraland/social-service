@@ -17,10 +17,12 @@ use crate::{
     UpdateFriendshipResponse, User, Users,
 };
 
+#[derive(Debug)]
 pub struct MyFriendshipsService {}
 
 #[async_trait::async_trait]
 impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
+    #[tracing::instrument(name = "RPC SERVER > Get Friends Generator", skip(request, context))]
     async fn get_friends(
         &self,
         request: Payload,
@@ -36,6 +38,8 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
         match user_id {
             Ok(user_id) => {
+                let social_id = user_id.social_id.clone();
+                log::info!("Getting all friends for user: {}", social_id);
                 // Look for users friends
                 let mut friendship = match context.db.db_repos.clone() {
                     Some(repos) => {
@@ -46,7 +50,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         match friendship {
                             // TODO: Handle get friends stream query response error.
                             Err(err) => {
-                                log::debug!(
+                                log::error!(
                                     "Get Friends > Get User Friends Stream > Error: {err}."
                                 );
                                 todo!()
@@ -56,7 +60,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     }
                     // TODO: Handle repos None.
                     None => {
-                        log::debug!("Get Friends > Db Repositories > `repos` is None.");
+                        log::error!("Get Friends > Db Repositories > `repos` is None.");
                         todo!()
                     }
                 };
@@ -97,15 +101,17 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     }
                 });
 
+                log::info!("Returning generator for all friends for user {}", social_id);
                 generator
             }
             Err(_err) => {
                 // TODO: Handle error when trying to get User Id.
-                log::debug!("Get Friends > Get User ID from Token > Error.");
+                log::error!("Get Friends > Get User ID from Token > Error.");
                 todo!()
             }
         }
     }
+    #[tracing::instrument(name = "RPC SERVER > Get Request Events", skip(request, context))]
     async fn get_request_events(
         &self,
         request: Payload,
@@ -152,6 +158,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         }
     }
 
+    #[tracing::instrument(
+        name = "RPC SERVER > Update Friendship Event",
+        skip(_request, _context)
+    )]
     async fn update_friendship_event(
         &self,
         _request: UpdateFriendshipPayload,
@@ -160,6 +170,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         todo!()
     }
 
+    #[tracing::instrument(
+        name = "RPC SERVER > Subscribe to friendship updates",
+        skip(_request, _context)
+    )]
     async fn subscribe_friendship_events_updates(
         &self,
         _request: Payload,

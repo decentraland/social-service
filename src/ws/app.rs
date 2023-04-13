@@ -84,6 +84,7 @@ pub async fn run_ws_transport(
     let routes = warp::get().and(rpc_route.or(rest_routes));
 
     let http_server_handle = tokio::spawn(async move {
+        log::info!("Running RPC WebSocket Server at 0.0.0.:{}", port);
         warp::serve(routes).run(([0, 0, 0, 0], port)).await;
     });
 
