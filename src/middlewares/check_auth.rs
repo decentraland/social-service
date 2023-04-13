@@ -4,7 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use actix_http::StatusCode;
 use actix_web::{
     body::EitherBody,
     dev::{self, Service, ServiceRequest, ServiceResponse, Transform},
@@ -148,9 +147,8 @@ where
                 }
                 None => {
                     let (request, _pl) = request.into_parts();
-                    let response = HttpResponse::build(StatusCode::INTERNAL_SERVER_ERROR)
-                        .finish()
-                        .map_into_right_body();
+                    let response =
+                        HttpResponse::from_error(CommonError::Unknown).map_into_right_body();
                     Ok(ServiceResponse::new(request, response))
                 }
             }
