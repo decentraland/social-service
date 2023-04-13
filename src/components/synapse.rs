@@ -7,7 +7,7 @@ use crate::api::routes::{
     v1::error::CommonError,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SynapseComponent {
     synapse_url: String,
 }
