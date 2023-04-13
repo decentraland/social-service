@@ -156,7 +156,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
                 .unwrap_or(LevelFilter::Info);
 
             let options = PgConnectOptions::from_str(url.as_str())
-                .unwrap()
+                .expect("Unable to parse Database URL")
                 .log_statements(log_level)
                 .clone();
 
