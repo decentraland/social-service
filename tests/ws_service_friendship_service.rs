@@ -16,16 +16,16 @@ mod tests {
         let user_id: String = "Pizarnik".to_string();
 
         // Function to test
-        let result: RequestEvents = map_request_events(requests, user_id);
+        let mut result: RequestEvents = map_request_events(requests, user_id);
 
         assert_eq!(result.outgoing.unwrap().total, 1);
         assert_eq!(result.incoming.clone().unwrap().total, 1);
 
-        let incoming_requests = result.incoming.clone().take();
+        let incoming_requests = result.incoming.take();
         if let Some(incoming_requests) = incoming_requests {
             let incoming_request = incoming_requests.items.get(0).unwrap();
             assert_eq!(incoming_request.user.as_ref().unwrap().address, "Martha");
-            assert_eq!(incoming_request.created_at > 0, true);
+            assert!(incoming_request.created_at > 0);
             assert_eq!(
                 incoming_request.message.clone().unwrap_or_default(),
                 "Hey, let's be friends!"

@@ -14,7 +14,7 @@ async fn should_create_and_get_a_friendship() {
     let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
 
-    create_friendship(&dbrepos, "B", "A", false).await;
+    create_friendship(dbrepos, "B", "A", false).await;
 
     let friendship = dbrepos
         .friendships
@@ -35,7 +35,7 @@ async fn should_create_a_friendship_request_event() {
     let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
 
-    create_friendship(&dbrepos, "C", "D", false).await;
+    create_friendship(dbrepos, "C", "D", false).await;
 
     let friendship = dbrepos
         .friendships
@@ -45,7 +45,7 @@ async fn should_create_a_friendship_request_event() {
         .unwrap()
         .unwrap();
 
-    create_friendship_event(&dbrepos, friendship.id, "\"request\"", "C").await;
+    create_friendship_event(dbrepos, friendship.id, "\"request\"", "C").await;
 
     let friendship_history = dbrepos
         .friendship_history
@@ -116,13 +116,13 @@ async fn should_get_pending_request_events() {
     let dbrepos = db.db_repos.as_ref().unwrap();
 
     // create a friendships between two users
-    let friendship_id_1 = create_friendship(&dbrepos, "A", "B", false).await;
-    let friendship_id_2 = create_friendship(&dbrepos, "A", "C", false).await;
+    let friendship_id_1 = create_friendship(dbrepos, "A", "B", false).await;
+    let friendship_id_2 = create_friendship(dbrepos, "A", "C", false).await;
 
     // create friendship history entries to represent friendship events
-    create_friendship_event(&dbrepos, friendship_id_1, "\"request\"", "A").await;
-    create_friendship_event(&dbrepos, friendship_id_2, "\"request\"", "A").await;
-    create_friendship_event(&dbrepos, friendship_id_2, "\"accept\"", "C").await;
+    create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "A").await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"request\"", "A").await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"accept\"", "C").await;
 
     // retrieve the pending request events for the auth user
     let requests = dbrepos
