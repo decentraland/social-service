@@ -163,7 +163,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
             let db_connection = match pool.connect_with(options).await {
                 Ok(db) => db,
                 Err(err) => {
-                    log::debug!("Error on connecting to DB: {:?}", err);
+                    log::error!("Error on connecting to DB: {:?}", err);
                     panic!("Unable to connect to DB")
                 }
             };
@@ -172,7 +172,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
 
             // Just runs the pending migrations
             if let Err(err) = sqlx::migrate!("./migrations").run(&db_connection).await {
-                log::debug!("Error on running DB Migrations. Err: {:?}", err);
+                log::error!("Error on running DB Migrations. Err: {:?}", err);
                 panic!("Unable to run pending migrations")
             } else {
                 log::info!("Migrations executed!");
