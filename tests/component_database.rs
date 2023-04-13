@@ -140,6 +140,38 @@ async fn should_get_pending_request_events() {
     assert!(first_request.metadata.is_none());
 }
 
+#[actix_web::test]
+#[serial_test::serial]
+async fn should_get_pending_request_events_other_acting_user() {
+    // create the database component
+    let db = create_db_component(None).await;
+    let dbrepos = db.db_repos.as_ref().unwrap();
+
+    // create friendships between two users
+    let friendship_id_1 = create_friendship(dbrepos, "A", "B", false).await;
+    let friendship_id_2 = create_friendship(dbrepos, "A", "C", false).await;
+
+    // create friendship history entries to represent friendship events
+    create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "B").await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"request\"", "C").await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"accept\"", "A").await;
+
+    // retrieve the pending request events for the auth user
+    let requests = dbrepos
+        .friendship_history
+        .get_user_pending_request_events("A")
+        .await
+        .unwrap();
+
+    // check that the retrieved events have the expected properties
+    assert!(requests.len() == 1);
+    let first_request = &requests[0];
+    assert_eq!(first_request.address_1, "A");
+    assert_eq!(first_request.address_2, "B");
+    assert_eq!(first_request.acting_user, "B");
+    assert!(first_request.metadata.is_none());
+}
+
 /// Creates a new friendship between two users and returns the friendship_id.
 async fn create_friendship(
     dbrepos: &DBRepositories,
