@@ -7,16 +7,16 @@ use sqlx::{
     postgres::Postgres,
     query::Query,
     types::{Json, Uuid},
-    Error, Row, Transaction,
+    Error, FromRow, Row, Transaction,
 };
 
 use crate::{
     api::routes::synapse::room_events::FriendshipEvent,
     components::database::{DBConnection, DatabaseComponent, Executor},
+    entities::queries::USER_REQUESTS_QUERY,
+    entities::utils::get_transaction_result_from_executor,
     generate_uuid_v4,
 };
-
-use super::utils::get_transaction_result_from_executor;
 
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {
@@ -33,6 +33,15 @@ pub struct FriendshipMetadata {
 pub struct FriendshipHistory {
     pub friendship_id: Uuid,
     pub event: FriendshipEvent,
+    pub acting_user: String,
+    pub timestamp: NaiveDateTime,
+    pub metadata: Option<Json<FriendshipMetadata>>,
+}
+
+#[derive(FromRow)]
+pub struct FriendshipRequestEvent {
+    pub address_1: String,
+    pub address_2: String,
     pub acting_user: String,
     pub timestamp: NaiveDateTime,
     pub metadata: Option<Json<FriendshipMetadata>>,
@@ -131,6 +140,38 @@ impl FriendshipHistoryRepository {
                 Error::RowNotFound => (Ok(None), transaction_to_return),
                 _ => (Err(err), transaction_to_return),
             },
+        }
+    }
+
+    /// Fetches the request events of the given user.
+    pub async fn get_user_pending_request_events(
+        &self,
+        address: &str,
+    ) -> Result<Vec<FriendshipRequestEvent>, sqlx::Error> {
+        let query = USER_REQUESTS_QUERY.to_string();
+
+        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
+
+        let executor = self.get_executor(None);
+
+        let (res, _) = DatabaseComponent::fetch_all(query, executor).await;
+
+        match res {
+            Ok(rows) => {
+                let response = Ok(rows
+                    .iter()
+                    .map(|row| -> FriendshipRequestEvent {
+                        FriendshipRequestEvent::from_row(row)
+                            .expect("to be a friendship request event")
+                    })
+                    .collect::<Vec<FriendshipRequestEvent>>());
+                response
+            }
+            Err(Error::RowNotFound) => Ok(vec![]),
+            Err(err) => {
+                log::error!("Couldn't fetch user {} requests, {}", address, err);
+                Err(err)
+            }
         }
     }
 
