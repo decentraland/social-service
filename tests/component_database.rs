@@ -115,7 +115,7 @@ async fn should_get_pending_request_events() {
     let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
 
-    // create a friendships between two users
+    // create friendships between two users
     let friendship_id_1 = create_friendship(dbrepos, "A", "B", false).await;
     let friendship_id_2 = create_friendship(dbrepos, "A", "C", false).await;
 
