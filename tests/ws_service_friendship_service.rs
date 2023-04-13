@@ -1,18 +1,21 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::entities::friendship_history::FriendshipMetadata;
     use chrono::NaiveDateTime;
+    use social_service::{
+        entities::friendship_history::{FriendshipMetadata, FriendshipRequestEvent},
+        ws::service::friendships_service::map_request_events,
+        RequestEvents,
+    };
 
     #[test]
     fn test_map_request_events() {
         // Database mock response
-        let requests: Vec<FriendshipRequestEvents> = generate_request_events();
+        let requests: Vec<FriendshipRequestEvent> = generate_request_events();
 
         // Authenticated user
         let user_id: String = "Pizarnik".to_string();
 
-        // Func to test
+        // Function to test
         let result: RequestEvents = map_request_events(requests, user_id);
 
         assert_eq!(result.outgoing.unwrap().total, 1);
@@ -30,12 +33,12 @@ mod tests {
         }
     }
 
-    fn generate_request_events() -> Vec<FriendshipRequestEvents> {
+    fn generate_request_events() -> Vec<FriendshipRequestEvent> {
         let timestamp_str = "2022-04-12 09:30:00";
         let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%d %H:%M:%S").unwrap();
 
         vec![
-            FriendshipRequestEvents {
+            FriendshipRequestEvent {
                 acting_user: "Martha".to_string(),
                 address_1: "Martha".to_string(),
                 address_2: "Pizarnik".to_string(),
@@ -46,7 +49,7 @@ mod tests {
                     migrated_from_synapse: None,
                 })),
             },
-            FriendshipRequestEvents {
+            FriendshipRequestEvent {
                 acting_user: "Pizarnik".to_string(),
                 address_1: "PedroL".to_string(),
                 address_2: "Pizarnik".to_string(),
