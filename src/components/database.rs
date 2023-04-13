@@ -1,14 +1,15 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::DateTime;
 
 use futures_util::stream::BoxStream;
+use log::LevelFilter;
 use mockall::automock;
 use sqlx::{
-    postgres::{PgArguments, PgPoolOptions, PgQueryResult, PgRow},
+    postgres::{PgArguments, PgConnectOptions, PgPoolOptions, PgQueryResult, PgRow},
     query::Query,
-    Error, Pool, Postgres, Row, Transaction,
+    ConnectOptions, Error, Pool, Postgres, Row, Transaction,
 };
 
 use super::configuration::Database as DatabaseConfig;
@@ -146,11 +147,20 @@ impl DatabaseComponentImplementation for DatabaseComponent {
                 "postgres://{}:{}@{}/{}",
                 self.db_user, self.db_password, self.db_host, self.db_name
             );
-            log::debug!("DB URL: {}", url);
+            log::info!("DB URL: {}", url);
 
             let pool = PgPoolOptions::new().min_connections(5).max_connections(10);
 
-            let db_connection = match pool.connect(url.as_str()).await {
+            let log_level = std::env::var("RUST_LOG")
+                .map(|level| LevelFilter::from_str(&level).unwrap_or(LevelFilter::Info))
+                .unwrap_or(LevelFilter::Info);
+
+            let options = PgConnectOptions::from_str(url.as_str())
+                .unwrap()
+                .log_statements(log_level)
+                .clone();
+
+            let db_connection = match pool.connect_with(options).await {
                 Ok(db) => db,
                 Err(err) => {
                     log::debug!("Error on connecting to DB: {:?}", err);
@@ -158,14 +168,14 @@ impl DatabaseComponentImplementation for DatabaseComponent {
                 }
             };
 
-            log::debug!("Running Database migrations...");
+            log::info!("Running Database migrations...");
 
             // Just runs the pending migrations
             if let Err(err) = sqlx::migrate!("./migrations").run(&db_connection).await {
-                log::error!("Error on running DB Migrations. Err: {:?}", err);
+                log::debug!("Error on running DB Migrations. Err: {:?}", err);
                 panic!("Unable to run pending migrations")
             } else {
-                log::debug!("Migrations executed!");
+                log::info!("Migrations executed!");
             }
 
             self.db_connection = Arc::new(Some(db_connection));
@@ -177,7 +187,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
 
             Ok(())
         } else {
-            log::debug!("DB Connection is already set.");
+            log::warn!("DB Connection is already set.");
             Ok(())
         }
     }
