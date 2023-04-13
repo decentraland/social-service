@@ -34,7 +34,8 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
         match user_id {
             Ok(user_id) => {
-                log::info!("Getting all friends for user: {}", user_id.social_id);
+                let social_id = user_id.social_id.clone();
+                log::info!("Getting all friends for user: {}", social_id);
                 // Look for users friends
                 let mut friendship = match context.app_components.db.db_repos.clone() {
                     Some(repos) => {
@@ -98,7 +99,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     }
                 });
 
-                log::info!("Returning generator for all friends");
+                log::info!("Returning generator for all friends for user {}", social_id);
                 generator
             }
             Err(err) => {
