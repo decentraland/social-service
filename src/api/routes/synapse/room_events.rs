@@ -188,9 +188,7 @@ async fn process_room_event<'a>(
         friendship_history_repository: &repos.friendship_history,
     };
 
-    // The only case where we don't create the friendship if it didn't exist
-    // If they are still no friends, it's unnecessary to create a friendship
-    // TODO: Juli: I don't undestand this comment. Do we need to change this logic?
+    // If the status has not changed, we don't do anything
     if current_status == new_status {
         return Ok(RoomEventResponse {
             event_id: room_id.to_string(),
