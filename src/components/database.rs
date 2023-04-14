@@ -151,13 +151,9 @@ impl DatabaseComponentImplementation for DatabaseComponent {
 
             let pool = PgPoolOptions::new().min_connections(5).max_connections(10);
 
-            let log_level = std::env::var("RUST_LOG")
-                .map(|level| LevelFilter::from_str(&level).unwrap_or(LevelFilter::Info))
-                .unwrap_or(LevelFilter::Info);
-
             let options = PgConnectOptions::from_str(url.as_str())
                 .expect("Unable to parse Database URL")
-                .log_statements(log_level)
+                .log_statements(LevelFilter::Debug) // Only log queries when running in debug log level
                 .clone();
 
             let db_connection = match pool.connect_with(options).await {
@@ -170,7 +166,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
 
             log::info!("Running Database migrations...");
 
-            // Just runs the pending migrations
+            Just runs the pending migrations
             if let Err(err) = sqlx::migrate!("./migrations").run(&db_connection).await {
                 log::error!("Error on running DB Migrations. Err: {:?}", err);
                 panic!("Unable to run pending migrations")
