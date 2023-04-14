@@ -158,15 +158,24 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         }
     }
 
-    #[tracing::instrument(
-        name = "RPC SERVER > Update Friendship Event",
-        skip(_request, _context)
-    )]
+    #[tracing::instrument(name = "RPC SERVER > Update Friendship Event", skip(request, context))]
     async fn update_friendship_event(
         &self,
-        _request: UpdateFriendshipPayload,
-        _context: Arc<SocialContext>,
+        request: UpdateFriendshipPayload,
+        context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
+        // Get user id with the given Authentication Token.
+        let _user_id = get_user_id_from_request(
+            &request.auth_token.unwrap(),
+            context.synapse.clone(),
+            context.users_cache.clone(),
+        )
+        .await;
+
+        // Process rooom event as in process_room_event_ws()
+
+        // Return Response
+
         todo!()
     }
 
@@ -264,4 +273,25 @@ pub fn map_request_events(requests: Vec<FriendshipRequestEvent>, user_id: String
             items: incoming_requests,
         }),
     }
+}
+
+///
+/// TODO: think about moving this func to another place later
+async fn process_room_event_ws() {
+    // get last status from db to later use to validate if the current action is valid
+    // let friendship = get_friendship_from_db(&repos.friendships, acting_user, &second_user).await?;
+
+    // validate the new status trying to be set is valid
+
+    // start transaction
+
+    // update friendship accordingly in db, that is, create an entry in the friendships table or update the column is active.
+
+    // if it's a friendship request event and the request contains a message, we send a message event to the given room.
+
+    // store friendship event in the given room.
+
+    // end transaction
+
+    // return result
 }
