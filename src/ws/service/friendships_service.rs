@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::{
     api::routes::synapse::{
         errors::SynapseError,
-        room_events::{FriendshipEvent, FriendshipStatus, RoomInfo},
+        room_events::{FriendshipEvent, FriendshipStatus},
     },
     components::{
         database::{DatabaseComponent, DatabaseComponentImplementation},
@@ -321,7 +321,7 @@ async fn process_room_event_ws(
 
     //  Get the last status from the database to later validate if the current action is valid.
     let friendship_history_repository = &db_repos.friendship_history;
-    let last_history = get_last_history(&friendship, friendship_history_repository)
+    let _last_history = get_last_history(&friendship, friendship_history_repository)
         .await
         .unwrap();
 
@@ -337,7 +337,7 @@ async fn process_room_event_ws(
         friendships_repository: &db_repos.friendships,
         friendship_history_repository: &db_repos.friendship_history,
     };
-    let transaction = match friendship_ports.db.start_transaction().await {
+    let _transaction = match friendship_ports.db.start_transaction().await {
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Couldn't start transaction to store friendship update {error}");
@@ -400,7 +400,7 @@ async fn update_friendship_status<'a>(
         is_active,
         acting_user,
         second_user,
-        &friendship_ports.friendships_repository,
+        friendship_ports.friendships_repository,
         transaction,
     )
     .await;
