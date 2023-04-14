@@ -282,6 +282,11 @@ async fn process_room_event_ws() {
     // let friendship = get_friendship_from_db(&repos.friendships, acting_user, &second_user).await?;
 
     // validate the new status trying to be set is valid
+    // if it's invalid or it has not changed, return here.
+
+    // get synapse room id in our db or synapse
+
+    // create room if needded
 
     // start transaction
 
