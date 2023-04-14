@@ -166,7 +166,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
 
             log::info!("Running Database migrations...");
 
-            Just runs the pending migrations
+            // Just runs the pending migrations
             if let Err(err) = sqlx::migrate!("./migrations").run(&db_connection).await {
                 log::error!("Error on running DB Migrations. Err: {:?}", err);
                 panic!("Unable to run pending migrations")
