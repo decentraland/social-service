@@ -14,17 +14,18 @@ use crate::{
         },
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
+    friendship_event_payload,
     ports::users_cache::{get_user_id_from_token, UserId},
     ws::service::error::FriendshipsServiceError,
     ws::service::error::FriendshipsServiceErrorResponse,
-    Payload, RequestEvents, RequestResponse, Requests, User,
+    Payload, RequestEvents, RequestResponse, Requests, UpdateFriendshipPayload, User,
 };
 
 use super::friendship_ws_types::{
-    EventResponse, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
+    EventPayload, EventResponse, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
 };
 
-/// Retrieve the User Id associated with the given Authentication Token.
+/// Retrieves the User Id associated with the given Authentication Token.
 ///
 /// If an authentication token was provided in the request, this function gets the
 /// user id from the token and returns it as a `Result<UserId, Error>`. If no
@@ -196,6 +197,7 @@ async fn store_friendship_update(
     }
 }
 
+// Updates the friendship status in the friendship table and stores an update in the history table.
 pub async fn update_friendship_status<'a>(
     friendship: &'a Option<Friendship>,
     acting_user: &'a str,
@@ -205,7 +207,7 @@ pub async fn update_friendship_status<'a>(
     friendship_ports: FriendshipPortsWs<'a>,
     transaction: Transaction<'static, Postgres>,
 ) -> Result<Transaction<'static, Postgres>, FriendshipsServiceErrorResponse> {
-    // store friendship update
+    // Store friendship update
     let is_active = new_status == FriendshipStatusWs::Friends;
     let (friendship_id_result, transaction) = store_friendship_update(
         friendship_ports.friendships_repository,
@@ -243,7 +245,7 @@ pub async fn update_friendship_status<'a>(
         })
     });
 
-    // store history
+    // Store history
     let (friendship_history_result, transaction) = friendship_ports
         .friendship_history_repository
         .create(
@@ -304,6 +306,7 @@ pub async fn store_message_in_synapse_room<'a>(
     Ok(())
 }
 
+/// Stores a room event in a Synapse room, and it returns an EventResponse struct containing the event ID if the operation was successful
 pub async fn store_room_event_in_synapse_room(
     token: &str,
     room_id: &str,
@@ -324,4 +327,65 @@ pub async fn store_room_event_in_synapse_room(
         }
         Err(_) => return Err(FriendshipsServiceError::InternalServerError.into()),
     }
+}
+
+/// Extracts the information from a friendship update payload,
+/// that is, the room event, the other user who is part of the friendship event, and the message body from the request event.
+pub fn extract_event_payload(
+    request: UpdateFriendshipPayload,
+) -> Result<EventPayload, FriendshipsServiceErrorResponse> {
+    let event_payload = if let Some(body) = request.event.clone() {
+        match body.body {
+            Some(friendship_event_payload::Body::Request(request)) => EventPayload {
+                friendship_event: FriendshipEvent::REQUEST,
+                request_event_message_body: request.message,
+                second_user: request
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+                    .clone(),
+            },
+            Some(friendship_event_payload::Body::Accept(accept)) => EventPayload {
+                friendship_event: FriendshipEvent::ACCEPT,
+                request_event_message_body: None,
+                second_user: accept
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+                    .clone(),
+            },
+            Some(friendship_event_payload::Body::Reject(reject)) => EventPayload {
+                friendship_event: FriendshipEvent::REJECT,
+                request_event_message_body: None,
+                second_user: reject
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+                    .clone(),
+            },
+            Some(friendship_event_payload::Body::Cancel(cancel)) => EventPayload {
+                friendship_event: FriendshipEvent::CANCEL,
+                request_event_message_body: None,
+                second_user: cancel
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+                    .clone(),
+            },
+            Some(friendship_event_payload::Body::Delete(delete)) => EventPayload {
+                friendship_event: FriendshipEvent::DELETE,
+                request_event_message_body: None,
+                second_user: delete
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+                    .clone(),
+            },
+            None => return Err(FriendshipsServiceError::InternalServerError.into()),
+        }
+    } else {
+        return Err(FriendshipsServiceError::InternalServerError.into());
+    };
+
+    Ok(event_payload)
 }

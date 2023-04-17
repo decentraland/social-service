@@ -10,6 +10,12 @@ pub struct EventResponse {
     pub event_id: String,
 }
 
+pub struct EventPayload {
+    pub friendship_event: FriendshipEvent,
+    pub second_user: String,
+    pub request_event_message_body: Option<String>,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum FriendshipStatusWs {
     Friends,
