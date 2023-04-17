@@ -94,7 +94,7 @@ impl Config {
                     .with_list_parse_key(ENV_VAR)
                     .try_parsing(true),
             )
-            .set_override_option("server_port", args.port)?
+            .set_override_option("server.port", args.port)?
             .set_override_option("rpc_server.port", args.rpc_port)?
             .set_default("synapse.url", "https://synapse.decentraland.zone")?
             .set_default("env", "dev")?

@@ -41,3 +41,17 @@ WHERE
           )
       ) as friends_b
   );";
+
+/// This query fetches the rows where the lastest event of a friendship_id is a REQUEST,
+/// and either address_1 or address_2 is equal to the given user's address.
+pub const USER_REQUESTS_QUERY: &str =
+    "SELECT f.address_1, f.address_2, fh.acting_user, fh.timestamp, fh.metadata
+      FROM friendships f
+      INNER JOIN friendship_history fh ON f.id = fh.friendship_id
+      WHERE (LOWER(f.address_1) = $1 OR LOWER(f.address_2) = $1)
+      AND fh.event = '\"request\"'
+      AND fh.timestamp = (
+        SELECT MAX(fh2.timestamp)
+        FROM friendship_history fh2
+        WHERE fh2.friendship_id = fh.friendship_id
+      );";

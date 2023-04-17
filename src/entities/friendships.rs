@@ -4,6 +4,7 @@ use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
 use std::{fmt, pin::Pin, sync::Arc};
 
 use super::queries::MUTUALS_FRIENDS_QUERY;
+
 use crate::{
     components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
