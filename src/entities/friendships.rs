@@ -50,6 +50,7 @@ pub trait FriendshipRepositoryImplementation {
         &self,
         addresses: (&str, &str),
         is_active: bool,
+        synapse_room_id: &str,
         transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Uuid, sqlx::Error>,
@@ -115,6 +116,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         &self,
         addresses: (&str, &str),
         is_active: bool,
+        synapse_room_id: &str,
         transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Uuid, sqlx::Error>,
@@ -126,12 +128,13 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let id = Uuid::parse_str(generate_uuid_v4().as_str()).unwrap();
 
         let query = sqlx::query(
-            "INSERT INTO friendships(id, address_1, address_2, is_active) VALUES($1, $2, $3, $4);",
+            "INSERT INTO friendships(id, address_1, address_2, is_active, synapse_room_id) VALUES($1, $2, $3, $4, $5);",
         )
         .bind(id)
         .bind(address1)
         .bind(address2)
-        .bind(is_active);
+        .bind(is_active)
+        .bind(synapse_room_id);
 
         let executor = self.get_executor(transaction);
 

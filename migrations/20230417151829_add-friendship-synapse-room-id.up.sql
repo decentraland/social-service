@@ -1,8 +1,6 @@
--- Create synapse_room_id column in friendships table
 ALTER TABLE friendships
 ADD COLUMN synapse_room_id VARCHAR;
 
--- Run migration to udpate the new column 
 UPDATE 
   friendships f
 SET 
@@ -16,5 +14,3 @@ WHERE
   h.metadata->>'synapse_room_id' IS NOT NULL AND
   NOT h.metadata->>'synapse_room_id' = 'null'
 ;
-
--- Make new column NOT NULL
