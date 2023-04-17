@@ -3,7 +3,7 @@ mod tests {
     use chrono::NaiveDateTime;
     use social_service::{
         entities::friendship_history::{FriendshipMetadata, FriendshipRequestEvent},
-        ws::service::helpers::map_request_events,
+        ws::service::utils_handlers::map_request_events,
         RequestEvents,
     };
 

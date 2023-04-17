@@ -10,9 +10,9 @@ use crate::{
     ws::{
         app::SocialContext,
         service::{
-            error::FriendshipsServiceError,
-            friendship_ws_types::{FriendshipPortsWs, RoomInfoWs},
-            helpers::{get_last_history, store_message_in_synapse_room, update_friendship_status},
+            database_handlers::{get_last_history, update_friendship_status},
+            errors::FriendshipsServiceError,
+            types::{FriendshipPortsWs, RoomInfoWs},
         },
     },
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
@@ -21,12 +21,13 @@ use crate::{
 };
 
 use super::{
-    error::FriendshipsServiceErrorResponse,
-    friendship_ws_types::EventResponse,
-    helpers::{
-        extract_event_payload, get_friendship, get_friendship_status, get_user_id_from_request,
-        map_request_events, store_room_event_in_synapse_room,
+    database_handlers::get_friendship,
+    errors::FriendshipsServiceErrorResponse,
+    synapse_handlers::{
+        get_user_id_from_request, store_message_in_synapse_room, store_room_event_in_synapse_room,
     },
+    types::EventResponse,
+    utils_handlers::{extract_event_payload, get_friendship_status, map_request_events},
 };
 
 #[derive(Debug)]
