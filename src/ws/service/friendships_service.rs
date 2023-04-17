@@ -217,7 +217,7 @@ async fn process_room_event(
     // TODO: Get current event
     let current_event = FriendshipEvent::ACCEPT;
 
-    // TODO: Get user from event
+    // TODO: Get second_user from event.user.address
     let acting_user = user_id;
     let second_user = "".to_string();
 
@@ -228,13 +228,16 @@ async fn process_room_event(
 
     // TODO: If there is no existing Friendship and the event type is REQUEST, create a new room.
     // TODO: If there is no existing Friendship and it is not a REQUEST Event, return an Invalid Action error.
-    let friendship = match friendship {
-        Some(friendship) => friendship,
+    let (friendship, synapse_room_id) = match friendship {
+        Some(friendship) => (Some(friendship), ""), // TODO: friendship.synapse_room_id
         None => {
-            // Check Event Type
-            // TODO: If REQUEST create room
-            // Else
-            return Err(FriendshipsServiceError::InternalServerError.into());
+            if current_event == FriendshipEvent::REQUEST {
+                // TODO: Create room
+                let synapse_room_id = "";
+                (None, synapse_room_id)
+            } else {
+                return Err(FriendshipsServiceError::InternalServerError.into());
+            }
         }
     };
 
@@ -244,8 +247,6 @@ async fn process_room_event(
 
     // TODO: Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
     let status = FriendshipStatus::Friends;
-
-    // TODO: Get the Synapse room ID from our database.
 
     // Start a database transaction.
     let friendship_ports = FriendshipPortsWs {
@@ -262,14 +263,14 @@ async fn process_room_event(
     };
 
     // Update the friendship accordingly in the database. This means creating an entry in the friendships table or updating the is_active column.
-    // TODO
+    // TODO: RoomInfoWs
     let room_info = RoomInfoWs {
         room_event: current_event,
         room_message_body: None,
-        room_id: "",
+        room_id: synapse_room_id,
     };
     let _transaction = update_friendship_status(
-        &Some(friendship),
+        &friendship,
         &acting_user,
         &second_user,
         status,
