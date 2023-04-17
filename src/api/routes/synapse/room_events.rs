@@ -138,13 +138,13 @@ pub async fn room_event_handler(
     )
     .await;
 
-    if let Ok(res) = response {
-        return Ok(HttpResponse::Ok().json(res));
+    match response {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => {
+            let err = err.into();
+            Err(err)
+        }
     }
-
-    let err = response.err().unwrap();
-
-    Err(err)
 }
 
 async fn process_room_event<'a>(
