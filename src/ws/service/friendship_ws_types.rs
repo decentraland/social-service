@@ -1,24 +1,13 @@
-use serde::{Deserialize, Serialize};
-
 use crate::{
+    api::routes::synapse::room_events::FriendshipEvent,
     components::database::DatabaseComponent,
     entities::{
         friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
     },
 };
 
-#[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
-pub enum FriendshipEventWs {
-    #[serde(rename = "request")]
-    REQUEST, // Send a friendship request
-    #[serde(rename = "cancel")]
-    CANCEL, // Cancel a friendship request
-    #[serde(rename = "accept")]
-    ACCEPT, // Accept a friendship request
-    #[serde(rename = "reject")]
-    REJECT, // Reject a friendship request
-    #[serde(rename = "delete")]
-    DELETE, // Delete an existing friendship
+pub struct EventResponse {
+    pub event_id: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -35,7 +24,7 @@ pub struct FriendshipPortsWs<'a> {
 }
 
 pub struct RoomInfoWs<'a> {
-    pub room_event: FriendshipEventWs,
+    pub room_event: FriendshipEvent,
     pub room_message_body: Option<&'a str>,
     pub room_id: &'a str,
 }

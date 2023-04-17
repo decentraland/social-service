@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::friendship_ws_types::{
-    FriendshipEventWs, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
+    EventResponse, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
 };
 
 /// Retrieve the User Id associated with the given Authentication Token.
@@ -271,22 +271,14 @@ pub async fn update_friendship_status<'a>(
 pub async fn store_message_in_synapse_room<'a>(
     token: &str,
     room_id: &str,
-    room_event: FriendshipEventWs,
+    room_event: FriendshipEvent,
     room_message_body: Option<&str>,
     synapse: &SynapseComponent,
 ) -> Result<(), FriendshipsServiceErrorResponse> {
     // Check if it's a `request` event.
-    if room_event != FriendshipEventWs::REQUEST {
+    if room_event != FriendshipEvent::REQUEST {
         return Ok(());
     }
-
-    let room_event: FriendshipEvent = match room_event {
-        FriendshipEventWs::REQUEST => FriendshipEvent::REQUEST,
-        FriendshipEventWs::CANCEL => FriendshipEvent::CANCEL,
-        FriendshipEventWs::ACCEPT => FriendshipEvent::ACCEPT,
-        FriendshipEventWs::REJECT => FriendshipEvent::REJECT,
-        FriendshipEventWs::DELETE => FriendshipEvent::DELETE,
-    };
 
     // Check if there is a message, if any, send the message event to the given room.
     if let Some(val) = room_message_body {
@@ -310,4 +302,26 @@ pub async fn store_message_in_synapse_room<'a>(
         }
     }
     Ok(())
+}
+
+pub async fn store_room_event_in_synapse_room(
+    token: &str,
+    room_id: &str,
+    room_event: FriendshipEvent,
+    room_message_body: Option<&str>,
+    synapse: &SynapseComponent,
+) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
+    let res = synapse
+        .store_room_event(&token, room_id, room_event, room_message_body)
+        .await;
+
+    match res {
+        Ok(response) => {
+            let res = EventResponse {
+                event_id: response.event_id,
+            };
+            Ok(res)
+        }
+        Err(_) => return Err(FriendshipsServiceError::InternalServerError.into()),
+    }
 }

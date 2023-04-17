@@ -4,15 +4,14 @@ use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 
 use crate::{
+    api::routes::synapse::room_events::FriendshipEvent,
     components::database::DatabaseComponentImplementation,
     entities::friendships::FriendshipRepositoryImplementation,
     ws::{
         app::SocialContext,
         service::{
             error::FriendshipsServiceError,
-            friendship_ws_types::{
-                FriendshipEventWs, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
-            },
+            friendship_ws_types::{FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs},
             helpers::{get_last_history, store_message_in_synapse_room, update_friendship_status},
         },
     },
@@ -23,12 +22,12 @@ use crate::{
 
 use super::{
     error::FriendshipsServiceErrorResponse,
-    helpers::{get_friendship, get_user_id_from_request, map_request_events},
+    friendship_ws_types::EventResponse,
+    helpers::{
+        get_friendship, get_user_id_from_request, map_request_events,
+        store_room_event_in_synapse_room,
+    },
 };
-
-pub struct EventResponse {
-    pub event_id: String,
-}
 
 #[derive(Debug)]
 pub struct MyFriendshipsService {}
@@ -217,7 +216,7 @@ async fn process_room_event(
     user_id: String,
 ) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
     // TODO: Get current event
-    let current_event = FriendshipEventWs::ACCEPT;
+    let current_event = FriendshipEvent::ACCEPT;
 
     // TODO: Get second_user from event.user.address
     let acting_user = user_id;
@@ -233,7 +232,7 @@ async fn process_room_event(
     let (friendship, synapse_room_id) = match friendship {
         Some(friendship) => (Some(friendship), ""), // TODO: friendship.synapse_room_id
         None => {
-            if current_event == FriendshipEventWs::REQUEST {
+            if current_event == FriendshipEvent::REQUEST {
                 // TODO: Create room
                 let synapse_room_id = "";
                 (None, synapse_room_id)
@@ -260,7 +259,7 @@ async fn process_room_event(
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Couldn't start transaction to store friendship update {error}");
-            todo!()
+            return Err(FriendshipsServiceError::InternalServerError.into());
         }
     };
 
@@ -271,7 +270,7 @@ async fn process_room_event(
         room_message_body: None,
         room_id: synapse_room_id,
     };
-    let _transaction = update_friendship_status(
+    let transaction = update_friendship_status(
         &friendship,
         &acting_user,
         &second_user,
@@ -293,10 +292,26 @@ async fn process_room_event(
     )
     .await?;
 
-    // TODO: Store the friendship event in the given room.
+    // Store the friendship event in the given room.
+    let result = store_room_event_in_synapse_room(
+        &token,
+        synapse_room_id,
+        current_event,
+        None,
+        &context.synapse,
+    )
+    .await;
 
-    // TODO: End the database transaction.
+    match result {
+        Ok(value) => {
+            // End transaction
+            let transaction_result = transaction.commit().await;
 
-    // TODO: Return the result.
-    todo!()
+            match transaction_result {
+                Ok(_) => Ok(value),
+                Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
+            }
+        }
+        Err(_err) => Err(FriendshipsServiceError::InternalServerError.into()),
+    }
 }
