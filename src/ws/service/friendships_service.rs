@@ -192,7 +192,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
             Err(_) => todo!(),
         }
 
-        // Return Response
+        // TODO: Return Response
         todo!()
     }
 
@@ -312,6 +312,7 @@ async fn process_room_event(
     .await;
 
     match result {
+        // TODO: handle different event responses
         Ok(value) => {
             // End transaction
             let transaction_result = transaction.commit().await;
