@@ -5,10 +5,8 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    api::routes::synapse::room_events::{FriendshipEvent, FriendshipStatus},
-    components::{
-        database::DatabaseComponent, synapse::SynapseComponent, users_cache::UsersCacheComponent,
-    },
+    api::routes::synapse::room_events::FriendshipEvent,
+    components::{synapse::SynapseComponent, users_cache::UsersCacheComponent},
     entities::{
         friendship_history::{
             FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata,
@@ -22,17 +20,9 @@ use crate::{
     Payload, RequestEvents, RequestResponse, Requests, User,
 };
 
-pub struct FriendshipPortsWs<'a> {
-    pub db: &'a DatabaseComponent,
-    pub friendships_repository: &'a FriendshipsRepository,
-    pub friendship_history_repository: &'a FriendshipHistoryRepository,
-}
-
-pub struct RoomInfoWs<'a> {
-    pub room_event: FriendshipEvent,
-    pub room_message_body: Option<&'a str>,
-    pub room_id: &'a str,
-}
+use super::friendship_ws_types::{
+    FriendshipEventWs, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
+};
 
 /// Retrieve the User Id associated with the given Authentication Token.
 ///
@@ -210,13 +200,13 @@ pub async fn update_friendship_status<'a>(
     friendship: &'a Option<Friendship>,
     acting_user: &'a str,
     second_user: &'a str,
-    new_status: FriendshipStatus,
+    new_status: FriendshipStatusWs,
     room_info: RoomInfoWs<'a>,
     friendship_ports: FriendshipPortsWs<'a>,
     transaction: Transaction<'static, Postgres>,
 ) -> Result<Transaction<'static, Postgres>, FriendshipsServiceErrorResponse> {
     // store friendship update
-    let is_active = new_status == FriendshipStatus::Friends;
+    let is_active = new_status == FriendshipStatusWs::Friends;
     let (friendship_id_result, transaction) = store_friendship_update(
         friendship_ports.friendships_repository,
         friendship,
@@ -275,4 +265,49 @@ pub async fn update_friendship_status<'a>(
             Err(FriendshipsServiceError::InternalServerError.into())
         }
     }
+}
+
+/// If it's a friendship request event and the request contains a message, we send a message event to the given room.
+pub async fn store_message_in_synapse_room<'a>(
+    token: &str,
+    room_id: &str,
+    room_event: FriendshipEventWs,
+    room_message_body: Option<&str>,
+    synapse: &SynapseComponent,
+) -> Result<(), FriendshipsServiceErrorResponse> {
+    // Check if it's a `request` event.
+    if room_event != FriendshipEventWs::REQUEST {
+        return Ok(());
+    }
+
+    let room_event: FriendshipEvent = match room_event {
+        FriendshipEventWs::REQUEST => FriendshipEvent::REQUEST,
+        FriendshipEventWs::CANCEL => FriendshipEvent::CANCEL,
+        FriendshipEventWs::ACCEPT => FriendshipEvent::ACCEPT,
+        FriendshipEventWs::REJECT => FriendshipEvent::REJECT,
+        FriendshipEventWs::DELETE => FriendshipEvent::DELETE,
+    };
+
+    // Check if there is a message, if any, send the message event to the given room.
+    if let Some(val) = room_message_body {
+        // Check if the message body is not empty
+        if !val.is_empty() {
+            for retry_count in 0..3 {
+                match synapse
+                    .send_message_event_given_room(token, room_id, room_event, val)
+                    .await
+                {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(_err) => {
+                        if retry_count == 2 {
+                            return Err(FriendshipsServiceError::InternalServerError.into());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }

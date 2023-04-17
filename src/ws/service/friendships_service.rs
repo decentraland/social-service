@@ -4,14 +4,16 @@ use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 
 use crate::{
-    api::routes::synapse::room_events::{FriendshipEvent, FriendshipStatus},
     components::database::DatabaseComponentImplementation,
     entities::friendships::FriendshipRepositoryImplementation,
     ws::{
         app::SocialContext,
         service::{
             error::FriendshipsServiceError,
-            helpers::{get_last_history, update_friendship_status, FriendshipPortsWs, RoomInfoWs},
+            friendship_ws_types::{
+                FriendshipEventWs, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
+            },
+            helpers::{get_last_history, store_message_in_synapse_room, update_friendship_status},
         },
     },
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
@@ -210,12 +212,12 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 }
 
 async fn process_room_event(
-    _request: UpdateFriendshipPayload,
+    request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,
     user_id: String,
 ) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
     // TODO: Get current event
-    let current_event = FriendshipEvent::ACCEPT;
+    let current_event = FriendshipEventWs::ACCEPT;
 
     // TODO: Get second_user from event.user.address
     let acting_user = user_id;
@@ -231,7 +233,7 @@ async fn process_room_event(
     let (friendship, synapse_room_id) = match friendship {
         Some(friendship) => (Some(friendship), ""), // TODO: friendship.synapse_room_id
         None => {
-            if current_event == FriendshipEvent::REQUEST {
+            if current_event == FriendshipEventWs::REQUEST {
                 // TODO: Create room
                 let synapse_room_id = "";
                 (None, synapse_room_id)
@@ -246,7 +248,7 @@ async fn process_room_event(
     let _last_history = get_last_history(friendship_history_repository, &friendship).await?;
 
     // TODO: Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
-    let status = FriendshipStatus::Friends;
+    let status = FriendshipStatusWs::Friends;
 
     // Start a database transaction.
     let friendship_ports = FriendshipPortsWs {
@@ -280,7 +282,16 @@ async fn process_room_event(
     )
     .await?;
 
-    // TODO: If it's a friendship request event and the request contains a message, send a message event to the given room.
+    // If it's a friendship request event and the request contains a message, send a message event to the given room.
+    let token = request.auth_token.unwrap().synapse_token.unwrap();
+    store_message_in_synapse_room(
+        &token,
+        synapse_room_id,
+        current_event,
+        None,
+        &context.synapse,
+    )
+    .await?;
 
     // TODO: Store the friendship event in the given room.
 
