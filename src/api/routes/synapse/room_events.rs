@@ -140,10 +140,7 @@ pub async fn room_event_handler(
 
     match response {
         Ok(res) => Ok(HttpResponse::Ok().json(res)),
-        Err(err) => {
-            let err = err.into();
-            Err(err)
-        }
+        Err(err) => Err(err),
     }
 }
 
