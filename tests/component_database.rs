@@ -179,9 +179,10 @@ async fn create_friendship(
     address_2: &str,
     is_active: bool,
 ) -> Uuid {
+    let synapse_room_id = format!("room_id_{}_{}", address_1, address_2);
     dbrepos
         .friendships
-        .create_new_friendships((address_1, address_2), is_active, None)
+        .create_new_friendships((address_1, address_2), is_active, &synapse_room_id, None)
         .await
         .0
         .unwrap()
