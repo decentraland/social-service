@@ -147,15 +147,8 @@ pub async fn get_friendship(
 /// Returns a `FriendshipsServiceErrorResponse` if there was an error fetching the last history from the repository.
 pub async fn get_last_history(
     friendship_history_repository: &FriendshipHistoryRepository,
-    friendship: &Option<Friendship>,
+    friendship: &Friendship,
 ) -> Result<Option<FriendshipHistory>, FriendshipsServiceErrorResponse> {
-    let friendship = {
-        match friendship {
-            Some(friendship) => friendship,
-            None => return Ok(None),
-        }
-    };
-
     let (friendship_history_result, _) = friendship_history_repository
         .get_last_history_for_friendship(friendship.id, None)
         .await;

@@ -5,15 +5,16 @@ use futures_util::StreamExt;
 
 use crate::{
     api::routes::synapse::room_events::{FriendshipEvent, FriendshipStatus},
-    components::database::{DatabaseComponent, DatabaseComponentImplementation},
+    components::database::DatabaseComponentImplementation,
     entities::friendships::FriendshipRepositoryImplementation,
     ws::{
         app::SocialContext,
-        service::helpers::{
-            get_last_history, update_friendship_status, FriendshipPortsWs, RoomInfoWs,
+        service::{
+            error::FriendshipsServiceError,
+            helpers::{get_last_history, update_friendship_status, FriendshipPortsWs, RoomInfoWs},
         },
     },
-    FriendshipEventPayload, FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
+    FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
 };
@@ -175,14 +176,20 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
         // Get user id with the given Authentication Token.
-        let _user_id = get_user_id_from_request(
-            &request.auth_token.unwrap(),
+        let user_id = get_user_id_from_request(
+            &request.clone().auth_token.unwrap(),
             context.synapse.clone(),
             context.users_cache.clone(),
         )
         .await;
 
-        // Process rooom event as in process_room_event_ws()
+        // Process rooom event as in
+        match user_id {
+            Ok(user_id) => {
+                let _result = process_room_event(request, context, user_id.social_id);
+            }
+            Err(_) => todo!(),
+        }
 
         // Return Response
 
@@ -203,37 +210,46 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 }
 
 async fn process_room_event(
-    _event: FriendshipEventPayload,
-    db: DatabaseComponent,
+    _request: UpdateFriendshipPayload,
+    context: Arc<SocialContext>,
     user_id: String,
-    _token: Payload,
 ) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
-    // Get current event
+    // TODO: Get current event
     let current_event = FriendshipEvent::ACCEPT;
 
-    // Get user from event
+    // TODO: Get user from event
     let acting_user = user_id;
     let second_user = "".to_string();
 
     // Get the friendship info
-    let db_repos = &db.clone().db_repos.unwrap();
+    let db_repos = &context.db.clone().db_repos.unwrap();
     let friendships_repository = &db_repos.friendships;
     let friendship = get_friendship(friendships_repository, &acting_user, &second_user).await?;
 
-    // Create room
+    // TODO: If there is no existing Friendship and the event type is REQUEST, create a new room.
+    // TODO: If there is no existing Friendship and it is not a REQUEST Event, return an Invalid Action error.
+    let friendship = match friendship {
+        Some(friendship) => friendship,
+        None => {
+            // Check Event Type
+            // TODO: If REQUEST create room
+            // Else
+            return Err(FriendshipsServiceError::InternalServerError.into());
+        }
+    };
 
     //  Get the last status from the database to later validate if the current action is valid.
     let friendship_history_repository = &db_repos.friendship_history;
     let _last_history = get_last_history(friendship_history_repository, &friendship).await?;
 
-    // Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
+    // TODO: Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
     let status = FriendshipStatus::Friends;
 
-    // This is new: Get the Synapse room ID from our database.
+    // TODO: Get the Synapse room ID from our database.
 
     // Start a database transaction.
     let friendship_ports = FriendshipPortsWs {
-        db: &db,
+        db: &context.db,
         friendships_repository: &db_repos.friendships,
         friendship_history_repository: &db_repos.friendship_history,
     };
@@ -246,13 +262,14 @@ async fn process_room_event(
     };
 
     // Update the friendship accordingly in the database. This means creating an entry in the friendships table or updating the is_active column.
+    // TODO
     let room_info = RoomInfoWs {
         room_event: current_event,
         room_message_body: None,
         room_id: "",
     };
     let _transaction = update_friendship_status(
-        &friendship,
+        &Some(friendship),
         &acting_user,
         &second_user,
         status,
@@ -262,12 +279,12 @@ async fn process_room_event(
     )
     .await?;
 
-    // If it's a friendship request event and the request contains a message, send a message event to the given room.
+    // TODO: If it's a friendship request event and the request contains a message, send a message event to the given room.
 
-    // Store the friendship event in the given room.
+    // TODO: Store the friendship event in the given room.
 
-    // End the database transaction.
+    // TODO: End the database transaction.
 
-    // Return the result.
+    // TODO: Return the result.
     todo!()
 }
