@@ -305,19 +305,23 @@ async fn process_room_event_ws(
     event: FriendshipEventPayload,
     db: DatabaseComponent,
     user_id: String,
+    token: Payload,
 ) {
-    // Get event
+    // Get current event
+    let event = FriendshipEvent::ACCEPT;
 
     // Get user from event
-    let address_1 = user_id;
-    let address_2 = "".to_string(); // Get it from the event
+    let acting_user = user_id;
+    let second_user = "".to_string();
 
     // Get the friendship info
     let db_repos = &db.clone().db_repos.unwrap();
     let friendships_repository = &db_repos.friendships;
-    let friendship = get_friendship(friendships_repository, &address_1, &address_2)
+    let friendship = get_friendship(friendships_repository, &acting_user, &second_user)
         .await
         .unwrap();
+
+    // Create room
 
     //  Get the last status from the database to later validate if the current action is valid.
     let friendship_history_repository = &db_repos.friendship_history;
@@ -326,8 +330,9 @@ async fn process_room_event_ws(
         .unwrap();
 
     // Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
+    let status = FriendshipStatus::Friends;
 
-    // This is new: Get the Synapse room ID from our database or Synapse.
+    // This is new: Get the Synapse room ID from our database.
 
     // This is new: Create a room if needed.
 
@@ -337,7 +342,7 @@ async fn process_room_event_ws(
         friendships_repository: &db_repos.friendships,
         friendship_history_repository: &db_repos.friendship_history,
     };
-    let _transaction = match friendship_ports.db.start_transaction().await {
+    let transaction = match friendship_ports.db.start_transaction().await {
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Couldn't start transaction to store friendship update {error}");
@@ -346,6 +351,21 @@ async fn process_room_event_ws(
     };
 
     // Update the friendship accordingly in the database. This means creating an entry in the friendships table or updating the is_active column.
+    let room_info = RoomInfoWs {
+        room_event: event,
+        room_message_body: None,
+        room_id: "",
+    };
+    let transaction = update_friendship_status(
+        &friendship,
+        "",
+        "",
+        status,
+        room_info,
+        friendship_ports,
+        transaction,
+    )
+    .await;
 
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
 
@@ -358,11 +378,11 @@ async fn process_room_event_ws(
 
 async fn get_friendship(
     friendships_repository: &FriendshipsRepository,
-    user_id_1: &str,
-    user_id_2: &str,
+    address_1: &str,
+    address_2: &str,
 ) -> Result<Option<Friendship>, SynapseError> {
     let (friendship_result, _) = friendships_repository
-        .get_friendship((user_id_1, user_id_2), None)
+        .get_friendship((address_1, address_2), None)
         .await;
     Ok(friendship_result.unwrap())
 }
@@ -458,8 +478,8 @@ async fn update_friendship_status<'a>(
 async fn store_friendship_update(
     friendship: &Option<Friendship>,
     is_active: bool,
-    address_0: &str,
     address_1: &str,
+    address_2: &str,
     friendships_repository: &FriendshipsRepository,
     transaction: Transaction<'static, Postgres>,
 ) -> (Result<Uuid, SynapseError>, Transaction<'static, Postgres>) {
@@ -481,7 +501,7 @@ async fn store_friendship_update(
         }
         None => {
             let (friendship_id, transaction) = friendships_repository
-                .create_new_friendships((address_0, address_1), false, Some(transaction))
+                .create_new_friendships((address_1, address_2), false, Some(transaction))
                 .await;
             (
                 friendship_id.map_err(|err| {
