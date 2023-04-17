@@ -4,9 +4,9 @@ use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 
 use crate::{
-    api::routes::synapse::room_events::FriendshipEvent,
     components::database::DatabaseComponentImplementation,
     entities::friendships::FriendshipRepositoryImplementation,
+    ports::friendship_synapse::FriendshipEvent,
     ws::{
         app::SocialContext,
         service::{

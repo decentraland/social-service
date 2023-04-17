@@ -5,7 +5,6 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    api::routes::synapse::room_events::FriendshipEvent,
     components::{synapse::SynapseComponent, users_cache::UsersCacheComponent},
     entities::{
         friendship_history::{
@@ -15,15 +14,16 @@ use crate::{
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     friendship_event_payload,
-    ports::users_cache::{get_user_id_from_token, UserId},
+    ports::{
+        friendship_synapse::{FriendshipEvent, FriendshipStatus},
+        users_cache::{get_user_id_from_token, UserId},
+    },
     ws::service::error::FriendshipsServiceError,
     ws::service::error::FriendshipsServiceErrorResponse,
     Payload, RequestEvents, RequestResponse, Requests, UpdateFriendshipPayload, User,
 };
 
-use super::friendship_ws_types::{
-    EventPayload, EventResponse, FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs,
-};
+use super::friendship_ws_types::{EventPayload, EventResponse, FriendshipPortsWs, RoomInfoWs};
 
 /// Retrieves the User Id associated with the given Authentication Token.
 ///
@@ -202,13 +202,13 @@ pub async fn update_friendship_status<'a>(
     friendship: &'a Option<Friendship>,
     acting_user: &'a str,
     second_user: &'a str,
-    new_status: FriendshipStatusWs,
+    new_status: FriendshipStatus,
     room_info: RoomInfoWs<'a>,
     friendship_ports: FriendshipPortsWs<'a>,
     transaction: Transaction<'static, Postgres>,
 ) -> Result<Transaction<'static, Postgres>, FriendshipsServiceErrorResponse> {
     // Store friendship update
-    let is_active = new_status == FriendshipStatusWs::Friends;
+    let is_active = new_status == FriendshipStatus::Friends;
     let (friendship_id_result, transaction) = store_friendship_update(
         friendship_ports.friendships_repository,
         friendship,
@@ -390,7 +390,7 @@ pub fn get_friendship_status(
     acting_user: &str,
     last_recorded_history: &Option<FriendshipHistory>,
     room_event: FriendshipEvent,
-) -> Result<FriendshipStatusWs, FriendshipsServiceErrorResponse> {
+) -> Result<FriendshipStatus, FriendshipsServiceErrorResponse> {
     match room_event {
         FriendshipEvent::REQUEST => {
             calculate_new_friendship_status(acting_user, last_recorded_history, room_event)
@@ -401,7 +401,7 @@ pub fn get_friendship_status(
         FriendshipEvent::CANCEL => {
             if let Some(last_history) = last_recorded_history {
                 if last_history.acting_user.eq_ignore_ascii_case(acting_user) {
-                    return Ok(FriendshipStatusWs::NotFriends);
+                    return Ok(FriendshipStatus::NotFriends);
                 }
             }
 
@@ -410,13 +410,13 @@ pub fn get_friendship_status(
         FriendshipEvent::REJECT => {
             if let Some(last_history) = last_recorded_history {
                 if !last_history.acting_user.eq_ignore_ascii_case(acting_user) {
-                    return Ok(FriendshipStatusWs::NotFriends);
+                    return Ok(FriendshipStatus::NotFriends);
                 }
             }
 
             Err(FriendshipsServiceError::InternalServerError.into())
         }
-        FriendshipEvent::DELETE => Ok(FriendshipStatusWs::NotFriends),
+        FriendshipEvent::DELETE => Ok(FriendshipStatus::NotFriends),
     }
 }
 
@@ -426,10 +426,10 @@ fn calculate_new_friendship_status(
     acting_user: &str,
     last_recorded_history: &Option<FriendshipHistory>,
     room_event: FriendshipEvent,
-) -> Result<FriendshipStatusWs, FriendshipsServiceErrorResponse> {
+) -> Result<FriendshipStatus, FriendshipsServiceErrorResponse> {
     if last_recorded_history.is_none() {
         return match room_event {
-            FriendshipEvent::REQUEST => Ok(FriendshipStatusWs::Requested(acting_user.to_string())),
+            FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
             _ => Err(FriendshipsServiceError::InternalServerError.into()),
         };
     }
@@ -443,13 +443,13 @@ fn calculate_new_friendship_status(
             }
 
             match room_event {
-                FriendshipEvent::ACCEPT => Ok(FriendshipStatusWs::Friends),
+                FriendshipEvent::ACCEPT => Ok(FriendshipStatus::Friends),
                 _ => Err(FriendshipsServiceError::InternalServerError.into()),
             }
         }
         FriendshipEvent::ACCEPT => Err(FriendshipsServiceError::InternalServerError.into()),
         _ => match room_event {
-            FriendshipEvent::REQUEST => Ok(FriendshipStatusWs::Requested(acting_user.to_string())),
+            FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
             _ => Err(FriendshipsServiceError::InternalServerError.into()),
         },
     }

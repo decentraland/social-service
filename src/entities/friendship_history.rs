@@ -11,11 +11,11 @@ use sqlx::{
 };
 
 use crate::{
-    api::routes::synapse::room_events::FriendshipEvent,
     components::database::{DBConnection, DatabaseComponent, Executor},
     entities::queries::USER_REQUESTS_QUERY,
     entities::utils::get_transaction_result_from_executor,
     generate_uuid_v4,
+    ports::friendship_synapse::FriendshipEvent,
 };
 
 #[derive(Clone)]

@@ -2,9 +2,12 @@ use std::{collections::HashMap, time::SystemTime};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::api::routes::{
-    synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
-    v1::error::CommonError,
+use crate::{
+    api::routes::{
+        synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
+        v1::error::CommonError,
+    },
+    ports::friendship_synapse::FriendshipEvent,
 };
 
 #[derive(Debug, Clone)]

@@ -1,9 +1,9 @@
 use crate::{
-    api::routes::synapse::room_events::FriendshipEvent,
     components::database::DatabaseComponent,
     entities::{
         friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
     },
+    ports::friendship_synapse::FriendshipEvent,
 };
 
 pub struct EventResponse {
@@ -14,13 +14,6 @@ pub struct EventPayload {
     pub friendship_event: FriendshipEvent,
     pub second_user: String,
     pub request_event_message_body: Option<String>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub enum FriendshipStatusWs {
-    Friends,
-    Requested(String),
-    NotFriends,
 }
 
 pub struct FriendshipPortsWs<'a> {
