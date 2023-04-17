@@ -315,7 +315,7 @@ pub async fn store_room_event_in_synapse_room(
     synapse: &SynapseComponent,
 ) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
     let res = synapse
-        .store_room_event(&token, room_id, room_event, room_message_body)
+        .store_room_event(token, room_id, room_event, room_message_body)
         .await;
 
     match res {
@@ -325,7 +325,7 @@ pub async fn store_room_event_in_synapse_room(
             };
             Ok(res)
         }
-        Err(_) => return Err(FriendshipsServiceError::InternalServerError.into()),
+        Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
     }
 }
 
@@ -334,7 +334,7 @@ pub async fn store_room_event_in_synapse_room(
 pub fn extract_event_payload(
     request: UpdateFriendshipPayload,
 ) -> Result<EventPayload, FriendshipsServiceErrorResponse> {
-    let event_payload = if let Some(body) = request.event.clone() {
+    let event_payload = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(request)) => EventPayload {
                 friendship_event: FriendshipEvent::REQUEST,
@@ -342,8 +342,7 @@ pub fn extract_event_payload(
                 second_user: request
                     .user
                     .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-                    .clone(),
+                    .address,
             },
             Some(friendship_event_payload::Body::Accept(accept)) => EventPayload {
                 friendship_event: FriendshipEvent::ACCEPT,
@@ -351,8 +350,7 @@ pub fn extract_event_payload(
                 second_user: accept
                     .user
                     .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-                    .clone(),
+                    .address,
             },
             Some(friendship_event_payload::Body::Reject(reject)) => EventPayload {
                 friendship_event: FriendshipEvent::REJECT,
@@ -360,8 +358,7 @@ pub fn extract_event_payload(
                 second_user: reject
                     .user
                     .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-                    .clone(),
+                    .address,
             },
             Some(friendship_event_payload::Body::Cancel(cancel)) => EventPayload {
                 friendship_event: FriendshipEvent::CANCEL,
@@ -369,8 +366,7 @@ pub fn extract_event_payload(
                 second_user: cancel
                     .user
                     .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-                    .clone(),
+                    .address,
             },
             Some(friendship_event_payload::Body::Delete(delete)) => EventPayload {
                 friendship_event: FriendshipEvent::DELETE,
@@ -378,8 +374,7 @@ pub fn extract_event_payload(
                 second_user: delete
                     .user
                     .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-                    .clone(),
+                    .address,
             },
             None => return Err(FriendshipsServiceError::InternalServerError.into()),
         }

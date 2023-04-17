@@ -188,7 +188,7 @@ async fn process_room_event<'a>(
         friendship_history_repository: &repos.friendship_history,
     };
 
-    // If the status has not changed, we don't do anything
+    // If the status has not changed, no action is taken.
     if current_status == new_status {
         return Ok(RoomEventResponse {
             event_id: room_id.to_string(),
