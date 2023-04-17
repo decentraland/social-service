@@ -68,7 +68,7 @@ lazy_static::lazy_static! {
 }
 
 impl FriendshipEvent {
-    fn validate_new_event_is_valid(
+    pub fn validate_new_event_is_valid(
         current_event: &Option<FriendshipEvent>,
         new_event: FriendshipEvent,
     ) -> bool {

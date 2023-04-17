@@ -11,7 +11,7 @@ use crate::{
         app::SocialContext,
         service::{
             error::FriendshipsServiceError,
-            friendship_ws_types::{FriendshipPortsWs, FriendshipStatusWs, RoomInfoWs},
+            friendship_ws_types::{FriendshipPortsWs, RoomInfoWs},
             helpers::{get_last_history, store_message_in_synapse_room, update_friendship_status},
         },
     },
@@ -24,8 +24,8 @@ use super::{
     error::FriendshipsServiceErrorResponse,
     friendship_ws_types::EventResponse,
     helpers::{
-        extract_event_payload, get_friendship, get_user_id_from_request, map_request_events,
-        store_room_event_in_synapse_room,
+        extract_event_payload, get_friendship, get_friendship_status, get_user_id_from_request,
+        map_request_events, store_room_event_in_synapse_room,
     },
 };
 
@@ -193,7 +193,6 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         }
 
         // Return Response
-
         todo!()
     }
 
@@ -244,10 +243,20 @@ async fn process_room_event(
 
     //  Get the last status from the database to later validate if the current action is valid.
     let friendship_history_repository = &db_repos.friendship_history;
-    let _last_history = get_last_history(friendship_history_repository, &friendship).await?;
+    let last_recorded_history =
+        get_last_history(friendship_history_repository, &friendship).await?;
 
-    // TODO: Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
-    let status = FriendshipStatusWs::Friends;
+    // Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
+    let last_event = { last_recorded_history.as_ref().map(|history| history.event) };
+    let is_valid = FriendshipEvent::validate_new_event_is_valid(&last_event, room_event);
+    if !is_valid {
+        return Err(FriendshipsServiceError::InternalServerError.into());
+    };
+
+    // TODO: If the status has not changed, no action is taken.
+
+    // Get new friendship status
+    let new_status = get_friendship_status(&acting_user, &last_recorded_history, room_event)?;
 
     // Start a database transaction.
     let friendship_ports = FriendshipPortsWs {
@@ -274,7 +283,7 @@ async fn process_room_event(
         &friendship,
         &acting_user,
         &second_user,
-        status,
+        new_status,
         room_info,
         friendship_ports,
         transaction,
