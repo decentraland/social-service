@@ -239,23 +239,52 @@ impl SynapseComponent {
     pub async fn create_private_room(
         &self,
         token: &str,
-        user_ids: &mut [String],
-        room_alias_name: String,
+        user_ids: Vec<&str>,
+        room_alias_name: &str,
     ) -> Result<RoomEventResponse, CommonError> {
         let path = "/_matrix/client/r0/createRoom".to_string();
+
+        let invite = user_ids.iter().map(|id| id.to_string()).collect();
 
         Self::authenticated_post_request(
             &path,
             token,
             &self.synapse_url,
             &CreateRoomOpts {
-                room_alias_name,
+                room_alias_name: room_alias_name.to_string(),
                 preset: Preset::PrivateChat,
-                invite: user_ids.to_vec(),
+                invite,
                 is_direct: true,
             },
         )
         .await
+    }
+
+    pub async fn set_account_data(
+        &self,
+        _token: &str,
+        _user_id: &str,
+        _room_id: &str,
+    ) -> Result<RoomEventResponse, CommonError> {
+        // let m_direct_event = get_account_data("m.direct").await?;
+        // let direct_room_map = if let Some(content) = m_direct_event.content() {
+        // content
+        // } else {
+        // HashMap::new()
+        // };
+        //
+        // if let Some(room_ids) = direct_room_map.get_mut(user_id) {
+        // if room_ids.contains(room_id) {
+        // return;
+        // }
+        // *room_ids = vec![room_id];
+        // } else {
+        // direct_room_map.insert(user_id.to_owned(), vec![room_id]);
+        // }
+        //
+        // set_account_data("m.direct", direct_room_map)
+        // .await?;
+        todo!()
     }
 
     async fn get_request<T: DeserializeOwned>(
