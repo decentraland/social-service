@@ -42,6 +42,7 @@ mod database_tests {
 
         assert_eq!(friendship.as_ref().unwrap().address_1, "A");
         assert_eq!(friendship.as_ref().unwrap().address_2, "B");
+        assert_eq!(friendship.as_ref().unwrap().synapse_room_id, "room_id_A_B");
     }
 
     #[actix_web::test]

@@ -18,6 +18,7 @@ pub struct Friendship {
     pub address_1: String,
     pub address_2: String,
     pub is_active: bool,
+    pub synapse_room_id: String,
 }
 
 #[derive(Clone)]
@@ -179,6 +180,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                     address_1: row.try_get("address_1").unwrap(),
                     address_2: row.try_get("address_2").unwrap(),
                     is_active: row.try_get("is_active").unwrap(),
+                    synapse_room_id: row.try_get("synapse_room_id").unwrap(),
                 };
                 (Ok(Some(friendship)), transaction_to_return)
             }
@@ -230,6 +232,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                             address_1: row.try_get("address_1").unwrap(),
                             address_2: row.try_get("address_2").unwrap(),
                             is_active: row.try_get("is_active").unwrap(),
+                            synapse_room_id: row.try_get("synapse_room_id").unwrap(),
                         }
                     })
                     .collect::<Vec<Friendship>>());
@@ -271,6 +274,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 address_1: row.try_get("address_1").unwrap(),
                 address_2: row.try_get("address_2").unwrap(),
                 is_active: row.try_get("is_active").unwrap(),
+                synapse_room_id: row.try_get("synapse_room_id").unwrap(),
             },
             // TODO: Handle error
             Err(_) => todo!(),
