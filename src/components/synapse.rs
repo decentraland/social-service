@@ -235,15 +235,14 @@ impl SynapseComponent {
         })
     }
 
+    #[tracing::instrument(name = "create_private_room > Synapse components")]
     pub async fn create_private_room(
         &self,
         token: &str,
         user_ids: &mut [String],
+        room_alias_name: String,
     ) -> Result<RoomEventResponse, CommonError> {
         let path = "/_matrix/client/r0/createRoom".to_string();
-
-        user_ids.sort();
-        let room_alias_name = user_ids.join("+");
 
         Self::authenticated_post_request(
             &path,

@@ -191,3 +191,14 @@ fn calculate_new_friendship_status(
         },
     }
 }
+
+/// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
+///
+/// * `user_ids` - A mut vector of user addresses as strings.
+///
+/// Returns the room alias name as a string.
+pub fn build_room_alias_name(mut user_ids: Vec<String>) -> String {
+    user_ids.sort();
+    let room_alias_name = user_ids.join("+");
+    room_alias_name
+}
