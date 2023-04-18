@@ -202,7 +202,7 @@ pub fn build_room_alias_name(mut user_ids: Vec<&str>) -> String {
     user_ids.join("+")
 }
 
-/// Validate the new event is valid and different from the last recorded.
+/// Validates the new event is valid and different from the last recorded.
 pub fn validate_new_event(
     last_recorded_history: &Option<FriendshipHistory>,
     new_event: FriendshipEvent,

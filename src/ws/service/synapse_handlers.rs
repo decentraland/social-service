@@ -133,8 +133,11 @@ pub async fn create_private_room_in_synapse(
     }
 }
 
-/// If there is no existing Friendship and the event type is REQUEST, create a new room.
-/// If there is no existing Friendship and it is not a REQUEST Event, return an Invalid Action error.
+/// Creates or retrieves the Synapse room id.
+///
+/// If the Friendship does not exist and the event type is REQUEST, a new room is created
+/// and the account data is set. If the Friendship does not exist and it is not a REQUEST event,
+/// an Internal Server Error error is returned.
 pub async fn create_or_get_synapse_room_id(
     friendship: Option<&Friendship>,
     new_event: &FriendshipEvent,
@@ -150,6 +153,7 @@ pub async fn create_or_get_synapse_room_id(
                 let res =
                     create_private_room_in_synapse(token, vec![acting_user, second_user], synapse)
                         .await?;
+
                 // TODO: Set account data
                 Ok(res.room_id)
             } else {
