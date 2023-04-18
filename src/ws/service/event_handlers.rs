@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::{
     components::database::DatabaseComponentImplementation,
-    ports::friendship_synapse::FriendshipEvent,
     ws::{
         app::SocialContext,
         service::{
@@ -17,54 +16,49 @@ use crate::{
 use super::{
     database_handlers::get_friendship,
     errors::FriendshipsServiceErrorResponse,
-    synapse_handlers::{store_message_in_synapse_room, store_room_event_in_synapse_room},
+    synapse_handlers::{
+        create_or_get_synapse_room_id, store_message_in_synapse_room,
+        store_room_event_in_synapse_room,
+    },
     types::EventResponse,
-    utils_handlers::{extract_update_friendship_payload, get_new_friendship_status},
+    utils_handlers::{
+        extract_update_friendship_payload, get_new_friendship_status, validate_new_event,
+    },
 };
 
 pub async fn process_room_event(
     request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,
-    user_id: String,
+    acting_user: String,
 ) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
     let event_payload = extract_update_friendship_payload(request.clone())?;
-
     let new_event = event_payload.friendship_event;
-
-    let acting_user = user_id;
     let second_user = event_payload.second_user;
+
+    let token = request.auth_token.unwrap().synapse_token.unwrap();
 
     // Get the friendship info
     let db_repos = &context.db.clone().db_repos.unwrap();
     let friendships_repository = &db_repos.friendships;
     let friendship = get_friendship(friendships_repository, &acting_user, &second_user).await?;
 
-    // TODO: If there is no existing Friendship and the event type is REQUEST, create a new room.
-    // TODO: If there is no existing Friendship and it is not a REQUEST Event, return an Invalid Action error.
-    let (friendship, synapse_room_id) = match friendship {
-        Some(friendship) => (Some(friendship), ""), // TODO: friendship.room_id
-        None => {
-            if new_event == FriendshipEvent::REQUEST {
-                // TODO: Create room
-                let synapse_room_id = "";
-                (None, synapse_room_id)
-            } else {
-                return Err(FriendshipsServiceError::InternalServerError.into());
-            }
-        }
-    };
+    let synapse_room_id = create_or_get_synapse_room_id(
+        friendship.as_ref(),
+        &new_event,
+        &acting_user,
+        &second_user,
+        &token,
+        &context.synapse.clone(),
+    )
+    .await?;
 
     //  Get the last status from the database to later validate if the current action is valid.
     let friendship_history_repository = &db_repos.friendship_history;
     let last_recorded_history =
         get_last_history(friendship_history_repository, &friendship).await?;
 
-    // Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
-    let last_recorded_event = { last_recorded_history.as_ref().map(|history| history.event) };
-    let is_valid = FriendshipEvent::validate_new_event_is_valid(&last_recorded_event, new_event);
-    if !is_valid {
-        return Err(FriendshipsServiceError::InternalServerError.into());
-    };
+    // Validate the new event is valid and different from the last recorded.
+    validate_new_event(&last_recorded_history, new_event)?;
 
     // Get new friendship status
     let new_status = get_new_friendship_status(&acting_user, &last_recorded_history, new_event)?;
@@ -88,7 +82,7 @@ pub async fn process_room_event(
     let room_info = RoomInfoWs {
         room_event: new_event,
         room_message_body,
-        room_id: synapse_room_id,
+        room_id: synapse_room_id.as_str(),
     };
     let transaction = update_friendship_status(
         &friendship,
@@ -102,10 +96,9 @@ pub async fn process_room_event(
     .await?;
 
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
-    let token = request.auth_token.unwrap().synapse_token.unwrap();
     store_message_in_synapse_room(
         &token,
-        synapse_room_id,
+        synapse_room_id.as_str(),
         new_event,
         room_message_body,
         &context.synapse,
@@ -115,7 +108,7 @@ pub async fn process_room_event(
     // Store the friendship event in the given room.
     let result = store_room_event_in_synapse_room(
         &token,
-        synapse_room_id,
+        synapse_room_id.as_str(),
         new_event,
         room_message_body,
         &context.synapse,

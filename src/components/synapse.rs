@@ -105,6 +105,11 @@ pub struct CreateRoomOpts {
     pub is_direct: bool,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct CreateRoomResponse {
+    pub room_id: String,
+}
+
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
@@ -241,7 +246,7 @@ impl SynapseComponent {
         token: &str,
         user_ids: Vec<&str>,
         room_alias_name: &str,
-    ) -> Result<RoomEventResponse, CommonError> {
+    ) -> Result<CreateRoomResponse, CommonError> {
         let path = "/_matrix/client/r0/createRoom".to_string();
 
         let invite = user_ids.iter().map(|id| id.to_string()).collect();

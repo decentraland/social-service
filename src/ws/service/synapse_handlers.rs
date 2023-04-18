@@ -3,11 +3,16 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    components::{synapse::SynapseComponent, users_cache::UsersCacheComponent},
+    components::{
+        synapse::{CreateRoomResponse, SynapseComponent},
+        users_cache::UsersCacheComponent,
+    },
+    entities::friendships::Friendship,
     ports::{
         friendship_synapse::FriendshipEvent,
         users_cache::{get_user_id_from_token, UserId},
     },
+    ws::service::utils_handlers::build_room_alias_name,
     Payload,
 };
 
@@ -103,5 +108,53 @@ pub async fn store_room_event_in_synapse_room(
             Ok(res)
         }
         Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
+    }
+}
+
+pub async fn create_private_room_in_synapse(
+    token: &str,
+    user_ids: Vec<&str>,
+    synapse: &SynapseComponent,
+) -> Result<CreateRoomResponse, FriendshipsServiceErrorResponse> {
+    let room_alias_name = build_room_alias_name(user_ids.clone());
+
+    let res = synapse
+        .create_private_room(token, user_ids, &room_alias_name)
+        .await;
+
+    match res {
+        Ok(response) => {
+            let res = CreateRoomResponse {
+                room_id: response.room_id,
+            };
+            Ok(res)
+        }
+        Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
+    }
+}
+
+/// If there is no existing Friendship and the event type is REQUEST, create a new room.
+/// If there is no existing Friendship and it is not a REQUEST Event, return an Invalid Action error.
+pub async fn create_or_get_synapse_room_id(
+    friendship: Option<&Friendship>,
+    new_event: &FriendshipEvent,
+    acting_user: &str,
+    second_user: &str,
+    token: &str,
+    synapse: &SynapseComponent,
+) -> Result<String, FriendshipsServiceErrorResponse> {
+    match friendship {
+        Some(_friendship) => Ok("".to_string()), // TODO: friendship.room_id
+        None => {
+            if new_event == &FriendshipEvent::REQUEST {
+                let res =
+                    create_private_room_in_synapse(token, vec![acting_user, second_user], synapse)
+                        .await?;
+                // TODO: Set account data
+                Ok(res.room_id)
+            } else {
+                Err(FriendshipsServiceError::InternalServerError.into())
+            }
+        }
     }
 }

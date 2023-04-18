@@ -35,7 +35,7 @@ lazy_static::lazy_static! {
 }
 
 impl FriendshipEvent {
-    /// Validate the new status is valid and different from the current status.
+    /// Validate the new event is valid and different from the last recorded.
     pub fn validate_new_event_is_valid(
         current_event: &Option<FriendshipEvent>,
         new_event: FriendshipEvent,

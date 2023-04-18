@@ -194,11 +194,23 @@ fn calculate_new_friendship_status(
 
 /// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
 ///
-/// * `user_ids` - A mut vector of user addresses as strings.
+/// * `user_ids` - A mut vector of users addresses as strings.
 ///
 /// Returns the room alias name as a string.
-pub fn build_room_alias_name(mut user_ids: Vec<String>) -> String {
+pub fn build_room_alias_name(mut user_ids: Vec<&str>) -> String {
     user_ids.sort();
-    let room_alias_name = user_ids.join("+");
-    room_alias_name
+    user_ids.join("+")
+}
+
+/// Validate the new event is valid and different from the last recorded.
+pub fn validate_new_event(
+    last_recorded_history: &Option<FriendshipHistory>,
+    new_event: FriendshipEvent,
+) -> Result<(), FriendshipsServiceErrorResponse> {
+    let last_recorded_event = last_recorded_history.as_ref().map(|history| history.event);
+    let is_valid = FriendshipEvent::validate_new_event_is_valid(&last_recorded_event, new_event);
+    if !is_valid {
+        return Err(FriendshipsServiceError::InternalServerError.into());
+    };
+    Ok(())
 }
