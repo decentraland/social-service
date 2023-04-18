@@ -90,6 +90,21 @@ pub struct MessageRequestEventBody {
     pub body: String,
 }
 
+#[derive(Deserialize, Serialize)]
+pub enum Preset {
+    PrivateChat,
+    TrustedPrivateChat,
+    PublicChat,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateRoomOpts {
+    pub room_alias_name: String,
+    pub preset: Preset,
+    pub invite: Vec<String>,
+    pub is_direct: bool,
+}
+
 impl SynapseComponent {
     pub fn new(url: String) -> Self {
         if url.is_empty() {
@@ -220,6 +235,30 @@ impl SynapseComponent {
         })
     }
 
+    pub async fn create_private_room(
+        &self,
+        token: &str,
+        user_ids: &mut [String],
+    ) -> Result<RoomEventResponse, CommonError> {
+        let path = "/_matrix/client/r0/createRoom".to_string();
+
+        user_ids.sort();
+        let room_alias_name = user_ids.join("+");
+
+        Self::authenticated_post_request(
+            &path,
+            token,
+            &self.synapse_url,
+            &CreateRoomOpts {
+                room_alias_name,
+                preset: Preset::PrivateChat,
+                invite: user_ids.to_vec(),
+                is_direct: true,
+            },
+        )
+        .await
+    }
+
     async fn get_request<T: DeserializeOwned>(
         path: &str,
         synapse_url: &str,
@@ -241,6 +280,24 @@ impl SynapseComponent {
         let client = reqwest::Client::new();
         let response = client
             .put(url)
+            .json(&body)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await;
+
+        Self::process_synapse_response::<T>(response).await
+    }
+
+    async fn authenticated_post_request<T: DeserializeOwned, S: Serialize>(
+        path: &str,
+        token: &str,
+        synapse_url: &str,
+        body: S,
+    ) -> Result<T, CommonError> {
+        let url = format!("{synapse_url}{path}");
+        let client = reqwest::Client::new();
+        let response = client
+            .post(url)
             .json(&body)
             .header("Authorization", format!("Bearer {token}"))
             .send()

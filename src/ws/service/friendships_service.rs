@@ -11,7 +11,10 @@ use crate::{
     User, Users,
 };
 
-use super::{synapse_handlers::get_user_id_from_request, utils_handlers::map_request_events};
+use super::{
+    synapse_handlers::get_user_id_from_request,
+    utils_handlers::friendship_requests_as_request_events,
+};
 
 #[derive(Debug)]
 pub struct MyFriendshipsService {}
@@ -136,7 +139,9 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                                 log::debug!("Get Friends > Get User Requests > Error: {err}.");
                                 todo!()
                             }
-                            Ok(requests) => map_request_events(requests, user_id.social_id),
+                            Ok(requests) => {
+                                friendship_requests_as_request_events(requests, user_id.social_id)
+                            }
                         }
                     }
                     // TODO: Handle repos None.

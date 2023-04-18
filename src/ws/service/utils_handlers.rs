@@ -13,7 +13,10 @@ use super::types::EventPayload;
 ///
 /// * `requests` - A vector of `FriendshipRequestEvents` to map to `RequestResponse` struct.
 /// * `user_id` - The id of the auth user.
-pub fn map_request_events(requests: Vec<FriendshipRequestEvent>, user_id: String) -> RequestEvents {
+pub fn friendship_requests_as_request_events(
+    requests: Vec<FriendshipRequestEvent>,
+    user_id: String,
+) -> RequestEvents {
     let mut outgoing_requests: Vec<RequestResponse> = Vec::new();
     let mut incoming_requests: Vec<RequestResponse> = Vec::new();
 
@@ -65,7 +68,7 @@ pub fn map_request_events(requests: Vec<FriendshipRequestEvent>, user_id: String
 
 /// Extracts the information from a friendship update payload,
 /// that is, the room event, the other user who is part of the friendship event, and the message body from the request event.
-pub fn extract_event_payload(
+pub fn extract_update_friendship_payload(
     request: UpdateFriendshipPayload,
 ) -> Result<EventPayload, FriendshipsServiceErrorResponse> {
     let event_payload = if let Some(body) = request.event {
@@ -120,7 +123,7 @@ pub fn extract_event_payload(
 }
 
 /// Calculates the new friendship status based on the provided friendship event and the last recorded history.
-pub fn get_friendship_status(
+pub fn get_new_friendship_status(
     acting_user: &str,
     last_recorded_history: &Option<FriendshipHistory>,
     room_event: FriendshipEvent,

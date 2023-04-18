@@ -19,7 +19,7 @@ use super::{
     errors::FriendshipsServiceErrorResponse,
     synapse_handlers::{store_message_in_synapse_room, store_room_event_in_synapse_room},
     types::EventResponse,
-    utils_handlers::{extract_event_payload, get_friendship_status},
+    utils_handlers::{extract_update_friendship_payload, get_new_friendship_status},
 };
 
 pub async fn process_room_event(
@@ -27,7 +27,7 @@ pub async fn process_room_event(
     context: Arc<SocialContext>,
     user_id: String,
 ) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
-    let event_payload = extract_event_payload(request.clone())?;
+    let event_payload = extract_update_friendship_payload(request.clone())?;
 
     let new_event = event_payload.friendship_event;
 
@@ -46,8 +46,8 @@ pub async fn process_room_event(
         None => {
             if new_event == FriendshipEvent::REQUEST {
                 // TODO: Create room
-                let room_id = "";
-                (None, room_id)
+                let synapse_room_id = "";
+                (None, synapse_room_id)
             } else {
                 return Err(FriendshipsServiceError::InternalServerError.into());
             }
@@ -67,7 +67,7 @@ pub async fn process_room_event(
     };
 
     // Get new friendship status
-    let new_status = get_friendship_status(&acting_user, &last_recorded_history, new_event)?;
+    let new_status = get_new_friendship_status(&acting_user, &last_recorded_history, new_event)?;
 
     // Start a database transaction.
     let friendship_ports = FriendshipPortsWs {
