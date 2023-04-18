@@ -4,31 +4,14 @@ use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 
 use crate::{
-    components::database::DatabaseComponentImplementation,
     entities::friendships::FriendshipRepositoryImplementation,
-    ports::friendship_synapse::FriendshipEvent,
-    ws::{
-        app::SocialContext,
-        service::{
-            database_handlers::{get_last_history, update_friendship_status},
-            errors::FriendshipsServiceError,
-            types::{FriendshipPortsWs, RoomInfoWs},
-        },
-    },
+    ws::{app::SocialContext, service::event_handlers::process_room_event},
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
 };
 
-use super::{
-    database_handlers::get_friendship,
-    errors::FriendshipsServiceErrorResponse,
-    synapse_handlers::{
-        get_user_id_from_request, store_message_in_synapse_room, store_room_event_in_synapse_room,
-    },
-    types::EventResponse,
-    utils_handlers::{extract_event_payload, get_friendship_status, map_request_events},
-};
+use super::{synapse_handlers::get_user_id_from_request, utils_handlers::map_request_events};
 
 #[derive(Debug)]
 pub struct MyFriendshipsService {}
@@ -207,122 +190,5 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         _context: Arc<SocialContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
         todo!()
-    }
-}
-
-async fn process_room_event(
-    request: UpdateFriendshipPayload,
-    context: Arc<SocialContext>,
-    user_id: String,
-) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
-    let event_payload = extract_event_payload(request.clone())?;
-
-    let room_event = event_payload.friendship_event;
-
-    let acting_user = user_id;
-    let second_user = event_payload.second_user;
-
-    // Get the friendship info
-    let db_repos = &context.db.clone().db_repos.unwrap();
-    let friendships_repository = &db_repos.friendships;
-    let friendship = get_friendship(friendships_repository, &acting_user, &second_user).await?;
-
-    // TODO: If there is no existing Friendship and the event type is REQUEST, create a new room.
-    // TODO: If there is no existing Friendship and it is not a REQUEST Event, return an Invalid Action error.
-    let (friendship, room_id) = match friendship {
-        Some(friendship) => (Some(friendship), ""), // TODO: friendship.room_id
-        None => {
-            if room_event == FriendshipEvent::REQUEST {
-                // TODO: Create room
-                let room_id = "";
-                (None, room_id)
-            } else {
-                return Err(FriendshipsServiceError::InternalServerError.into());
-            }
-        }
-    };
-
-    //  Get the last status from the database to later validate if the current action is valid.
-    let friendship_history_repository = &db_repos.friendship_history;
-    let last_recorded_history =
-        get_last_history(friendship_history_repository, &friendship).await?;
-
-    // Validate if the new status that is trying to be set is valid. If it's invalid or it has not changed, return here.
-    let last_event = { last_recorded_history.as_ref().map(|history| history.event) };
-    let is_valid = FriendshipEvent::validate_new_event_is_valid(&last_event, room_event);
-    if !is_valid {
-        return Err(FriendshipsServiceError::InternalServerError.into());
-    };
-
-    // TODO: If the status has not changed, no action is taken.
-
-    // Get new friendship status
-    let new_status = get_friendship_status(&acting_user, &last_recorded_history, room_event)?;
-
-    // Start a database transaction.
-    let friendship_ports = FriendshipPortsWs {
-        db: &context.db,
-        friendships_repository: &db_repos.friendships,
-        friendship_history_repository: &db_repos.friendship_history,
-    };
-    let transaction = match friendship_ports.db.start_transaction().await {
-        Ok(tx) => tx,
-        Err(error) => {
-            log::error!("Couldn't start transaction to store friendship update {error}");
-            return Err(FriendshipsServiceError::InternalServerError.into());
-        }
-    };
-
-    // Update the friendship accordingly in the database. This means creating an entry in the friendships table or updating the is_active column.
-    let room_message_body = event_payload.request_event_message_body.as_deref();
-    let room_info = RoomInfoWs {
-        room_event,
-        room_message_body,
-        room_id,
-    };
-    let transaction = update_friendship_status(
-        &friendship,
-        &acting_user,
-        &second_user,
-        new_status,
-        room_info,
-        friendship_ports,
-        transaction,
-    )
-    .await?;
-
-    // If it's a friendship request event and the request contains a message, send a message event to the given room.
-    let token = request.auth_token.unwrap().synapse_token.unwrap();
-    store_message_in_synapse_room(
-        &token,
-        room_id,
-        room_event,
-        room_message_body,
-        &context.synapse,
-    )
-    .await?;
-
-    // Store the friendship event in the given room.
-    let result = store_room_event_in_synapse_room(
-        &token,
-        room_id,
-        room_event,
-        room_message_body,
-        &context.synapse,
-    )
-    .await;
-
-    match result {
-        // TODO: handle different event responses
-        Ok(value) => {
-            // End transaction
-            let transaction_result = transaction.commit().await;
-
-            match transaction_result {
-                Ok(_) => Ok(value),
-                Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
-            }
-        }
-        Err(_err) => Err(FriendshipsServiceError::InternalServerError.into()),
     }
 }

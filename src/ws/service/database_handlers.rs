@@ -101,7 +101,7 @@ async fn store_friendship_update(
     }
 }
 
-// Updates the friendship status in the friendship table and stores an update in the history table.
+// Updates the friendship status in the friendship table and stores an update in the friendship_history table.
 pub async fn update_friendship_status<'a>(
     friendship: &'a Option<Friendship>,
     acting_user: &'a str,

@@ -35,12 +35,21 @@ lazy_static::lazy_static! {
 }
 
 impl FriendshipEvent {
+    /// Validate the new status is valid and different from the current status.
     pub fn validate_new_event_is_valid(
         current_event: &Option<FriendshipEvent>,
         new_event: FriendshipEvent,
     ) -> bool {
-        let valid_transitions = VALID_FRIENDSHIP_EVENT_TRANSITIONS.get(&new_event).unwrap();
-        valid_transitions.contains(current_event)
+        if current_event.map_or(true, |event| event.is_different(&new_event)) {
+            let valid_transitions = VALID_FRIENDSHIP_EVENT_TRANSITIONS.get(&new_event).unwrap();
+            valid_transitions.contains(current_event)
+        } else {
+            false
+        }
+    }
+
+    pub fn is_different(&self, new_event: &Self) -> bool {
+        self != new_event
     }
 }
 
