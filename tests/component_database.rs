@@ -3,7 +3,8 @@ mod common;
 pub use common::*;
 
 use social_service::{
-    api::routes::synapse::room_events::FriendshipEvent, components::database::DBRepositories,
+    api::routes::synapse::room_events::FriendshipEvent,
+    components::database::{DBRepositories, DatabaseComponentImplementation},
     entities::friendships::FriendshipRepositoryImplementation,
 };
 use uuid::Uuid;
@@ -27,6 +28,7 @@ async fn should_create_and_get_a_friendship() {
 
     assert_eq!(friendship.as_ref().unwrap().address_1, "A");
     assert_eq!(friendship.as_ref().unwrap().address_2, "B");
+    assert_eq!(friendship.as_ref().unwrap().synapse_room_id, "room_id_B_A");
 }
 
 #[actix_web::test]
@@ -170,6 +172,58 @@ async fn should_get_pending_request_events_other_acting_user() {
     assert_eq!(first_request.address_2, "B");
     assert_eq!(first_request.acting_user, "B");
     assert!(first_request.metadata.is_none());
+}
+
+#[actix_web::test]
+#[serial_test::serial]
+async fn should_run_transaction_succesfully() {
+    // create the database component
+    let db = create_db_component(None).await;
+    let dbrepos = db.db_repos.as_ref().unwrap();
+    let addresses = ("1", "2");
+    let addresses_2 = ("2", "3");
+
+    let trans = db.start_transaction().await.unwrap();
+
+    let (_res, trans) = dbrepos
+        .friendships
+        .create_new_friendships(addresses, true, "room_id_1_2", Some(trans))
+        .await;
+
+    let (_res, trans) = dbrepos
+        .friendships
+        .create_new_friendships(addresses_2, true, "room_id_2_3", trans)
+        .await;
+
+    // Read from pre transaction status
+    let (read, _) = dbrepos.friendships.get_friendship(addresses, None).await;
+
+    match read {
+        Ok(read) => {
+            assert!(read.is_none())
+        }
+        Err(err) => panic!("Failed while reading from db {}", err),
+    }
+
+    let (read, trans) = dbrepos.friendships.get_friendship(addresses, trans).await;
+
+    match read {
+        Ok(read) => {
+            assert!(read.is_some())
+        }
+        Err(err) => panic!("Failed while reading from db {}", err),
+    }
+
+    trans.unwrap().commit().await.unwrap();
+
+    let (read, _) = dbrepos.friendships.get_friendship(addresses, None).await;
+
+    match read {
+        Ok(read) => {
+            assert!(read.is_some())
+        }
+        Err(err) => panic!("Failed while reading from db {}", err),
+    }
 }
 
 /// Creates a new friendship between two users and returns the friendship_id.
