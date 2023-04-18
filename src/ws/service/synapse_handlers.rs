@@ -27,10 +27,6 @@ use super::{
 /// user id from the token and returns it as a `Result<UserId, Error>`. If no
 /// authentication token was provided, this function returns a `Unauthorized`
 /// error.
-///
-/// * `request` -
-/// * `synapse` -
-/// * `users_cache` -
 pub async fn get_user_id_from_request(
     request: &Payload,
     synapse: SynapseComponent,
@@ -51,7 +47,7 @@ pub async fn get_user_id_from_request(
     }
 }
 
-/// If it's a friendship request event and the request contains a message, we send a message event to the given room.
+/// Stores a message event in a Synapse room if it's a friendship request event and the request contains a message.
 pub async fn store_message_in_synapse_room<'a>(
     token: &str,
     room_id: &str,
@@ -88,7 +84,7 @@ pub async fn store_message_in_synapse_room<'a>(
     Ok(())
 }
 
-/// Stores a room event in a Synapse room, and it returns an EventResponse struct containing the event ID if the operation was successful
+/// Stores a room event in a Synapse room, and it returns the `EventResponse` containing the event id if the operation was successful
 pub async fn store_room_event_in_synapse_room(
     token: &str,
     room_id: &str,
@@ -111,13 +107,19 @@ pub async fn store_room_event_in_synapse_room(
     }
 }
 
-pub async fn create_private_room_in_synapse(
+/// Creates a new private room in Synapse and returns the `CreateRoomResponse` if successful.
+/// Returns a `FriendshipsServiceErrorResponse` if there is an error communicating with Synapse.
+///
+/// * `token` - A `&str` representing the auth token.
+/// * `user_ids` - A `Vec<&str>` containing the user ids to invite to the room. There is no need to include the current user id.
+/// * `room_alias_name` -
+/// * `synapse` - A reference to the `SynapseComponent` instance.
+async fn create_private_room_in_synapse(
     token: &str,
     user_ids: Vec<&str>,
+    room_alias_name: String,
     synapse: &SynapseComponent,
 ) -> Result<CreateRoomResponse, FriendshipsServiceErrorResponse> {
-    let room_alias_name = build_room_alias_name(user_ids.clone());
-
     let res = synapse
         .create_private_room(token, user_ids, &room_alias_name)
         .await;
@@ -133,11 +135,14 @@ pub async fn create_private_room_in_synapse(
     }
 }
 
-/// Creates or retrieves the Synapse room id.
+/// Creates a new Synapse room or returns the existing room id, depending on the `Friendship` and `FriendshipEvent`.
 ///
-/// If the Friendship does not exist and the event type is REQUEST, a new room is created
-/// and the account data is set. If the Friendship does not exist and it is not a REQUEST event,
-/// an Internal Server Error error is returned.
+/// If the `Friendship` exists, this function returns the `room_id` in the `Friendship` struct.
+///
+/// If the `Friendship` does not exist and the `FriendshipEvent` is `REQUEST`, a new room is created
+/// and the account data is set. The new room id is returned.
+///
+/// If the `Friendship` does not exist and the `FriendshipEvent` is not `REQUEST`, an Internal Server Error error is returned.
 pub async fn create_or_get_synapse_room_id(
     friendship: Option<&Friendship>,
     new_event: &FriendshipEvent,
@@ -150,12 +155,26 @@ pub async fn create_or_get_synapse_room_id(
         Some(_friendship) => Ok("".to_string()), // TODO: friendship.room_id
         None => {
             if new_event == &FriendshipEvent::REQUEST {
-                let res =
-                    create_private_room_in_synapse(token, vec![acting_user, second_user], synapse)
-                        .await?;
+                let room_alias_name: String =
+                    build_room_alias_name(vec![acting_user.clone(), second_user.clone()]);
+                let res = create_private_room_in_synapse(
+                    token,
+                    vec![second_user],
+                    room_alias_name,
+                    synapse,
+                )
+                .await;
 
-                // TODO: Set account data
-                Ok(res.room_id)
+                match res {
+                    Ok(res) => {
+                        synapse
+                            .set_account_data(token, second_user, &res.room_id)
+                            .await
+                            .map_err(|_err| FriendshipsServiceError::InternalServerError);
+                        Ok(res.room_id)
+                    }
+                    Err(_) => return Err(FriendshipsServiceError::InternalServerError.into()),
+                }
             } else {
                 Err(FriendshipsServiceError::InternalServerError.into())
             }

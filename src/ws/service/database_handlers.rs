@@ -58,7 +58,7 @@ pub async fn get_last_history(
     friendship_history_result.map_err(|_err| FriendshipsServiceError::InternalServerError.into())
 }
 
-/// Stores updates to a friendship or creates a new friendship if one does not exist.
+/// Stores updates to a friendship or creates a new friendship if it does not exist.
 async fn store_friendship_update(
     friendships_repository: &FriendshipsRepository,
     friendship: &Option<Friendship>,

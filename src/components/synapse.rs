@@ -267,10 +267,10 @@ impl SynapseComponent {
 
     pub async fn set_account_data(
         &self,
-        _token: &str,
-        _user_id: &str,
-        _room_id: &str,
-    ) -> Result<RoomEventResponse, CommonError> {
+        token: &str,
+        user_id: &str,
+        room_id: &str,
+    ) -> Result<(), CommonError> {
         // let m_direct_event = get_account_data("m.direct").await?;
         // let direct_room_map = if let Some(content) = m_direct_event.content() {
         // content
@@ -281,10 +281,8 @@ impl SynapseComponent {
         // if let Some(room_ids) = direct_room_map.get_mut(user_id) {
         // if room_ids.contains(room_id) {
         // return;
-        // }
-        // *room_ids = vec![room_id];
         // } else {
-        // direct_room_map.insert(user_id.to_owned(), vec![room_id]);
+        // direct_room_map.insert(user_id, vec![room_id]);
         // }
         //
         // set_account_data("m.direct", direct_room_map)
