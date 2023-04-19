@@ -10,8 +10,8 @@ use crate::{
     entities::friendship_event::FriendshipEvent,
 };
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AccountDataContent {
+#[derive(Deserialize, Serialize)]
+pub struct AccountDataContentResponse {
     #[serde(flatten)]
     #[serde(rename = "m.direct")]
     pub direct: HashMap<String, Vec<String>>,
@@ -293,7 +293,7 @@ impl SynapseComponent {
         &self,
         token: &str,
         user_id: &str,
-    ) -> Result<AccountDataContent, CommonError> {
+    ) -> Result<AccountDataContentResponse, CommonError> {
         let path: String = format!("/_matrix/client/user/{user_id}/account_data/m.direct");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
