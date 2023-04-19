@@ -174,14 +174,11 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         .await;
 
         // Process rooom event as in
-        match user_id {
-            Ok(user_id) => {
-                let _result = process_room_event(request, context, user_id.social_id);
-            }
+        let _res = match user_id {
+            Ok(user_id) => process_room_event(request, context, user_id.social_id).await,
             Err(_) => todo!(),
-        }
+        };
 
-        // TODO: Return Response
         todo!()
     }
 

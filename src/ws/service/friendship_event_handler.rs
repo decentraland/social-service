@@ -123,12 +123,14 @@ pub async fn process_room_event(
 
     match result {
         // TODO: handle different event responses
-        Ok(value) => {
+        Ok(_) => {
             // End transaction
             let transaction_result = transaction.commit().await;
 
             match transaction_result {
-                Ok(_) => Ok(value),
+                Ok(_) => Ok(EventResponse {
+                    user_id: second_user,
+                }),
                 Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
             }
         }

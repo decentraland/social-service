@@ -13,10 +13,7 @@ use crate::{
     Payload,
 };
 
-use super::{
-    errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
-    types::EventResponse,
-};
+use super::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse};
 
 /// Retrieves the User Id associated with the given Authentication Token.
 ///
@@ -88,18 +85,13 @@ pub async fn store_room_event_in_synapse_room(
     room_event: FriendshipEvent,
     room_message_body: Option<&str>,
     synapse: &SynapseComponent,
-) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
+) -> Result<(), FriendshipsServiceErrorResponse> {
     let res = synapse
         .store_room_event(token, room_id, room_event, room_message_body)
         .await;
 
     match res {
-        Ok(response) => {
-            let res = EventResponse {
-                event_id: response.event_id,
-            };
-            Ok(res)
-        }
+        Ok(_) => Ok(()),
         Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
     }
 }
