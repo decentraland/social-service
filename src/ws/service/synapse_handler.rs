@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::Mutex;
 
@@ -152,7 +152,7 @@ async fn get_room_id_for_alias_in_synapse(
 /// If the `Friendship` does not exist and the `FriendshipEvent` is `REQUEST`,
 /// this function checks if a room with the alias exists in Synapse.
 /// If the room exists, the function returns its id
-/// If the room does not exist, a new room is created, the account data is set and the new room id is returned.
+/// If the room does not exist, a new room is created and the new room id is returned.
 ///
 /// If the `Friendship` does not exist and the `FriendshipEvent` is not `REQUEST`, an Internal Server Error error is returned.
 pub async fn get_or_create_synapse_room_id(
@@ -184,13 +184,7 @@ pub async fn get_or_create_synapse_room_id(
                         .await;
 
                         match create_room_result {
-                            Ok(res) => {
-                                synapse
-                                    .set_account_data(token, second_user, &res.room_id)
-                                    .await
-                                    .map_err(|_err| FriendshipsServiceError::InternalServerError)?;
-                                Ok(res.room_id)
-                            }
+                            Ok(res) => Ok(res.room_id),
                             Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
                         }
                     }
@@ -199,5 +193,40 @@ pub async fn get_or_create_synapse_room_id(
                 Err(FriendshipsServiceError::InternalServerError.into())
             }
         }
+    }
+}
+
+pub async fn set_account_data(
+    token: &str,
+    acting_user: &str,
+    second_user: &str,
+    room_id: &str,
+    synapse: &SynapseComponent,
+) -> Result<(), FriendshipsServiceErrorResponse> {
+    let m_direct_event = synapse.get_account_data(token, acting_user).await;
+
+    match m_direct_event {
+        Ok(m_direct_event) => {
+            let mut direct_room_map = if !m_direct_event.direct.is_empty() {
+                m_direct_event.direct.clone()
+            } else {
+                HashMap::new()
+            };
+
+            if let Some(room_ids) = direct_room_map.get_mut(second_user) {
+                if room_ids.contains(&room_id.to_string()) {
+                    return Ok(());
+                } else {
+                    direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
+                    synapse
+                        .set_account_data(token, acting_user, direct_room_map)
+                        .await
+                        .map_err(|_err| FriendshipsServiceError::InternalServerError)?;
+                    return Ok(());
+                }
+            };
+            Ok(())
+        }
+        Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
     }
 }

@@ -18,7 +18,7 @@ use super::{
     friendship_status_calculator::get_new_friendship_status,
     mapper::extract_update_friendship_payload,
     synapse_handler::{
-        get_or_create_synapse_room_id, store_message_in_synapse_room,
+        get_or_create_synapse_room_id, set_account_data, store_message_in_synapse_room,
         store_room_event_in_synapse_room,
     },
 };
@@ -46,6 +46,15 @@ pub async fn process_room_event(
         &second_user,
         &token,
         &context.synapse.clone(),
+    )
+    .await?;
+
+    set_account_data(
+        &token,
+        &acting_user,
+        &second_user,
+        &synapse_room_id,
+        &context.synapse,
     )
     .await?;
 

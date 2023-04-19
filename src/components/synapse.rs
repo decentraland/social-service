@@ -10,6 +10,13 @@ use crate::{
     entities::friendship_event::FriendshipEvent,
 };
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AccountDataContent {
+    #[serde(flatten)]
+    #[serde(rename = "m.direct")]
+    pub direct: HashMap<String, Vec<String>>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct RoomIdResponse {
     pub room_id: String,
@@ -273,27 +280,23 @@ impl SynapseComponent {
 
     pub async fn set_account_data(
         &self,
-        _token: &str,
-        _user_id: &str,
-        _room_id: &str,
+        token: &str,
+        user_id: &str,
+        direct_room_map: HashMap<String, Vec<String>>,
     ) -> Result<(), CommonError> {
-        // let m_direct_event = get_account_data("m.direct").await?;
-        // let direct_room_map = if let Some(content) = m_direct_event.content() {
-        // content
-        // } else {
-        // HashMap::new()
-        // };
-        //
-        // if let Some(room_ids) = direct_room_map.get_mut(user_id) {
-        // if room_ids.contains(room_id) {
-        // return;
-        // } else {
-        // direct_room_map.insert(user_id, vec![room_id]);
-        // }
-        //
-        // set_account_data("m.direct", direct_room_map)
-        // .await?;
-        todo!()
+        let path: String = format!("/_matrix/client/user/{user_id}/account_data/m.direct");
+
+        Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
+    }
+
+    pub async fn get_account_data(
+        &self,
+        token: &str,
+        user_id: &str,
+    ) -> Result<AccountDataContent, CommonError> {
+        let path: String = format!("/_matrix/client/user/{user_id}/account_data/m.direct");
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
 
     pub async fn get_room_id_for_alias(
@@ -301,7 +304,7 @@ impl SynapseComponent {
         token: &str,
         alias: &str,
     ) -> Result<RoomIdResponse, CommonError> {
-        let path = format!("/directory/room/{alias}");
+        let path = format!("/_matrix/client/r0/directory/room/{alias}");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
