@@ -4,9 +4,9 @@ use uuid::Uuid;
 use crate::{
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
+        friendship_status::FriendshipStatus,
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    ports::friendship_synapse::FriendshipStatus,
     ws::service::errors::FriendshipsServiceError,
     ws::service::errors::FriendshipsServiceErrorResponse,
 };

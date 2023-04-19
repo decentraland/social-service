@@ -15,8 +15,9 @@ use crate::{
     entities::queries::USER_REQUESTS_QUERY,
     entities::utils::get_transaction_result_from_executor,
     generate_uuid_v4,
-    ports::friendship_synapse::FriendshipEvent,
 };
+
+use super::friendship_event::FriendshipEvent;
 
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {

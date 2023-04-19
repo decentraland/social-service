@@ -7,7 +7,7 @@ use crate::{
         synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
         v1::error::CommonError,
     },
-    ports::friendship_synapse::FriendshipEvent,
+    entities::friendship_event::FriendshipEvent,
 };
 
 #[derive(Debug, Clone)]
@@ -267,9 +267,9 @@ impl SynapseComponent {
 
     pub async fn set_account_data(
         &self,
-        token: &str,
-        user_id: &str,
-        room_id: &str,
+        _token: &str,
+        _user_id: &str,
+        _room_id: &str,
     ) -> Result<(), CommonError> {
         // let m_direct_event = get_account_data("m.direct").await?;
         // let direct_room_map = if let Some(content) = m_direct_event.content() {

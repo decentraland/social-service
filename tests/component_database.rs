@@ -4,8 +4,9 @@ pub use common::*;
 
 use social_service::{
     components::database::DBRepositories,
-    entities::friendships::FriendshipRepositoryImplementation,
-    ports::friendship_synapse::FriendshipEvent,
+    entities::{
+        friendship_event::FriendshipEvent, friendships::FriendshipRepositoryImplementation,
+    },
 };
 use uuid::Uuid;
 

@@ -1,7 +1,10 @@
 use crate::{
-    entities::friendship_history::{FriendshipHistory, FriendshipRequestEvent},
+    entities::{
+        friendship_event::FriendshipEvent,
+        friendship_history::{FriendshipHistory, FriendshipRequestEvent},
+        friendship_status::FriendshipStatus,
+    },
     friendship_event_payload,
-    ports::friendship_synapse::{FriendshipEvent, FriendshipStatus},
     ws::service::errors::FriendshipsServiceError,
     ws::service::errors::FriendshipsServiceErrorResponse,
     RequestEvents, RequestResponse, Requests, UpdateFriendshipPayload, User,

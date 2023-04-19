@@ -15,14 +15,13 @@ use crate::{
         synapse::{RoomMembersResponse, SynapseComponent},
     },
     entities::{
+        friendship_event::FriendshipEvent,
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
+        friendship_status::FriendshipStatus,
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::Token,
-    ports::{
-        friendship_synapse::{FriendshipEvent, FriendshipStatus},
-        users_cache::UserId,
-    },
+    ports::users_cache::UserId,
 };
 
 use super::errors::SynapseError;
