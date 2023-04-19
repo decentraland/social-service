@@ -43,7 +43,7 @@ pub fn get_new_friendship_status(
 }
 
 /// Calculates the new friendship status based on the provided friendship event and the last recorded history.
-/// This function assumes that the room event is valid for the last event.
+/// Assumes that the room event is valid for the last event.
 fn calculate_new_friendship_status(
     acting_user: &str,
     last_recorded_history: &Option<FriendshipHistory>,

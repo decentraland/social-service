@@ -20,9 +20,9 @@ use super::{
 
 /// Retrieves the User Id associated with the given Authentication Token.
 ///
-/// If an authentication token was provided in the request, this function gets the
+/// If an authentication token was provided in the request, gets the
 /// user id from the token and returns it as a `Result<UserId, Error>`. If no
-/// authentication token was provided, this function returns a `Unauthorized`
+/// authentication token was provided, returns a `Unauthorized`
 /// error.
 pub async fn get_user_id_from_request(
     request: &Payload,
@@ -147,11 +147,10 @@ async fn get_room_id_for_alias_in_synapse(
 
 /// Creates a new Synapse room or returns the existing room id, depending on the `Friendship` and `FriendshipEvent`.
 ///
-/// If the `Friendship` exists, this function returns the `synapse_room_id` in the `Friendship` struct.
+/// If the `Friendship` exists, returns the `synapse_room_id` in the `Friendship` struct.
 ///
-/// If the `Friendship` does not exist and the `FriendshipEvent` is `REQUEST`,
-/// this function checks if a room with the alias exists in Synapse.
-/// If the room exists, the function returns its id
+/// If the `Friendship` does not exist and the `FriendshipEvent` is `REQUEST`, checks if a room with the alias exists in Synapse.
+/// If the room exists, returns its id.
 /// If the room does not exist, a new room is created and the new room id is returned.
 ///
 /// If the `Friendship` does not exist and the `FriendshipEvent` is not `REQUEST`, an Internal Server Error error is returned.
@@ -196,6 +195,8 @@ pub async fn get_or_create_synapse_room_id(
     }
 }
 
+/// Sets the account data event for the acting user
+/// Returns `Ok(())` if the account data was successfully set, or a `FriendshipsServiceErrorResponse` if an error occurs.
 pub async fn set_account_data(
     token: &str,
     acting_user: &str,

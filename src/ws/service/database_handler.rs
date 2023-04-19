@@ -19,7 +19,7 @@ use super::types::{FriendshipPortsWs, RoomInfoWs};
 /// * `address_1` - The address to look for in the friendship relationship.
 /// * `address_2` - The address to look for in the friendship relationship.
 ///
-/// Returns a `Result` with an `Option` containing the `Friendship` relationship, or a `FriendshipsServiceErrorResponse` if an error occurs.
+/// Returns an `Option<Friendship>` if the friendship was found, or a `FriendshipsServiceErrorResponse` if an error occurs.
 pub async fn get_friendship(
     friendships_repository: &FriendshipsRepository,
     address_1: &str,
@@ -37,9 +37,7 @@ pub async fn get_friendship(
 /// * `friendship_history_repository` - A reference to the `FriendshipHistoryRepository` instance.
 /// * `friendship` - An `Option<Friendship>` to fetch the last history for.
 ///
-/// Returns an `Option<FriendshipHistory>` if the last history was found, otherwise `Ok(None)`.
-///
-/// Returns a `FriendshipsServiceErrorResponse` if there was an error fetching the last history from the repository.
+/// Returns an `Option<FriendshipHistory>` if the last history was found, or a `FriendshipsServiceErrorResponse` if an error occurs.
 pub async fn get_last_history(
     friendship_history_repository: &FriendshipHistoryRepository,
     friendship: &Option<Friendship>,
