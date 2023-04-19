@@ -65,6 +65,7 @@ async fn store_friendship_update(
     is_active: bool,
     address_1: &str,
     address_2: &str,
+    synapse_room_id: &str,
     transaction: Transaction<'static, Postgres>,
 ) -> (
     Result<Uuid, FriendshipsServiceErrorResponse>,
@@ -88,7 +89,12 @@ async fn store_friendship_update(
         }
         None => {
             let (friendship_id, transaction) = friendships_repository
-                .create_new_friendships((address_1, address_2), false, "", Some(transaction))
+                .create_new_friendships(
+                    (address_1, address_2),
+                    false,
+                    synapse_room_id,
+                    Some(transaction),
+                )
                 .await;
             (
                 friendship_id.map_err(|err| {
@@ -119,6 +125,7 @@ pub async fn update_friendship_status<'a>(
         is_active,
         acting_user,
         second_user,
+        room_info.room_id,
         transaction,
     )
     .await;
