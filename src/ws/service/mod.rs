@@ -1,10 +1,10 @@
-pub mod database_handlers;
+pub mod database_handler;
 pub mod errors;
-pub mod event_handlers;
+pub mod friendship_event_handler;
 pub mod friendship_event_validator;
 pub mod friendship_status_calculator;
 pub mod friendships_service;
 pub mod mapper;
-pub mod synapse_handlers;
+pub mod synapse_handler;
 pub mod types;
 pub mod utils;

@@ -5,7 +5,7 @@ use crate::{
     ws::{
         app::SocialContext,
         service::{
-            database_handlers::{get_friendship, get_last_history, update_friendship_status},
+            database_handler::{get_friendship, get_last_history, update_friendship_status},
             errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
             types::{EventResponse, FriendshipPortsWs, RoomInfoWs},
         },
@@ -17,8 +17,8 @@ use super::{
     friendship_event_validator::validate_new_event,
     friendship_status_calculator::get_new_friendship_status,
     mapper::extract_update_friendship_payload,
-    synapse_handlers::{
-        create_or_get_synapse_room_id, store_message_in_synapse_room,
+    synapse_handler::{
+        get_or_create_synapse_room_id, store_message_in_synapse_room,
         store_room_event_in_synapse_room,
     },
 };
@@ -39,7 +39,7 @@ pub async fn process_room_event(
     let friendships_repository = &db_repos.friendships;
     let friendship = get_friendship(friendships_repository, &acting_user, &second_user).await?;
 
-    let synapse_room_id = create_or_get_synapse_room_id(
+    let synapse_room_id = get_or_create_synapse_room_id(
         friendship.as_ref(),
         &new_event,
         &acting_user,

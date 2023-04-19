@@ -10,6 +10,12 @@ use crate::{
     entities::friendship_event::FriendshipEvent,
 };
 
+#[derive(Debug, Deserialize)]
+pub struct RoomIdResponse {
+    pub room_id: String,
+    _servers: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct SynapseComponent {
     synapse_url: String,
@@ -288,6 +294,16 @@ impl SynapseComponent {
         // set_account_data("m.direct", direct_room_map)
         // .await?;
         todo!()
+    }
+
+    pub async fn get_room_id_for_alias(
+        &self,
+        token: &str,
+        alias: &str,
+    ) -> Result<RoomIdResponse, CommonError> {
+        let path = format!("/directory/room/{alias}");
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
 
     async fn get_request<T: DeserializeOwned>(

@@ -6,14 +6,14 @@ use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
     entities::friendships::FriendshipRepositoryImplementation,
-    ws::{app::SocialContext, service::event_handlers::process_room_event},
+    ws::{app::SocialContext, service::friendship_event_handler::process_room_event},
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
 };
 
 use super::{
-    mapper::friendship_requests_as_request_events, synapse_handlers::get_user_id_from_request,
+    mapper::friendship_requests_as_request_events, synapse_handler::get_user_id_from_request,
 };
 
 #[derive(Debug)]
