@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
+
+use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
     entities::friendships::FriendshipRepositoryImplementation,
@@ -12,8 +13,7 @@ use crate::{
 };
 
 use super::{
-    synapse_handlers::get_user_id_from_request,
-    utils_handlers::friendship_requests_as_request_events,
+    mapper::friendship_requests_as_request_events, synapse_handlers::get_user_id_from_request,
 };
 
 #[derive(Debug)]

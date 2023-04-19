@@ -5,24 +5,21 @@ use crate::{
     ws::{
         app::SocialContext,
         service::{
-            database_handlers::{get_last_history, update_friendship_status},
-            errors::FriendshipsServiceError,
-            types::{FriendshipPortsWs, RoomInfoWs},
+            database_handlers::{get_friendship, get_last_history, update_friendship_status},
+            errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
+            types::{EventResponse, FriendshipPortsWs, RoomInfoWs},
         },
     },
     UpdateFriendshipPayload,
 };
 
 use super::{
-    database_handlers::get_friendship,
-    errors::FriendshipsServiceErrorResponse,
+    friendship_event_validator::validate_new_event,
+    friendship_status_calculator::get_new_friendship_status,
+    mapper::extract_update_friendship_payload,
     synapse_handlers::{
         create_or_get_synapse_room_id, store_message_in_synapse_room,
         store_room_event_in_synapse_room,
-    },
-    types::EventResponse,
-    utils_handlers::{
-        extract_update_friendship_payload, get_new_friendship_status, validate_new_event,
     },
 };
 

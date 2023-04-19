@@ -12,12 +12,11 @@ use sqlx::{
 
 use crate::{
     components::database::{DBConnection, DatabaseComponent, Executor},
+    entities::friendship_event::FriendshipEvent,
     entities::queries::USER_REQUESTS_QUERY,
     entities::utils::get_transaction_result_from_executor,
     generate_uuid_v4,
 };
-
-use super::friendship_event::FriendshipEvent;
 
 #[derive(Clone)]
 pub struct FriendshipHistoryRepository {

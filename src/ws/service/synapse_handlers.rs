@@ -9,7 +9,7 @@ use crate::{
     },
     entities::{friendship_event::FriendshipEvent, friendships::Friendship},
     ports::users_cache::{get_user_id_from_token, UserId},
-    ws::service::utils_handlers::build_room_alias_name,
+    ws::service::utils::build_room_alias_name,
     Payload,
 };
 
