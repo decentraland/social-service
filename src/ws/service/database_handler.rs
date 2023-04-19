@@ -1,17 +1,18 @@
+// Responsible for managing friendship relationships between two users,
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
-        friendship_status::FriendshipStatus,
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    ws::service::errors::FriendshipsServiceError,
-    ws::service::errors::FriendshipsServiceErrorResponse,
+    models::friendship_status::FriendshipStatus,
+    ws::service::{
+        errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
+        types::{FriendshipPortsWs, RoomInfoWs},
+    },
 };
-
-use super::types::{FriendshipPortsWs, RoomInfoWs};
 
 /// Retrieves a friendship relationship between two addresses
 ///

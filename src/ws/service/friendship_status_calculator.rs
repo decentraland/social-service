@@ -1,10 +1,7 @@
 use crate::{
-    entities::{
-        friendship_event::FriendshipEvent, friendship_history::FriendshipHistory,
-        friendship_status::FriendshipStatus,
-    },
-    ws::service::errors::FriendshipsServiceError,
-    ws::service::errors::FriendshipsServiceErrorResponse,
+    entities::friendship_history::FriendshipHistory,
+    models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
+    ws::service::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
 };
 
 /// Calculates the new friendship status based on the provided friendship event and the last recorded history.

@@ -1,9 +1,9 @@
 use crate::{
     components::database::DatabaseComponent,
     entities::{
-        friendship_event::FriendshipEvent, friendship_history::FriendshipHistoryRepository,
-        friendships::FriendshipsRepository,
+        friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
     },
+    models::friendship_event::FriendshipEvent,
 };
 
 pub struct EventResponse {

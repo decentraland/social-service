@@ -7,7 +7,7 @@ use crate::{
         synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
         v1::error::CommonError,
     },
-    entities::friendship_event::FriendshipEvent,
+    models::friendship_event::FriendshipEvent,
 };
 
 #[derive(Deserialize, Serialize)]

@@ -1,3 +1,4 @@
+// Responsible for managing Synapse rooms and storing events in these rooms.
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::Mutex;
@@ -7,7 +8,8 @@ use crate::{
         synapse::{CreateRoomResponse, SynapseComponent},
         users_cache::UsersCacheComponent,
     },
-    entities::{friendship_event::FriendshipEvent, friendships::Friendship},
+    entities::friendships::Friendship,
+    models::friendship_event::FriendshipEvent,
     ports::users_cache::{get_user_id_from_token, UserId},
     ws::service::utils::build_room_alias_name,
     Payload,

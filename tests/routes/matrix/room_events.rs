@@ -13,10 +13,8 @@ mod tests {
             database::DBRepositories,
             synapse::{RoomMember, RoomMembersResponse},
         },
-        entities::{
-            friendship_event::FriendshipEvent,
-            friendships::{Friendship, FriendshipRepositoryImplementation},
-        },
+        entities::friendships::{Friendship, FriendshipRepositoryImplementation},
+        models::friendship_event::FriendshipEvent,
     };
     use uuid::Uuid;
     use wiremock::{

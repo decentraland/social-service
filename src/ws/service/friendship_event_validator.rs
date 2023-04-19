@@ -1,5 +1,6 @@
 use crate::{
-    entities::{friendship_event::FriendshipEvent, friendship_history::FriendshipHistory},
+    entities::friendship_history::FriendshipHistory,
+    models::friendship_event::FriendshipEvent,
     ws::service::{errors::FriendshipsServiceError, errors::FriendshipsServiceErrorResponse},
 };
 

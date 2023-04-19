@@ -15,12 +15,11 @@ use crate::{
         synapse::{RoomMembersResponse, SynapseComponent},
     },
     entities::{
-        friendship_event::FriendshipEvent,
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
-        friendship_status::FriendshipStatus,
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::Token,
+    models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
     ports::users_cache::UserId,
 };
 
@@ -493,10 +492,12 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::{
-        api::routes::synapse::errors::SynapseError, entities::friendship_history::FriendshipHistory,
+        api::routes::synapse::errors::SynapseError,
+        entities::friendship_history::FriendshipHistory,
+        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
     };
 
-    use super::{process_friendship_status, FriendshipEvent, FriendshipStatus};
+    use super::process_friendship_status;
 
     fn get_last_history(event: FriendshipEvent, acting_user: &str) -> Option<FriendshipHistory> {
         Some(FriendshipHistory {
