@@ -1,11 +1,13 @@
 use crate::{
     entities::{friendship_event::FriendshipEvent, friendship_history::FriendshipRequestEvent},
-    friendship_event_payload,
+    friendship_event_payload, friendship_event_response,
     ws::service::{
         errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
-        types::EventPayload,
+        types::{EventPayload, EventResponse},
     },
-    RequestEvents, RequestResponse, Requests, UpdateFriendshipPayload, User,
+    AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse, RejectResponse,
+    RequestEvents, RequestResponse, Requests, UpdateFriendshipPayload, UpdateFriendshipResponse,
+    User,
 };
 
 /// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.
@@ -119,4 +121,81 @@ pub fn extract_update_friendship_payload(
     };
 
     Ok(event_payload)
+}
+
+pub fn event_response_as_update_response(
+    request: UpdateFriendshipPayload,
+    result: EventResponse,
+) -> Result<UpdateFriendshipResponse, FriendshipsServiceErrorResponse> {
+    let event_response = if let Some(body) = request.event {
+        match body.body {
+            Some(friendship_event_payload::Body::Request(_)) => {
+                let request_response = RequestResponse {
+                    user: Some(User {
+                        address: result.user_id,
+                    }),
+                    created_at: 12,
+                    message: None,
+                };
+
+                let body = friendship_event_response::Body::Request(request_response);
+                let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
+
+                UpdateFriendshipResponse { event: Some(event) }
+            }
+            Some(friendship_event_payload::Body::Accept(_)) => {
+                let accept_response = AcceptResponse {
+                    user: Some(User {
+                        address: result.user_id,
+                    }),
+                };
+
+                let body = friendship_event_response::Body::Accept(accept_response);
+                let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
+
+                UpdateFriendshipResponse { event: Some(event) }
+            }
+            Some(friendship_event_payload::Body::Reject(_)) => {
+                let reject_response = RejectResponse {
+                    user: Some(User {
+                        address: result.user_id,
+                    }),
+                };
+
+                let body = friendship_event_response::Body::Reject(reject_response);
+                let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
+
+                UpdateFriendshipResponse { event: Some(event) }
+            }
+            Some(friendship_event_payload::Body::Cancel(_)) => {
+                let cancel_response = CancelResponse {
+                    user: Some(User {
+                        address: result.user_id,
+                    }),
+                };
+
+                let body = friendship_event_response::Body::Cancel(cancel_response);
+                let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
+
+                UpdateFriendshipResponse { event: Some(event) }
+            }
+            Some(friendship_event_payload::Body::Delete(_)) => {
+                let delete_response = DeleteResponse {
+                    user: Some(User {
+                        address: result.user_id,
+                    }),
+                };
+
+                let body = friendship_event_response::Body::Delete(delete_response);
+                let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
+
+                UpdateFriendshipResponse { event: Some(event) }
+            }
+            None => return Err(FriendshipsServiceError::InternalServerError.into()),
+        }
+    } else {
+        return Err(FriendshipsServiceError::InternalServerError.into());
+    };
+
+    Ok(event_response)
 }

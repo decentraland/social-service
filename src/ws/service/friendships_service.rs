@@ -13,7 +13,8 @@ use crate::{
 };
 
 use super::{
-    mapper::friendship_requests_as_request_events, synapse_handler::get_user_id_from_request,
+    mapper::{event_response_as_update_response, friendship_requests_as_request_events},
+    synapse_handler::get_user_id_from_request,
 };
 
 #[derive(Debug)]
@@ -173,13 +174,27 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         )
         .await;
 
-        // Process rooom event as in
-        let _res = match user_id {
-            Ok(user_id) => process_room_event(request, context, user_id.social_id).await,
+        // Process room event
+        let update_friendship_response = match user_id {
+            Ok(user_id) => {
+                let process_room_event_response =
+                    process_room_event(request.clone(), context, user_id.social_id).await;
+
+                if let Ok(event_response) = process_room_event_response {
+                    if let Ok(res) = event_response_as_update_response(request, event_response) {
+                        res
+                    } else {
+                        todo!()
+                    }
+                } else {
+                    todo!()
+                }
+            }
             Err(_) => todo!(),
         };
 
-        todo!()
+        // Response
+        update_friendship_response
     }
 
     #[tracing::instrument(
