@@ -73,13 +73,10 @@ pub async fn room_event_handler(
     )
     .await;
 
-    if let Ok(res) = response {
-        return Ok(HttpResponse::Ok().json(res));
+    match response {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
     }
-
-    let err = response.err().unwrap();
-
-    Err(err)
 }
 
 async fn process_room_event<'a>(
@@ -352,6 +349,7 @@ async fn update_friendship_status<'a>(
         is_active,
         acting_user,
         second_user,
+        room_info.room_id,
         friendship_ports.friendships_repository,
         transaction,
     )
@@ -413,6 +411,7 @@ async fn store_friendship_update(
     is_active: bool,
     address_0: &str,
     address_1: &str,
+    synapse_room_id: &str,
     friendships_repository: &FriendshipsRepository,
     transaction: Transaction<'static, Postgres>,
 ) -> (Result<Uuid, SynapseError>, Transaction<'static, Postgres>) {
@@ -434,7 +433,12 @@ async fn store_friendship_update(
         }
         None => {
             let (friendship_id, transaction) = friendships_repository
-                .create_new_friendships((address_0, address_1), false, Some(transaction))
+                .create_new_friendships(
+                    (address_0, address_1),
+                    false,
+                    synapse_room_id,
+                    Some(transaction),
+                )
                 .await;
             (
                 friendship_id.map_err(|err| {
