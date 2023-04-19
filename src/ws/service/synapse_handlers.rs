@@ -155,8 +155,7 @@ pub async fn create_or_get_synapse_room_id(
         Some(_friendship) => Ok("".to_string()), // TODO: friendship.room_id
         None => {
             if new_event == &FriendshipEvent::REQUEST {
-                let room_alias_name: String =
-                    build_room_alias_name(vec![acting_user.clone(), second_user.clone()]);
+                let room_alias_name: String = build_room_alias_name(vec![acting_user, second_user]);
                 let res = create_private_room_in_synapse(
                     token,
                     vec![second_user],
@@ -170,10 +169,10 @@ pub async fn create_or_get_synapse_room_id(
                         synapse
                             .set_account_data(token, second_user, &res.room_id)
                             .await
-                            .map_err(|_err| FriendshipsServiceError::InternalServerError);
+                            .map_err(|_err| FriendshipsServiceError::InternalServerError)?;
                         Ok(res.room_id)
                     }
-                    Err(_) => return Err(FriendshipsServiceError::InternalServerError.into()),
+                    Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
                 }
             } else {
                 Err(FriendshipsServiceError::InternalServerError.into())
