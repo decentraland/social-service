@@ -1,4 +1,5 @@
 // Responsible for managing Synapse rooms and storing events in these rooms.
+// The errors of this file are coupled with the `ws` scope.
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::Mutex;

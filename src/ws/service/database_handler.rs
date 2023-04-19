@@ -1,4 +1,5 @@
 // Responsible for managing friendship relationships between two users,
+// The errors of this file are coupled with the `ws` scope.
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
