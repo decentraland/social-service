@@ -12,7 +12,7 @@ use crate::{
 
 use super::utils::get_transaction_result_from_executor;
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct Friendship {
     pub id: Uuid,
     pub address_1: String,
