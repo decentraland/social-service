@@ -70,7 +70,7 @@ pub fn friendship_requests_as_request_events(
 
 /// Extracts the information from a friendship update payload,
 /// that is, the room event, the other user who is part of the friendship event, and the message body from the request event.
-pub fn extract_update_friendship_payload(
+pub fn update_request_as_event_payload(
     request: UpdateFriendshipPayload,
 ) -> Result<EventPayload, FriendshipsServiceErrorResponse> {
     let event_payload = if let Some(body) = request.event {

@@ -12,11 +12,20 @@ use crate::{
     entities::friendships::Friendship,
     models::friendship_event::FriendshipEvent,
     ports::users_cache::{get_user_id_from_token, UserId},
-    ws::service::utils::build_room_alias_name,
     Payload,
 };
 
 use super::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse};
+
+/// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
+///
+/// * `user_ids` - A mut vector of users addresses as strings.
+///
+/// Returns the room alias name as a string.
+fn build_room_alias_name(mut user_ids: Vec<&str>) -> String {
+    user_ids.sort();
+    user_ids.join("+")
+}
 
 /// Retrieves the User Id associated with the given Authentication Token.
 ///
@@ -148,7 +157,7 @@ async fn get_room_id_for_alias_in_synapse(
 /// If the room exists, returns its id.
 /// If the room does not exist, a new room is created and the new room id is returned.
 ///
-/// If the `Friendship` does not exist and the `FriendshipEvent` is not `REQUEST`, an Internal Server Error error is returned.
+/// If the `Friendship` does not exist and the `FriendshipEvent` is not `REQUEST`, a Client Error error is returned.
 pub async fn get_or_create_synapse_room_id(
     friendship: Option<&Friendship>,
     new_event: &FriendshipEvent,
@@ -184,7 +193,8 @@ pub async fn get_or_create_synapse_room_id(
                     }
                 }
             } else {
-                Err(FriendshipsServiceError::InternalServerError.into())
+                // TODO: https://app.zenhub.com/workspaces/workstream-social--identity-63a59f6982704e0037c63c29/issues/gh/decentraland/dservices/81
+                todo!()
             }
         }
     }

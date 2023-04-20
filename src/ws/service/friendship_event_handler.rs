@@ -16,7 +16,7 @@ use crate::{
 use super::{
     friendship_event_validator::validate_new_event,
     friendship_status_calculator::get_new_friendship_status,
-    mapper::extract_update_friendship_payload,
+    mapper::update_request_as_event_payload,
     synapse_handler::{
         get_or_create_synapse_room_id, set_account_data, store_message_in_synapse_room,
         store_room_event_in_synapse_room,
@@ -28,7 +28,7 @@ pub async fn process_room_event(
     context: Arc<SocialContext>,
     acting_user: String,
 ) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
-    let event_payload = extract_update_friendship_payload(request.clone())?;
+    let event_payload = update_request_as_event_payload(request.clone())?;
     let new_event = event_payload.friendship_event;
     let second_user = event_payload.second_user;
 

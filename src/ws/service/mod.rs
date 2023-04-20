@@ -7,4 +7,3 @@ pub mod friendships_service;
 pub mod mapper;
 pub mod synapse_handler;
 pub mod types;
-pub mod utils;
