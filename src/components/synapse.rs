@@ -278,6 +278,7 @@ impl SynapseComponent {
         .await
     }
 
+    /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#get_matrixclientv3useruseridaccount_datatype)
     pub async fn set_account_data(
         &self,
         token: &str,
@@ -289,6 +290,7 @@ impl SynapseComponent {
         Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
     }
 
+    /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#put_matrixclientv3useruseridaccount_datatype)
     pub async fn get_account_data(
         &self,
         token: &str,

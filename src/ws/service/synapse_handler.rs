@@ -190,7 +190,12 @@ pub async fn get_or_create_synapse_room_id(
     }
 }
 
-/// Sets the account data event for the acting user
+/// Sets the account data event for the acting user.
+///
+/// Checkout the details [here](https://spec.matrix.org/v1.3/client-server-api/#mdirect).
+/// Both the inviting client and the invitee’s client should record the fact that the room is a direct chat
+/// by storing an m.direct event in the account data using /user/<user_id>/account_data/<type>.
+///
 /// Returns `Ok(())` if the account data was successfully set, or a `FriendshipsServiceErrorResponse` if an error occurs.
 pub async fn set_account_data(
     token: &str,
