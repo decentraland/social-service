@@ -1,6 +1,5 @@
-use std::{collections::HashMap, time::SystemTime};
-
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     api::routes::{
@@ -278,6 +277,7 @@ impl SynapseComponent {
         .await
     }
 
+    /// Sets the account data content for the given user id
     /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#get_matrixclientv3useruseridaccount_datatype)
     pub async fn set_account_data(
         &self,
@@ -285,18 +285,25 @@ impl SynapseComponent {
         user_id: &str,
         direct_room_map: HashMap<String, Vec<String>>,
     ) -> Result<(), CommonError> {
-        let path: String = format!("/_matrix/client/r0/user/{user_id}/account_data/m.direct");
+        let formatted_user_id = user_id_as_synapse_user_id(user_id, &self.synapse_url);
+
+        let path: String =
+            format!("/_matrix/client/r0/user/{formatted_user_id}/account_data/m.direct");
 
         Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
     }
 
+    /// Retrieves the account data content for the given user id
     /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#put_matrixclientv3useruseridaccount_datatype)
     pub async fn get_account_data(
         &self,
         token: &str,
         user_id: &str,
     ) -> Result<AccountDataContentResponse, CommonError> {
-        let path: String = format!("/_matrix/client/r0/user/{user_id}/account_data/m.direct");
+        let formatted_user_id = user_id_as_synapse_user_id(user_id, &self.synapse_url);
+
+        let path: String =
+            format!("/_matrix/client/r0/user/{formatted_user_id}/account_data/m.direct");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
@@ -436,6 +443,26 @@ pub fn clean_synapse_user_id(user_id: &str) -> String {
     }
 
     user_id.to_string()
+}
+
+/// Extracts the domain from a URL.
+///
+/// Returns a string representing the domain extracted from the URL. If the URL cannot
+/// be split into parts or the domain is empty, the function returns the default value
+/// `zone`.
+fn extract_domain(url: &str) -> &str {
+    let splited_domain: Vec<&str> = url.split(".").collect();
+    splited_domain.last().unwrap_or(&"zone")
+}
+
+/// Gets the synapse user id for the given user id
+///
+/// @example
+/// from: '0x1111ada11111'
+/// to: '@0x1111ada11111:decentraland.org'
+fn user_id_as_synapse_user_id(user_id: &str, synapse_url: &str) -> String {
+    let result = format!("@{}:decentraland.{}", user_id, extract_domain(synapse_url));
+    result
 }
 
 #[cfg(test)]
