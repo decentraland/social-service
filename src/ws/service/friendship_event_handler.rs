@@ -23,7 +23,7 @@ use super::{
     },
 };
 
-/// Processes a friendship update event by validating it and updating the Database and Synapse.
+/// Processes a friendship event update by validating it and updating the Database and Synapse.
 pub async fn handle_friendship_update(
     request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,

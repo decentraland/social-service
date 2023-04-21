@@ -174,7 +174,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         )
         .await;
 
-        // Process room event
+        // Handle friendship event update
         let update_friendship_response = match user_id {
             Ok(user_id) => {
                 let process_room_event_response =
