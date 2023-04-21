@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Serialize, Deserialize)]
+// TODO: Ticket #81. Check all references and apply correctly
 pub struct FriendshipsServiceErrorResponse {
     pub code: u16,
     pub error: String,

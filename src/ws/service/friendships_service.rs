@@ -48,7 +48,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                             .get_user_friends_stream(&user_id.social_id, true)
                             .await;
                         match friendship {
-                            // TODO: Handle get friends stream query response error.
+                            // TODO: Handle get friends stream query response error. Ticket #81
                             Err(err) => {
                                 log::error!(
                                     "Get Friends > Get User Friends Stream > Error: {err}."
@@ -58,7 +58,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                             Ok(it) => it,
                         }
                     }
-                    // TODO: Handle repos None.
+                    // TODO: Handle repos None. Ticket #81
                     None => {
                         log::error!("Get Friends > Db Repositories > `repos` is None.");
                         todo!()
@@ -105,7 +105,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                 generator
             }
             Err(_err) => {
-                // TODO: Handle error when trying to get User Id.
+                // TODO: Handle error when trying to get User Id. Ticket #81
                 log::error!("Get Friends > Get User ID from Token > Error.");
                 todo!()
             }
@@ -135,7 +135,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                             .get_user_pending_request_events(&user_id.social_id)
                             .await;
                         match requests {
-                            // TODO: Handle get user requests query response error.
+                            // TODO: Handle get user requests query response error. Ticket #81
                             Err(err) => {
                                 log::debug!("Get Friends > Get User Requests > Error: {err}.");
                                 todo!()
@@ -145,16 +145,16 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                             }
                         }
                     }
-                    // TODO: Handle repos None.
+                    // TODO: Handle repos None. Ticket #81
                     None => {
-                        log::debug!("Get Friends > Db Repositories > `repos` is None.");
+                        log::error!("Get Friends > Db Repositories > `repos` is None.");
                         todo!()
                     }
                 }
             }
             Err(_err) => {
-                // TODO: Handle error when trying to get User Id.
-                log::debug!("Get Friends > Get User ID from Token > Error.");
+                // TODO: Handle error when trying to get User Id. Ticket #81
+                log::error!("Get Friends > Get User ID from Token > Error.");
                 todo!()
             }
         }
@@ -167,6 +167,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
         // Get user id with the given Authentication Token.
+        // TODO: Do not `unwrap`, handle error instead. Ticket #81
         let user_id = get_user_id_from_request(
             &request.clone().auth_token.unwrap(),
             context.synapse.clone(),
@@ -184,13 +185,19 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     if let Ok(res) = event_response_as_update_response(request, event_response) {
                         res
                     } else {
+                        // TODO: Ticket #81
                         todo!()
                     }
                 } else {
+                    // TODO: Ticket #81
                     todo!()
                 }
             }
-            Err(_) => todo!(),
+            Err(_) => {
+                // TODO: Handle error when trying to get User Id. Ticket #81
+                log::error!("Update Frienship Event > Get User ID from Token > Error.");
+                todo!()
+            }
         };
 
         // Response

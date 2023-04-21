@@ -33,10 +33,19 @@ pub async fn handle_friendship_update(
     let new_event = event_payload.friendship_event;
     let second_user = event_payload.second_user;
 
-    let token = request.auth_token.unwrap().synapse_token.unwrap();
+    let token = request
+        .auth_token
+        .ok_or(FriendshipsServiceError::InternalServerError)?
+        .synapse_token
+        .ok_or(FriendshipsServiceError::InternalServerError)?;
+
+    let db_repos = &context
+        .db
+        .clone()
+        .db_repos
+        .ok_or(FriendshipsServiceError::InternalServerError)?;
 
     // Get the friendship info
-    let db_repos = &context.db.clone().db_repos.unwrap();
     let friendships_repository = &db_repos.friendships;
     let friendship = get_friendship(friendships_repository, &acting_user, &second_user).await?;
 
@@ -67,7 +76,7 @@ pub async fn handle_friendship_update(
     // Validate the new event is valid and different from the last recorded.
     validate_new_event(&last_recorded_history, new_event)?;
 
-    // Get new friendship status
+    // Get new friendship status.
     let new_status = get_new_friendship_status(&acting_user, &last_recorded_history, new_event)?;
 
     // Start a database transaction.
@@ -124,7 +133,6 @@ pub async fn handle_friendship_update(
     .await;
 
     match result {
-        // TODO: handle different event responses
         Ok(_) => {
             // End transaction
             let transaction_result = transaction.commit().await;

@@ -193,7 +193,7 @@ pub async fn get_or_create_synapse_room_id(
                     }
                 }
             } else {
-                // TODO: https://app.zenhub.com/workspaces/workstream-social--identity-63a59f6982704e0037c63c29/issues/gh/decentraland/dservices/81
+                // TODO: Ticket #81
                 todo!()
             }
         }

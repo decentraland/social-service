@@ -130,13 +130,13 @@ pub fn event_response_as_update_response(
 ) -> Result<UpdateFriendshipResponse, FriendshipsServiceErrorResponse> {
     let event_response = if let Some(body) = request.event {
         match body.body {
-            Some(friendship_event_payload::Body::Request(_)) => {
+            Some(friendship_event_payload::Body::Request(payload)) => {
                 let request_response = RequestResponse {
                     user: Some(User {
                         address: result.user_id,
                     }),
                     created_at: 12,
-                    message: None,
+                    message: payload.message,
                 };
 
                 let body = friendship_event_response::Body::Request(request_response);
