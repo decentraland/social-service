@@ -23,7 +23,8 @@ use super::{
     },
 };
 
-pub async fn process_room_event(
+/// Processes a friendship update event by validating it and updating the Database and Synapse.
+pub async fn handle_friendship_update(
     request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,
     acting_user: String,
@@ -112,6 +113,7 @@ pub async fn process_room_event(
     .await?;
 
     // Store the friendship event in the given room.
+    // We'll continue storing the event in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates
     let result = store_room_event_in_synapse_room(
         &token,
         synapse_room_id.as_str(),

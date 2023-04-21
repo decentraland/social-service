@@ -6,7 +6,7 @@ use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
     entities::friendships::FriendshipRepositoryImplementation,
-    ws::{app::SocialContext, service::friendship_event_handler::process_room_event},
+    ws::{app::SocialContext, service::friendship_event_handler::handle_friendship_update},
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
@@ -178,7 +178,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         let update_friendship_response = match user_id {
             Ok(user_id) => {
                 let process_room_event_response =
-                    process_room_event(request.clone(), context, user_id.social_id).await;
+                    handle_friendship_update(request.clone(), context, user_id.social_id).await;
 
                 if let Ok(event_response) = process_room_event_response {
                     if let Ok(res) = event_response_as_update_response(request, event_response) {
