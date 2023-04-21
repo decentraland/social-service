@@ -176,7 +176,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         .await;
 
         // Handle friendship event update
-        let update_friendship_response = match user_id {
+        match user_id {
             Ok(user_id) => {
                 let process_room_event_response =
                     handle_friendship_update(request.clone(), context, user_id.social_id).await;
@@ -198,10 +198,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                 log::error!("Update Frienship Event > Get User ID from Token > Error.");
                 todo!()
             }
-        };
-
-        // Response
-        update_friendship_response
+        }
     }
 
     #[tracing::instrument(
