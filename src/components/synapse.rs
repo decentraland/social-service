@@ -285,7 +285,7 @@ impl SynapseComponent {
         user_id: &str,
         direct_room_map: HashMap<String, Vec<String>>,
     ) -> Result<(), CommonError> {
-        let path: String = format!("/_matrix/client/user/{user_id}/account_data/m.direct");
+        let path: String = format!("/_matrix/client/r0/user/{user_id}/account_data/m.direct");
 
         Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
     }
@@ -296,7 +296,7 @@ impl SynapseComponent {
         token: &str,
         user_id: &str,
     ) -> Result<AccountDataContentResponse, CommonError> {
-        let path: String = format!("/_matrix/client/user/{user_id}/account_data/m.direct");
+        let path: String = format!("/_matrix/client/r0/user/{user_id}/account_data/m.direct");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
