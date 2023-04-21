@@ -24,7 +24,7 @@ pub struct RoomIdResponse {
 
 #[derive(Debug, Clone)]
 pub struct SynapseComponent {
-    synapse_url: String,
+    pub synapse_url: String,
 }
 
 pub const VERSION_URI: &str = "/_matrix/client/versions";
@@ -460,7 +460,7 @@ fn extract_domain(url: &str) -> &str {
 /// @example
 /// from: '0x1111ada11111'
 /// to: '@0x1111ada11111:decentraland.org'
-fn user_id_as_synapse_user_id(user_id: &str, synapse_url: &str) -> String {
+pub fn user_id_as_synapse_user_id(user_id: &str, synapse_url: &str) -> String {
     let result = format!("@{}:decentraland.{}", user_id, extract_domain(synapse_url));
     result
 }

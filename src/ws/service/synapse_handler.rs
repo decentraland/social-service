@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     components::{
-        synapse::{CreateRoomResponse, SynapseComponent},
+        synapse::{user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent},
         users_cache::UsersCacheComponent,
     },
     entities::friendships::Friendship,
@@ -224,7 +224,9 @@ pub async fn set_account_data(
                 HashMap::new()
             };
 
-            if let Some(room_ids) = direct_room_map.get_mut(second_user) {
+            let second_user_as_synapse_id =
+                user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
+            if let Some(room_ids) = direct_room_map.get_mut(&second_user_as_synapse_id) {
                 if room_ids.contains(&room_id.to_string()) {
                     return Ok(());
                 } else {
