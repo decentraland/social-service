@@ -2,20 +2,33 @@
 mod tests {
     use chrono::NaiveDateTime;
     use social_service::{
-        entities::friendship_history::{FriendshipMetadata, FriendshipRequestEvent},
-        ws::service::mapper::friendship_requests_as_request_events,
-        RequestEvents,
+        entities::friendship_history::{
+            FriendshipHistory, FriendshipMetadata, FriendshipRequestEvent,
+        },
+        friendship_event_payload::Body,
+        friendship_event_response,
+        models::friendship_event::FriendshipEvent,
+        ws::service::{
+            friendship_event_validator::validate_new_event,
+            mapper::{
+                event_response_as_update_response, friendship_requests_as_request_events,
+                update_request_as_event_payload,
+            },
+            types::EventResponse,
+        },
+        CancelPayload, FriendshipEventPayload, Payload, RequestEvents, RequestPayload,
+        UpdateFriendshipPayload, User,
     };
+    use uuid::Uuid;
 
     #[test]
-    fn test_map_request_events() {
+    fn test_friendship_requests_as_request_events() {
         // Database mock response
         let requests: Vec<FriendshipRequestEvent> = generate_request_events();
 
         // Authenticated user
         let user_id: String = "Pizarnik".to_string();
 
-        // Function to test
         let mut result: RequestEvents = friendship_requests_as_request_events(requests, user_id);
 
         assert_eq!(result.outgoing.unwrap().total, 1);
@@ -31,6 +44,128 @@ mod tests {
                 "Hey, let's be friends!"
             );
         }
+    }
+
+    #[test]
+    fn test_update_request_as_event_payload() {
+        // Case 1: Request event
+        let request = create_update_friendship_payload(
+            Body::Request(RequestPayload {
+                message: Some("Let's be friends!".to_string()),
+                user: Some(User {
+                    address: "Pizarnik".to_string(),
+                }),
+            }),
+            "Pizarnik".to_string(),
+        );
+
+        let result = update_request_as_event_payload(request).unwrap();
+        assert_eq!(result.friendship_event, FriendshipEvent::REQUEST);
+        assert_eq!(
+            result.request_event_message_body.unwrap(),
+            "Let's be friends!"
+        );
+        assert_eq!(result.second_user, "Pizarnik");
+
+        // Case 2: Cancel event
+        let cancel = create_update_friendship_payload(
+            Body::Cancel(CancelPayload {
+                user: Some(User {
+                    address: "Pizarnik".to_string(),
+                }),
+            }),
+            "Pizarnik".to_string(),
+        );
+
+        let result = update_request_as_event_payload(cancel).unwrap();
+        assert_eq!(result.friendship_event, FriendshipEvent::CANCEL);
+        assert!(result.request_event_message_body.is_none());
+        assert_eq!(result.second_user, "Pizarnik");
+
+        // Case 3: Event is None
+        let none_event = UpdateFriendshipPayload {
+            event: None,
+            auth_token: None,
+        };
+        let result = update_request_as_event_payload(none_event);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_event_response_as_update_response_request() {
+        // Create an UpdateFriendshipPayload with a Request body
+        let update_payload = create_update_friendship_payload(
+            Body::Request(RequestPayload {
+                message: Some("Let's be friends!".to_string()),
+                user: Some(User {
+                    address: "Pizarnik".to_string(),
+                }),
+            }),
+            "Pizarnik".to_string(),
+        );
+
+        let event_response = EventResponse {
+            user_id: "Pizarnik".to_string(),
+        };
+
+        let result = event_response_as_update_response(update_payload, event_response);
+        assert!(result.is_ok());
+
+        let update_response = result.unwrap();
+        assert!(update_response.event.is_some());
+
+        let event = update_response.event.unwrap();
+        assert!(event.body.is_some());
+
+        let body = event.body.unwrap();
+        match body {
+            friendship_event_response::Body::Request(request_response) => {
+                assert_eq!(
+                    request_response.user.unwrap().address,
+                    "Pizarnik".to_string()
+                );
+                assert_eq!(
+                    request_response.message.unwrap(),
+                    "Let's be friends!".to_string()
+                );
+            }
+            _ => panic!("Expected Request body"),
+        }
+    }
+
+    #[test]
+    fn test_validate_new_event() {
+        // Case 1: No previous history
+        let last_recorded_history = None;
+        let new_event = FriendshipEvent::REQUEST;
+        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_ok());
+
+        // Case 2: Previous history exists, new event is valid
+        let last_recorded_history = Some(generate_friendship_history(
+            FriendshipEvent::REQUEST,
+            "Sussana",
+            "2022-04-12 09:30:00",
+        ));
+        let new_event = FriendshipEvent::ACCEPT;
+        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_ok());
+
+        // Case 3: Previous history exists, new event is not valid
+        let last_recorded_history = Some(generate_friendship_history(
+            FriendshipEvent::ACCEPT,
+            "Sussana",
+            "2022-04-12 09:30:00",
+        ));
+        let new_event = FriendshipEvent::REQUEST;
+        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_err());
+
+        // Case 4: Previous history exists, new event is not different from the last recorded (aka invalid)
+        let last_recorded_history = Some(generate_friendship_history(
+            FriendshipEvent::REQUEST,
+            "Sussana",
+            "2022-04-12 09:30:00",
+        ));
+        let new_event = FriendshipEvent::REQUEST;
+        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_err());
     }
 
     fn generate_request_events() -> Vec<FriendshipRequestEvent> {
@@ -57,5 +192,29 @@ mod tests {
                 metadata: None,
             },
         ]
+    }
+
+    fn generate_friendship_history(
+        event: FriendshipEvent,
+        acting_user: &str,
+        timestamp_str: &str,
+    ) -> FriendshipHistory {
+        let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%d %H:%M:%S").unwrap();
+        FriendshipHistory {
+            friendship_id: Uuid::new_v4(),
+            event,
+            acting_user: acting_user.to_string(),
+            timestamp,
+            metadata: None,
+        }
+    }
+
+    fn create_update_friendship_payload(event: Body, user: String) -> UpdateFriendshipPayload {
+        UpdateFriendshipPayload {
+            event: Some(FriendshipEventPayload { body: Some(event) }),
+            auth_token: Some(Payload {
+                synapse_token: Some(format!("{user}Token").to_string()),
+            }),
+        }
     }
 }
