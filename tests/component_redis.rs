@@ -11,7 +11,7 @@ async fn create_redis_component() -> Redis {
 
 #[actix_web::test]
 async fn test_can_get_redis_connection() {
-    let mut component = create_redis_component().await;
+    let component = create_redis_component().await;
     let con = component.get_async_connection().await;
 
     if con.is_none() {
@@ -21,7 +21,7 @@ async fn test_can_get_redis_connection() {
 
 #[actix_web::test]
 async fn test_can_store_key_in_redis() {
-    let mut component = create_redis_component().await;
+    let component = create_redis_component().await;
 
     let key = "my_key";
     let value = "value";

@@ -24,7 +24,7 @@ async fn test_should_return_no_connection_available() -> Result<(), String> {
     let token = "my test token";
     let user_id = "joni";
 
-    let mut redis = Redis::new_and_run(&RedisConfig {
+    let redis = Redis::new_and_run(&RedisConfig {
         host: "0.0.0.0:6379".to_string(),
     })
     .await

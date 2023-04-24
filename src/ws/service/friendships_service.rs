@@ -3,7 +3,6 @@ use std::sync::Arc;
 use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 use tokio::sync::Mutex;
-use warp::http::request;
 
 use crate::{
     components::{synapse::SynapseComponent, users_cache::UsersCacheComponent},
@@ -14,9 +13,9 @@ use crate::{
     ports::users_cache::{get_user_id_from_token, UserId},
     ws::service::error::FriendshipsServiceErrorResponse,
     ws::{app::SocialContext, service::error::FriendshipsServiceError},
-    FriendshipEventPayload, FriendshipsServiceServer, Payload, RequestEvents, RequestResponse,
-    Requests, ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse,
-    UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users,
+    FriendshipsServiceServer, Payload, RequestEvents, RequestResponse, Requests,
+    ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
+    UpdateFriendshipResponse, User, Users,
 };
 
 #[derive(Debug)]
@@ -232,7 +231,9 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
     }
 }
 
-fn to_update(request: UpdateFriendshipPayload) -> Option<SubscribeFriendshipEventsUpdatesResponse> {
+fn to_update(
+    _request: UpdateFriendshipPayload,
+) -> Option<SubscribeFriendshipEventsUpdatesResponse> {
     todo!()
 }
 

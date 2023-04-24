@@ -1,6 +1,5 @@
 use std::{io, sync::Arc};
 
-use actix_http::ws;
 use social_service::{
     api::app::{get_app_data, run_service},
     ws::app::{init_ws_components, run_ws_transport, ConfigRpcServer, SocialContext},

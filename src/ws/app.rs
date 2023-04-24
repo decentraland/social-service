@@ -18,14 +18,13 @@ use futures_util::{
 };
 
 use tokio::sync::{Mutex, RwLock};
-use tracing::event;
+
 use warp::{
     ws::{Message as WarpWSMessage, WebSocket},
     Filter,
 };
 
 use crate::{
-    api::routes::synapse::room_events::FriendshipEvent,
     components::notifications::{
         init_events_channel_publisher, init_events_channel_subscriber, RedisChannelPublisher,
         RedisChannelSubscriber,
@@ -41,12 +40,9 @@ use crate::{
 };
 
 use super::service::friendships_service;
+use crate::Event;
 use crate::FriendshipsServiceRegistration;
 use crate::SubscribeFriendshipEventsUpdatesResponse;
-use crate::{
-    friendship_event_response, AcceptResponse, CancelResponse, DeleteResponse, Event,
-    FriendshipEventResponse, RejectResponse, RequestResponse, User,
-};
 
 pub struct ConfigRpcServer {
     pub rpc_server: Server,
@@ -97,7 +93,7 @@ pub async fn run_ws_transport(
     if env_logger::try_init().is_err() {
         log::debug!("Logger already init")
     }
-    let port = ctx.config.rpc_server.port.clone();
+    let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_subscriptions.clone();
 
@@ -154,7 +150,7 @@ fn subscribe_to_event_updates(
         RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
 ) {
-    let subscriptions = generators.clone();
+    let subscriptions = generators;
     event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
         log::info!("User Update received > event_update: {event_update:?}");
         let subscriptions = subscriptions.clone();
