@@ -8,8 +8,10 @@ mod tests {
         friendship_event_payload::Body,
         friendship_event_response,
         models::friendship_event::FriendshipEvent,
+        models::friendship_status::FriendshipStatus,
         ws::service::{
             friendship_event_validator::validate_new_event,
+            friendship_status_calculator::get_new_friendship_status,
             mapper::{
                 event_response_as_update_response, friendship_requests_as_request_events,
                 update_request_as_event_payload,
@@ -49,7 +51,7 @@ mod tests {
     #[test]
     fn test_update_request_as_event_payload() {
         // Case 1: Request event
-        let request = create_update_friendship_payload(
+        let request = generate_update_friendship_payload(
             Body::Request(RequestPayload {
                 message: Some("Let's be friends!".to_string()),
                 user: Some(User {
@@ -68,7 +70,7 @@ mod tests {
         assert_eq!(result.second_user, "Pizarnik");
 
         // Case 2: Cancel event
-        let cancel = create_update_friendship_payload(
+        let cancel = generate_update_friendship_payload(
             Body::Cancel(CancelPayload {
                 user: Some(User {
                     address: "Pizarnik".to_string(),
@@ -94,7 +96,7 @@ mod tests {
     #[test]
     fn test_event_response_as_update_response_request() {
         // Create an UpdateFriendshipPayload with a Request body
-        let update_payload = create_update_friendship_payload(
+        let update_payload = generate_update_friendship_payload(
             Body::Request(RequestPayload {
                 message: Some("Let's be friends!".to_string()),
                 user: Some(User {
@@ -168,6 +170,43 @@ mod tests {
         assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_err());
     }
 
+    #[test]
+    fn test_get_new_friendship_status() {
+        let acting_user = "Pizarnik";
+        let last_recorded_history = None;
+
+        // Case 1: Requesting friendship when no history exists
+        let result = get_new_friendship_status(
+            acting_user,
+            &last_recorded_history,
+            FriendshipEvent::REQUEST,
+        )
+        .unwrap();
+        assert_eq!(result, FriendshipStatus::Requested(acting_user.to_string()));
+
+        // Case 2: Accepting friendship after a request was sent
+        let last_recorded_history = Some(generate_friendship_history(
+            FriendshipEvent::REQUEST,
+            "OtherUser",
+            "2022-04-12 09:30:00",
+        ));
+        let result =
+            get_new_friendship_status(acting_user, &last_recorded_history, FriendshipEvent::ACCEPT)
+                .unwrap();
+        assert_eq!(result, FriendshipStatus::Friends);
+
+        // Case 3: Deleting friendship
+        let last_recorded_history = Some(generate_friendship_history(
+            FriendshipEvent::ACCEPT,
+            "OtherUser",
+            "2022-04-12 09:30:00",
+        ));
+        let result =
+            get_new_friendship_status(acting_user, &last_recorded_history, FriendshipEvent::DELETE)
+                .unwrap();
+        assert_eq!(result, FriendshipStatus::NotFriends);
+    }
+
     fn generate_request_events() -> Vec<FriendshipRequestEvent> {
         let timestamp_str = "2022-04-12 09:30:00";
         let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y-%m-%d %H:%M:%S").unwrap();
@@ -209,7 +248,7 @@ mod tests {
         }
     }
 
-    fn create_update_friendship_payload(event: Body, user: String) -> UpdateFriendshipPayload {
+    fn generate_update_friendship_payload(event: Body, user: String) -> UpdateFriendshipPayload {
         UpdateFriendshipPayload {
             event: Some(FriendshipEventPayload { body: Some(event) }),
             auth_token: Some(Payload {
