@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::{
     entities::friendship_history::FriendshipRequestEvent,
     friendship_event_payload, friendship_event_response,
@@ -47,7 +49,7 @@ pub fn friendship_requests_as_request_events(
         };
 
         if acting_user_id.eq_ignore_ascii_case(&user_id) {
-            // If the acting user is the same as the user ID, then the request is outgoing
+            // If the acting user is the same as the user id, then the request is outgoing
             outgoing_requests.push(request_response);
         } else {
             // Otherwise, the request is incoming
@@ -135,7 +137,10 @@ pub fn event_response_as_update_response(
                     user: Some(User {
                         address: result.user_id,
                     }),
-                    created_at: 12,
+                    created_at: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs() as i64,
                     message: payload.message,
                 };
 

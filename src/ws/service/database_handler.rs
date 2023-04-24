@@ -34,7 +34,7 @@ pub async fn get_friendship(
     friendship_result.map_err(|_err| FriendshipsServiceError::InternalServerError.into())
 }
 
-/// Fetches the last friendship history for a given friendship
+/// Fetches the last friendship history for a given friendship.
 ///
 /// * `friendship_history_repository` - A reference to the `FriendshipHistoryRepository` instance.
 /// * `friendship` - An `Option<Friendship>` to fetch the last history for.
@@ -107,7 +107,7 @@ async fn store_friendship_update(
     }
 }
 
-// Updates the friendship status in the friendship table and stores an update in the friendship_history table.
+/// Updates the friendship status in the friendship table and stores an update in the friendship_history table.
 pub async fn update_friendship_status<'a>(
     friendship: &'a Option<Friendship>,
     acting_user: &'a str,
