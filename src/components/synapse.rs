@@ -451,7 +451,7 @@ pub fn clean_synapse_user_id(user_id: &str) -> String {
 /// be split into parts or the domain is empty, the function returns the default value
 /// `zone`.
 fn extract_domain(url: &str) -> &str {
-    let splited_domain: Vec<&str> = url.split(".").collect();
+    let splited_domain: Vec<&str> = url.split('.').collect();
     splited_domain.last().unwrap_or(&"zone")
 }
 
