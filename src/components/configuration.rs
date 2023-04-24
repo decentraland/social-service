@@ -33,7 +33,7 @@ pub struct Synapse {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Redis {
+pub struct RedisConfig {
     pub host: String,
 }
 
@@ -53,7 +53,7 @@ pub struct Config {
     pub db: Database,
     pub env: String, // prd / stg / dev / biz
     pub wkc_metrics_bearer_token: String,
-    pub redis: Redis,
+    pub redis: RedisConfig,
     pub cache_hashing_key: String,
 }
 

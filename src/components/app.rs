@@ -38,15 +38,23 @@ impl AppComponents {
         let synapse = Self::init_synapse_component(config.synapse.url.clone());
         let db = Self::init_db_component(&config.db).await;
         let redis = Redis::new_and_run(&config.redis).await;
-        let health = Self::init_health_component(db.clone(), redis.clone());
-        let users_cache = Self::init_users_cache(redis, config.cache_hashing_key.clone());
+        match redis {
+            Ok(redis) => {
+                let health = Self::init_health_component(db.clone(), redis.clone());
+                let users_cache = Self::init_users_cache(redis, config.cache_hashing_key.clone());
 
-        Self {
-            health,
-            db,
-            synapse,
-            users_cache: Arc::new(Mutex::new(users_cache)),
-            config,
+                Self {
+                    health,
+                    db,
+                    synapse,
+                    users_cache: Arc::new(Mutex::new(users_cache)),
+                    config,
+                }
+            }
+            Err(er) => {
+                log::error!("There was an error initiliazing Redis: {}", er);
+                panic!("There was an error initializing Redis");
+            }
         }
     }
 

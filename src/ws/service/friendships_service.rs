@@ -3,18 +3,20 @@ use std::sync::Arc;
 use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 use tokio::sync::Mutex;
+use warp::http::request;
 
 use crate::{
     components::{synapse::SynapseComponent, users_cache::UsersCacheComponent},
     entities::{
         friendship_history::FriendshipRequestEvent, friendships::FriendshipRepositoryImplementation,
     },
+    friendship_event_payload,
     ports::users_cache::{get_user_id_from_token, UserId},
     ws::service::error::FriendshipsServiceErrorResponse,
     ws::{app::SocialContext, service::error::FriendshipsServiceError},
-    FriendshipsServiceServer, Payload, RequestEvents, RequestResponse, Requests,
-    ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
-    UpdateFriendshipResponse, User, Users,
+    FriendshipEventPayload, FriendshipsServiceServer, Payload, RequestEvents, RequestResponse,
+    Requests, ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse,
+    UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users,
 };
 
 #[derive(Debug)]
@@ -158,29 +160,123 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         }
     }
 
-    #[tracing::instrument(
-        name = "RPC SERVER > Update Friendship Event",
-        skip(_request, _context)
-    )]
+    #[tracing::instrument(name = "RPC SERVER > Update Friendship Event", skip(request, context))]
     async fn update_friendship_event(
         &self,
-        _request: UpdateFriendshipPayload,
-        _context: Arc<SocialContext>,
+        request: UpdateFriendshipPayload,
+        context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
+        let subscriptions = context.friendships_events_subscriptions.clone();
+        let user_id_to = get_user_id_to(request.clone());
+        let event_update = to_update(request);
+        // Notify local listeners
+        tokio::spawn(async move {
+            let subs = subscriptions.read().await;
+            match user_id_to {
+                Ok(user_to) => {
+                    match event_update {
+                        Some(event) => {
+                            if let Some(generator) = subs.get(&user_to) {
+                                if generator.r#yield(event).await.is_err() {
+                                    log::error!("Event Update received > Couldn't send update to subscriptors");
+                                }
+                            }
+                        }
+                        None => {}
+                    }
+                }
+                Err(_err) => {}
+            }
+        });
+
+        // Notify channel
+
         todo!()
     }
 
     #[tracing::instrument(
         name = "RPC SERVER > Subscribe to friendship updates",
-        skip(_request, _context)
+        skip(request, context)
     )]
     async fn subscribe_friendship_events_updates(
         &self,
-        _request: Payload,
-        _context: Arc<SocialContext>,
+        request: Payload,
+        context: Arc<SocialContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
-        todo!()
+        // Get user id with the given Authentication Token.
+        let user_id = get_user_id_from_request(
+            &request,
+            context.synapse.clone(),
+            context.users_cache.clone(),
+        )
+        .await;
+        let (generator, generator_yielder) = Generator::create();
+
+        // Attach generator to the context by user_id
+        match user_id {
+            Ok(user_id) => {
+                context
+                    .friendships_events_subscriptions
+                    .write()
+                    .await
+                    .insert(user_id.social_id, generator_yielder.clone());
+            }
+            Err(_err) => {
+                // TODO: Handle error when trying to get User Id.
+                log::error!("Subscribe friendship event updates > Get User ID from Token > Error.");
+                todo!()
+            }
+        }
+        // TODO: Remove generator from map when user has disconnected
+        generator
     }
+}
+
+fn to_update(request: UpdateFriendshipPayload) -> Option<SubscribeFriendshipEventsUpdatesResponse> {
+    todo!()
+}
+
+fn get_user_id_to(
+    request: UpdateFriendshipPayload,
+) -> Result<String, FriendshipsServiceErrorResponse> {
+    let address_to = if let Some(body) = request.event {
+        match body.body {
+            Some(friendship_event_payload::Body::Request(request)) => {
+                request
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+            }
+            Some(friendship_event_payload::Body::Accept(accept)) => {
+                accept
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+            }
+            Some(friendship_event_payload::Body::Reject(reject)) => {
+                reject
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+            }
+            Some(friendship_event_payload::Body::Cancel(cancel)) => {
+                cancel
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+            }
+            Some(friendship_event_payload::Body::Delete(delete)) => {
+                delete
+                    .user
+                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .address
+            }
+            None => return Err(FriendshipsServiceError::InternalServerError.into()),
+        }
+    } else {
+        return Err(FriendshipsServiceError::InternalServerError.into());
+    };
+    Ok(address_to)
 }
 
 /// Retrieve the User Id associated with the given Authentication Token.

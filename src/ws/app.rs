@@ -1,10 +1,14 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use dcl_rpc::{
     server::RpcServer,
+    stream_protocol::GeneratorYielder,
     transports::{Transport, TransportError, TransportEvent},
 };
 
@@ -13,19 +17,35 @@ use futures_util::{
     SinkExt, StreamExt,
 };
 
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
+use tracing::event;
 use warp::{
     ws::{Message as WarpWSMessage, WebSocket},
     Filter,
 };
 
 use crate::{
+    api::routes::synapse::room_events::FriendshipEvent,
+    components::notifications::{
+        init_events_channel_publisher, init_events_channel_subscriber, RedisChannelPublisher,
+        RedisChannelSubscriber,
+    },
     components::{
-        configuration::Server, database::DatabaseComponent, synapse::SynapseComponent,
+        configuration::{Config, Server},
+        database::DatabaseComponent,
+        notifications::{ChannelSubscriber, EVENT_UPDATES_CHANNEL_NAME},
+        redis::Redis,
+        synapse::SynapseComponent,
         users_cache::UsersCacheComponent,
     },
-    ws::service::friendships_service,
-    FriendshipsServiceRegistration,
+};
+
+use super::service::friendships_service;
+use crate::FriendshipsServiceRegistration;
+use crate::SubscribeFriendshipEventsUpdatesResponse;
+use crate::{
+    friendship_event_response, AcceptResponse, CancelResponse, DeleteResponse, Event,
+    FriendshipEventResponse, RejectResponse, RequestResponse, User,
 };
 
 pub struct ConfigRpcServer {
@@ -37,16 +57,53 @@ pub struct SocialContext {
     pub db: DatabaseComponent,
     pub users_cache: Arc<Mutex<UsersCacheComponent>>,
     pub config: ConfigRpcServer,
+    pub redis_publisher: Arc<RedisChannelPublisher>,
+    pub redis_subscriber: Arc<RedisChannelSubscriber>,
+    pub friendships_events_subscriptions:
+        Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
+}
+
+pub struct WsComponents {
+    pub redis_publisher: Arc<RedisChannelPublisher>,
+    pub redis_subscriber: Arc<RedisChannelSubscriber>,
+    pub friendships_events_subscriptions:
+        Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
+}
+
+pub async fn init_ws_components(config: Config) -> WsComponents {
+    let redis = Redis::new_and_run(&config.redis).await;
+    match redis {
+        Ok(redis) => {
+            let redis = Arc::new(redis);
+            let redis_publisher = Arc::new(init_events_channel_publisher(redis.clone()).await);
+            let redis_subscriber = Arc::new(init_events_channel_subscriber(redis));
+            let friendships_events_subscriptions = Arc::new(RwLock::new(HashMap::new()));
+            WsComponents {
+                redis_publisher,
+                redis_subscriber,
+                friendships_events_subscriptions,
+            }
+        }
+        Err(err) => {
+            log::error!("There was an error initializing Redis: {}", err);
+            panic!("There was an error initializing Redis");
+        }
+    }
 }
 
 pub async fn run_ws_transport(
     ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
-    let port = ctx.config.rpc_server.port;
-
     if env_logger::try_init().is_err() {
         log::debug!("Logger already init")
     }
+    let port = ctx.config.rpc_server.port.clone();
+    let subs = ctx.redis_subscriber.clone();
+    let generators = ctx.friendships_events_subscriptions.clone();
+
+    tokio::spawn(async move {
+        subscribe_to_event_updates(subs, generators);
+    });
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
         dcl_rpc::server::RpcServer::create(ctx);
@@ -89,6 +146,40 @@ pub async fn run_ws_transport(
     });
 
     (rpc_server_handle, http_server_handle)
+}
+
+fn subscribe_to_event_updates(
+    event_subscriptions: Arc<RedisChannelSubscriber>,
+    generators: Arc<
+        RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
+    >,
+) {
+    let subscriptions = generators.clone();
+    event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
+        log::info!("User Update received > event_update: {event_update:?}");
+        let subscriptions = subscriptions.clone();
+        async move {
+            let subs = subscriptions.read().await;
+            if let Some(generator) = subs.get(&event_update.to) {
+                log::info!("Event Update received > event_update: {event_update:?}");
+                if generator.r#yield(to_response(event_update)).await.is_err() {
+                    log::error!("Event Update received > Couldn't send update to subscriptors");
+                }
+            }
+        }
+    });
+}
+
+fn to_response(event_update: Event) -> SubscribeFriendshipEventsUpdatesResponse {
+    match event_update.friendship_event {
+        Some(update) => SubscribeFriendshipEventsUpdatesResponse {
+            events: [update].to_vec(),
+        },
+        None => {
+            log::error!("There was an error when retrieving an event: Empty event");
+            panic!("There was an error when retrieving an event");
+        }
+    }
 }
 
 type ReadStream = SplitStream<WebSocket>;
