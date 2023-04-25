@@ -13,7 +13,8 @@ use actix_web::{
 use futures_util::future::LocalBoxFuture;
 
 use crate::{
-    api::routes::v1::error::CommonError, components::{app::AppComponents, users_cache::get_user_id_from_token},
+    api::routes::v1::error::CommonError,
+    components::{app::AppComponents, users_cache::get_user_id_from_token},
 };
 
 pub struct CheckAuthToken {

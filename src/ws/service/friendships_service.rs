@@ -5,14 +5,14 @@ use futures_util::StreamExt;
 use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
-    entities::friendships::FriendshipRepositoryImplementation,
-    ws::{app::SocialContext, service::friendship_event_handler::handle_friendship_update},
+    entities::friendships::FriendshipRepositoryImplementation, ws::app::SocialContext,
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
 };
 
 use super::{
+    friendship_event_updates::handle_friendship_update,
     mapper::{event_response_as_update_response, friendship_requests_as_request_events},
     synapse_handler::get_user_id_from_request,
 };
