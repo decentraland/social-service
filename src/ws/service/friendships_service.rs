@@ -11,16 +11,11 @@ use crate::{
     },
     friendship_event_payload,
     ports::users_cache::{get_user_id_from_token, UserId},
-    ws::service::error::FriendshipsServiceErrorResponse,
-    ws::{app::SocialContext, service::error::FriendshipsServiceError},
+    ws::app::SocialContext,
+    ws::service::friendship_event_handler::handle_friendship_update,
     FriendshipsServiceServer, Payload, RequestEvents, RequestResponse, Requests,
     ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
     UpdateFriendshipResponse, User, Users,
-    entities::friendships::FriendshipRepositoryImplementation,
-    ws::{app::SocialContext, service::friendship_event_handler::handle_friendship_update},
-    FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
-    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
-    User, Users,
 };
 
 use super::{
@@ -178,13 +173,14 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
         let subscriptions = context.friendships_events_subscriptions.clone();
-        let user_id_to = get_user_id_to(request.clone());
-        let event_update = to_update(request);
+        let cloned_request = request.clone();
         // Notify local listeners
         tokio::spawn(async move {
+            let user_id_to = get_user_id_to(cloned_request.clone());
+            let event_update = to_update(cloned_request);
             let subs = subscriptions.read().await;
             match user_id_to {
-                Ok(user_to) => {
+                Some(user_to) => {
                     match event_update {
                         Some(event) => {
                             if let Some(generator) = subs.get(&user_to) {
@@ -196,13 +192,12 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         None => {}
                     }
                 }
-                Err(_err) => {}
+                None => {}
             }
         });
 
         // Notify channel
 
-        todo!()
         // Get user id with the given Authentication Token.
         // TODO: Do not `unwrap`, handle error instead. Ticket #81
         let user_id = get_user_id_from_request(
@@ -282,128 +277,20 @@ fn to_update(
     todo!()
 }
 
-fn get_user_id_to(
-    request: UpdateFriendshipPayload,
-) -> Result<String, FriendshipsServiceErrorResponse> {
+fn get_user_id_to(request: UpdateFriendshipPayload) -> Option<String> {
     let address_to = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(request)) => {
-                request
-                    .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
+                request.user.map(|u| u.address)
             }
-            Some(friendship_event_payload::Body::Accept(accept)) => {
-                accept
-                    .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-            }
-            Some(friendship_event_payload::Body::Reject(reject)) => {
-                reject
-                    .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-            }
-            Some(friendship_event_payload::Body::Cancel(cancel)) => {
-                cancel
-                    .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-            }
-            Some(friendship_event_payload::Body::Delete(delete)) => {
-                delete
-                    .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
-                    .address
-            }
-            None => return Err(FriendshipsServiceError::InternalServerError.into()),
+            Some(friendship_event_payload::Body::Accept(accept)) => accept.user.map(|u| u.address),
+            Some(friendship_event_payload::Body::Reject(reject)) => reject.user.map(|u| u.address),
+            Some(friendship_event_payload::Body::Cancel(cancel)) => cancel.user.map(|u| u.address),
+            Some(friendship_event_payload::Body::Delete(delete)) => delete.user.map(|u| u.address),
+            None => None,
         }
     } else {
-        return Err(FriendshipsServiceError::InternalServerError.into());
+        return None;
     };
-    Ok(address_to)
-}
-
-/// Retrieve the User Id associated with the given Authentication Token.
-///
-/// If an authentication token was provided in the request, this function gets the
-/// user id from the token and returns it as a `Result<UserId, Error>`. If no
-/// authentication token was provided, this function returns a `Unauthorized`
-/// error.
-///
-/// * `request` -
-/// * `context` -
-async fn get_user_id_from_request(
-    request: &Payload,
-    synapse: SynapseComponent,
-    users_cache: Arc<Mutex<UsersCacheComponent>>,
-) -> Result<UserId, FriendshipsServiceErrorResponse> {
-    match request.synapse_token.clone() {
-        // If an authentication token was provided, get the user id from the token
-        Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
-            .await
-            .map_err(|_err| -> FriendshipsServiceErrorResponse {
-                FriendshipsServiceError::InternalServerError.into()
-            }),
-        // If no authentication token was provided, return an Unauthorized error.
-        None => {
-            log::debug!("Get Friends > Get User ID from Token > `synapse_token` is None.");
-            Err(FriendshipsServiceError::Unauthorized.into())
-        }
-    }
-}
-
-/// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.
-///
-/// * `requests` - A vector of `FriendshipRequestEvents` to map to `RequestResponse` struct.
-/// * `user_id` - The id of the auth user.
-pub fn map_request_events(requests: Vec<FriendshipRequestEvent>, user_id: String) -> RequestEvents {
-    let mut outgoing_requests: Vec<RequestResponse> = Vec::new();
-    let mut incoming_requests: Vec<RequestResponse> = Vec::new();
-
-    // Iterate through each friendship request event
-    for request in requests {
-        // Get the user id of the acting user for the request
-        let acting_user_id = request.acting_user.clone();
-
-        // Determine the address of the other user involved in the request event
-        let address = if request.address_1.eq_ignore_ascii_case(&user_id) {
-            request.address_2.clone()
-        } else {
-            request.address_1.clone()
-        };
-
-        // Get the message (if any) associated with the request
-        let message = request
-            .metadata
-            .as_ref()
-            .and_then(|metadata| metadata.message.clone());
-
-        let request_response = RequestResponse {
-            user: Some(User { address }),
-            created_at: request.timestamp.timestamp(),
-            message,
-        };
-
-        if acting_user_id.eq_ignore_ascii_case(&user_id) {
-            // If the acting user is the same as the user ID, then the request is outgoing
-            outgoing_requests.push(request_response);
-        } else {
-            // Otherwise, the request is incoming
-            incoming_requests.push(request_response);
-        }
-    }
-
-    // Return a RequestEvents struct containing the incoming and outgoing request lists
-    RequestEvents {
-        outgoing: Some(Requests {
-            total: outgoing_requests.len() as i64,
-            items: outgoing_requests,
-        }),
-        incoming: Some(Requests {
-            total: incoming_requests.len() as i64,
-            items: incoming_requests,
-        }),
-    }
+    address_to
 }
