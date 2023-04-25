@@ -173,17 +173,17 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
             let user_id_to = get_user_id_to(cloned_request.clone());
             let event_update = to_update(cloned_request);
             let subs = subscriptions.read().await;
+
             match user_id_to {
                 Some(user_to) => {
-                    match event_update {
-                        Some(event) => {
-                            if let Some(generator) = subs.get(&user_to) {
-                                if generator.r#yield(event).await.is_err() {
-                                    log::error!("Event Update received > Couldn't send update to subscriptors");
-                                }
+                    if let Some(event) = event_update {
+                        if let Some(generator) = subs.get(&user_to) {
+                            if generator.r#yield(event).await.is_err() {
+                                log::error!(
+                                    "Event Update received > Couldn't send update to subscriptors"
+                                );
                             }
                         }
-                        None => {}
                     }
                 }
                 None => {}
