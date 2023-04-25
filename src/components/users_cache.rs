@@ -1,8 +1,21 @@
 use deadpool_redis::redis::{cmd, RedisResult};
 
-use crate::{ports::users_cache::UserId, utils::encrypt_string::hash_with_key};
-
 use super::redis::Redis;
+
+use hex::encode;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
+
+// Create alias for HMAC-SHA256
+type HmacSha256 = Hmac<Sha256>;
+
+use std::sync::Arc;
+
+use crate::components::synapse::SynapseComponent;
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
+
+use crate::api::routes::v1::error::CommonError;
 
 const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 1800;
 
@@ -96,5 +109,93 @@ impl UsersCacheComponent {
                 Err(err.to_string())
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UserId {
+    pub social_id: String,
+    pub synapse_id: String,
+}
+/// Retrieve the user id associated with the given token.
+///
+/// It first checks the user cache for the user id associated with the token.
+/// If the user id is not found in the cache, it calls `who_am_i` on the `SynapseComponent` to get the user id,
+/// then adds the token and user id to the cache before returning the user id.
+pub async fn get_user_id_from_token(
+    synapse: SynapseComponent,
+    users_cache: Arc<Mutex<UsersCacheComponent>>,
+    token: &String,
+) -> Result<UserId, CommonError> {
+    // Drop mutex lock at the end of scope.
+    {
+        let mut user_cache = users_cache.lock().await;
+        match user_cache.get_user(token).await {
+            Ok(user_id) => Ok(user_id),
+            Err(e) => {
+                log::info!("trying to get user {token} but {e}");
+                match synapse.who_am_i(token).await {
+                    Ok(response) => {
+                        let user_id = UserId {
+                            social_id: response.social_user_id.unwrap(),
+                            synapse_id: response.user_id,
+                        };
+
+                        if let Err(err) = user_cache
+                            .add_user(token, &user_id.social_id, &user_id.synapse_id, None)
+                            .await
+                        {
+                            log::error!(
+                                "check_auth.rs > Error on storing token into Redis: {:?}",
+                                err
+                            )
+                        }
+
+                        Ok(user_id)
+                    }
+                    Err(err) => Err(err),
+                }
+            }
+        }
+    }
+}
+
+pub fn hash_with_key(str: &str, key: &str) -> String {
+    let mut mac =
+        HmacSha256::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
+    mac.update(str.as_bytes());
+
+    // `result` has type `CtOutput` which is a thin wrapper around array of
+    // bytes for providing constant time equality check
+    let result = mac.finalize();
+
+    // To get underlying array use `into_bytes`, but be careful, since
+    // incorrect use of the code value may permit timing attacks which defeats
+    // the security provided by the `CtOutput`
+    let code_bytes = result.into_bytes();
+
+    encode(code_bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_with_same_string() {
+        // Should be deterministic for the same string twice
+        assert_eq!(
+            hash_with_key("test string", "test_key"),
+            hash_with_key("test string", "test_key")
+        );
+    }
+
+    #[test]
+    fn test_hash_with_different_string() {
+        // Should be deterministic for the same string twice
+        assert_ne!(
+            hash_with_key("test string", "test_key"),
+            hash_with_key("test2 string", "test_key")
+        );
     }
 }

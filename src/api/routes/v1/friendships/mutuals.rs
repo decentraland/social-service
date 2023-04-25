@@ -7,9 +7,8 @@ use actix_web::{
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
     api::routes::v1::error::CommonError,
-    components::{app::AppComponents, synapse::clean_synapse_user_id},
+    components::{app::AppComponents, synapse::clean_synapse_user_id, users_cache::UserId},
     entities::friendships::FriendshipRepositoryImplementation,
-    ports::users_cache::UserId,
 };
 
 #[get("/v1/friendships/{userId}/mutuals")]

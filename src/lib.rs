@@ -2,10 +2,7 @@ pub mod api;
 pub mod components;
 pub mod entities;
 mod metrics;
-pub mod middlewares;
 pub mod models;
-pub mod ports;
-mod utils;
 pub mod ws;
 
 include!(concat!(

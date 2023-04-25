@@ -140,7 +140,7 @@ mod tests {
         // Case 1: No previous history
         let last_recorded_history = None;
         let new_event = FriendshipEvent::REQUEST;
-        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_ok());
+        assert!(validate_new_event(&last_recorded_history, new_event).is_ok());
 
         // Case 2: Previous history exists, new event is valid
         let last_recorded_history = Some(generate_friendship_history(
@@ -149,7 +149,7 @@ mod tests {
             "2022-04-12 09:30:00",
         ));
         let new_event = FriendshipEvent::ACCEPT;
-        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_ok());
+        assert!(validate_new_event(&last_recorded_history, new_event).is_ok());
 
         // Case 3: Previous history exists, new event is not valid
         let last_recorded_history = Some(generate_friendship_history(
@@ -158,7 +158,7 @@ mod tests {
             "2022-04-12 09:30:00",
         ));
         let new_event = FriendshipEvent::REQUEST;
-        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_err());
+        assert!(validate_new_event(&last_recorded_history, new_event).is_err());
 
         // Case 4: Previous history exists, new event is not different from the last recorded (aka invalid)
         let last_recorded_history = Some(generate_friendship_history(
@@ -167,7 +167,7 @@ mod tests {
             "2022-04-12 09:30:00",
         ));
         let new_event = FriendshipEvent::REQUEST;
-        assert!(validate_new_event(&last_recorded_history, new_event.clone()).is_err());
+        assert!(validate_new_event(&last_recorded_history, new_event).is_err());
     }
 
     #[test]
@@ -252,7 +252,7 @@ mod tests {
         UpdateFriendshipPayload {
             event: Some(FriendshipEventPayload { body: Some(event) }),
             auth_token: Some(Payload {
-                synapse_token: Some(format!("{user}Token").to_string()),
+                synapse_token: Some(format!("{user}Token")),
             }),
         }
     }
