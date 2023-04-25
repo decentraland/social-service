@@ -1,10 +1,12 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use futures_util::StreamExt;
 
-use dcl_rpc::stream_protocol::Generator;
+use dcl_rpc::stream_protocol::{Generator, GeneratorYielder};
+use tokio::sync::RwLock;
 
 use crate::{
+    components::notifications::RedisChannelPublisher,
     entities::friendships::FriendshipRepositoryImplementation, friendship_event_payload,
     ws::app::SocialContext, ws::service::friendship_event_handler::handle_friendship_update,
     FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
@@ -167,32 +169,9 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
         let subscriptions = context.friendships_events_subscriptions.clone();
+        let publisher = context.redis_publisher.clone();
         let cloned_request = request.clone();
-        // Notify local listeners
-        tokio::spawn(async move {
-            let user_id_to = get_user_id_to(cloned_request.clone());
-            let event_update = to_update(cloned_request);
-            let subs = subscriptions.read().await;
 
-            match user_id_to {
-                Some(user_to) => {
-                    if let Some(event) = event_update {
-                        if let Some(generator) = subs.get(&user_to) {
-                            if generator.r#yield(event).await.is_err() {
-                                log::error!(
-                                    "Event Update received > Couldn't send update to subscriptors"
-                                );
-                            }
-                        }
-                    }
-                }
-                None => {}
-            }
-        });
-
-        // Notify channel
-
-        // Get user id with the given Authentication Token.
         // TODO: Do not `unwrap`, handle error instead. Ticket #81
         let user_id = get_user_id_from_request(
             &request.clone().auth_token.unwrap(),
@@ -201,8 +180,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         )
         .await;
 
-        // Handle friendship event update
-        match user_id {
+        let update = match user_id {
             Ok(user_id) => {
                 let process_room_event_response =
                     handle_friendship_update(request.clone(), context, user_id.social_id).await;
@@ -224,7 +202,18 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                 log::error!("Update Frienship Event > Get User ID from Token > Error.");
                 todo!()
             }
-        }
+        };
+
+        let another_clone = cloned_request.clone();
+        tokio::spawn(async move {
+            notify_local_listeners(another_clone, subscriptions).await;
+        });
+
+        tokio::spawn(async move {
+            publish_on_channel(cloned_request, publisher).await;
+        });
+
+        update
     }
 
     #[tracing::instrument(
@@ -262,6 +251,34 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         }
         // TODO: Remove generator from map when user has disconnected
         generator
+    }
+}
+
+async fn publish_on_channel(
+    request: UpdateFriendshipPayload,
+    publisher: Arc<RedisChannelPublisher>,
+) {
+    todo!();
+}
+
+async fn notify_local_listeners(
+    request: UpdateFriendshipPayload,
+    subscriptions: Arc<
+        RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
+    >,
+) {
+    let user_id_to = get_user_id_to(request.clone());
+    let event_update = to_update(request);
+    let subs = subscriptions.read().await;
+
+    if let Some(user_to) = user_id_to {
+        if let Some(event) = event_update {
+            if let Some(generator) = subs.get(&user_to) {
+                if generator.r#yield(event).await.is_err() {
+                    log::error!("Event Update received > Couldn't send update to subscriptors");
+                }
+            }
+        }
     }
 }
 
