@@ -5,17 +5,11 @@ use futures_util::StreamExt;
 use dcl_rpc::stream_protocol::Generator;
 
 use crate::{
-    components::{synapse::SynapseComponent, users_cache::UsersCacheComponent},
-    entities::{
-        friendship_history::FriendshipRequestEvent, friendships::FriendshipRepositoryImplementation,
-    },
-    friendship_event_payload,
-    ports::users_cache::{get_user_id_from_token, UserId},
-    ws::app::SocialContext,
-    ws::service::friendship_event_handler::handle_friendship_update,
-    FriendshipsServiceServer, Payload, RequestEvents, RequestResponse, Requests,
-    ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
-    UpdateFriendshipResponse, User, Users,
+    entities::friendships::FriendshipRepositoryImplementation, friendship_event_payload,
+    ws::app::SocialContext, ws::service::friendship_event_handler::handle_friendship_update,
+    FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
+    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
+    User, Users,
 };
 
 use super::{
@@ -278,7 +272,7 @@ fn to_update(
 }
 
 fn get_user_id_to(request: UpdateFriendshipPayload) -> Option<String> {
-    let address_to = if let Some(body) = request.event {
+    if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(request)) => {
                 request.user.map(|u| u.address)
@@ -290,7 +284,6 @@ fn get_user_id_to(request: UpdateFriendshipPayload) -> Option<String> {
             None => None,
         }
     } else {
-        return None;
-    };
-    address_to
+        None
+    }
 }
