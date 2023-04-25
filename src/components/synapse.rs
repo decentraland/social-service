@@ -1,15 +1,30 @@
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, time::SystemTime};
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-use crate::api::routes::{
-    synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
-    v1::error::CommonError,
+use crate::{
+    api::routes::{
+        synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
+        v1::error::CommonError,
+    },
+    models::friendship_event::FriendshipEvent,
 };
+
+#[derive(Deserialize, Serialize)]
+pub struct AccountDataContentResponse {
+    #[serde(flatten)]
+    #[serde(rename = "m.direct")]
+    pub direct: HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RoomIdResponse {
+    pub room_id: String,
+    _servers: Vec<String>,
+}
 
 #[derive(Debug, Clone)]
 pub struct SynapseComponent {
-    synapse_url: String,
+    pub synapse_url: String,
 }
 
 pub const VERSION_URI: &str = "/_matrix/client/versions";
@@ -85,6 +100,26 @@ pub struct RoomMembersResponse {
 pub struct MessageRequestEventBody {
     pub msgtype: String,
     pub body: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum Preset {
+    PrivateChat,
+    TrustedPrivateChat,
+    PublicChat,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateRoomOpts {
+    pub room_alias_name: String,
+    pub preset: Preset,
+    pub invite: Vec<String>,
+    pub is_direct: bool,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateRoomResponse {
+    pub room_id: String,
 }
 
 impl SynapseComponent {
@@ -217,6 +252,72 @@ impl SynapseComponent {
         })
     }
 
+    #[tracing::instrument(name = "create_private_room > Synapse components")]
+    pub async fn create_private_room(
+        &self,
+        token: &str,
+        user_ids: Vec<&str>,
+        room_alias_name: &str,
+    ) -> Result<CreateRoomResponse, CommonError> {
+        let path = "/_matrix/client/r0/createRoom".to_string();
+
+        let invite = user_ids.iter().map(|id| id.to_string()).collect();
+
+        Self::authenticated_post_request(
+            &path,
+            token,
+            &self.synapse_url,
+            &CreateRoomOpts {
+                room_alias_name: room_alias_name.to_string(),
+                preset: Preset::PrivateChat,
+                invite,
+                is_direct: true,
+            },
+        )
+        .await
+    }
+
+    /// Sets the account data content for the given user id
+    /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#get_matrixclientv3useruseridaccount_datatype)
+    pub async fn set_account_data(
+        &self,
+        token: &str,
+        user_id: &str,
+        direct_room_map: HashMap<String, Vec<String>>,
+    ) -> Result<(), CommonError> {
+        let formatted_user_id = user_id_as_synapse_user_id(user_id, &self.synapse_url);
+
+        let path: String =
+            format!("/_matrix/client/r0/user/{formatted_user_id}/account_data/m.direct");
+
+        Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
+    }
+
+    /// Retrieves the account data content for the given user id
+    /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#put_matrixclientv3useruseridaccount_datatype)
+    pub async fn get_account_data(
+        &self,
+        token: &str,
+        user_id: &str,
+    ) -> Result<AccountDataContentResponse, CommonError> {
+        let formatted_user_id = user_id_as_synapse_user_id(user_id, &self.synapse_url);
+
+        let path: String =
+            format!("/_matrix/client/r0/user/{formatted_user_id}/account_data/m.direct");
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
+    }
+
+    pub async fn get_room_id_for_alias(
+        &self,
+        token: &str,
+        alias: &str,
+    ) -> Result<RoomIdResponse, CommonError> {
+        let path = format!("/_matrix/client/r0/directory/room/{alias}");
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
+    }
+
     async fn get_request<T: DeserializeOwned>(
         path: &str,
         synapse_url: &str,
@@ -238,6 +339,24 @@ impl SynapseComponent {
         let client = reqwest::Client::new();
         let response = client
             .put(url)
+            .json(&body)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await;
+
+        Self::process_synapse_response::<T>(response).await
+    }
+
+    async fn authenticated_post_request<T: DeserializeOwned, S: Serialize>(
+        path: &str,
+        token: &str,
+        synapse_url: &str,
+        body: S,
+    ) -> Result<T, CommonError> {
+        let url = format!("{synapse_url}{path}");
+        let client = reqwest::Client::new();
+        let response = client
+            .post(url)
             .json(&body)
             .header("Authorization", format!("Bearer {token}"))
             .send()
@@ -324,6 +443,26 @@ pub fn clean_synapse_user_id(user_id: &str) -> String {
     }
 
     user_id.to_string()
+}
+
+/// Extracts the domain from a URL.
+///
+/// Returns a string representing the domain extracted from the URL. If the URL cannot
+/// be split into parts or the domain is empty, the function returns the default value
+/// `zone`.
+fn extract_domain(url: &str) -> &str {
+    let splited_domain: Vec<&str> = url.split('.').collect();
+    splited_domain.last().unwrap_or(&"zone")
+}
+
+/// Gets the synapse user id for the given user id
+///
+/// @example
+/// from: '0x1111ada11111'
+/// to: '@0x1111ada11111:decentraland.org'
+pub fn user_id_as_synapse_user_id(user_id: &str, synapse_url: &str) -> String {
+    let result = format!("@{}:decentraland.{}", user_id, extract_domain(synapse_url));
+    result
 }
 
 #[cfg(test)]

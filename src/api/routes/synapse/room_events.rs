@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use actix_web::{
     put,
     web::{self, Data},
@@ -21,6 +19,7 @@ use crate::{
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
     middlewares::check_auth::Token,
+    models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
     ports::users_cache::UserId,
 };
 
@@ -35,71 +34,6 @@ pub struct RoomEventResponse {
 pub struct RoomEventRequestBody {
     pub r#type: FriendshipEvent,
     pub message: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
-pub enum FriendshipEvent {
-    #[serde(rename = "request")]
-    REQUEST, // Send a friendship request
-    #[serde(rename = "cancel")]
-    CANCEL, // Cancel a friendship request
-    #[serde(rename = "accept")]
-    ACCEPT, // Accept a friendship request
-    #[serde(rename = "reject")]
-    REJECT, // Reject a friendship request
-    #[serde(rename = "delete")]
-    DELETE, // Delete an existing friendship
-}
-
-lazy_static::lazy_static! {
-    static ref VALID_FRIENDSHIP_EVENT_TRANSITIONS: HashMap<FriendshipEvent, Vec<Option<FriendshipEvent>>> = {
-        let mut m = HashMap::new();
-
-        // This means that request is valid new event for all the specified events
-        // (meaning that that's the previous event)
-        m.insert(FriendshipEvent::REQUEST, vec![None, Some(FriendshipEvent::CANCEL), Some(FriendshipEvent::REJECT), Some(FriendshipEvent::DELETE)]);
-        m.insert(FriendshipEvent::CANCEL, vec![Some(FriendshipEvent::REQUEST)]);
-        m.insert(FriendshipEvent::ACCEPT, vec![Some(FriendshipEvent::REQUEST)]);
-        m.insert(FriendshipEvent::REJECT, vec![Some(FriendshipEvent::REQUEST)]);
-        m.insert(FriendshipEvent::DELETE, vec![Some(FriendshipEvent::ACCEPT)]);
-
-        m
-    };
-}
-
-impl FriendshipEvent {
-    fn validate_new_event_is_valid(
-        current_event: &Option<FriendshipEvent>,
-        new_event: FriendshipEvent,
-    ) -> bool {
-        let valid_transitions = VALID_FRIENDSHIP_EVENT_TRANSITIONS.get(&new_event).unwrap();
-        valid_transitions.contains(current_event)
-    }
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub enum FriendshipStatus {
-    Friends,
-    Requested(String),
-    NotFriends,
-}
-
-impl FriendshipStatus {
-    fn from_history_event(history: Option<FriendshipHistory>) -> Self {
-        if history.is_none() {
-            return FriendshipStatus::NotFriends;
-        }
-
-        let history = history.unwrap();
-
-        match history.event {
-            FriendshipEvent::REQUEST => FriendshipStatus::Requested(history.acting_user),
-            FriendshipEvent::CANCEL => FriendshipStatus::NotFriends,
-            FriendshipEvent::ACCEPT => FriendshipStatus::Friends,
-            FriendshipEvent::REJECT => FriendshipStatus::NotFriends,
-            FriendshipEvent::DELETE => FriendshipStatus::NotFriends,
-        }
-    }
 }
 
 #[put("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship")]
@@ -185,8 +119,7 @@ async fn process_room_event<'a>(
         friendship_history_repository: &repos.friendship_history,
     };
 
-    // The only case where we don't create the friendship if it didn't exist
-    // If they are still no friends, it's unnecessary to create a friendship
+    // If the status has not changed, no action is taken.
     if current_status == new_status {
         return Ok(RoomEventResponse {
             event_id: room_id.to_string(),
@@ -559,10 +492,12 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::{
-        api::routes::synapse::errors::SynapseError, entities::friendship_history::FriendshipHistory,
+        api::routes::synapse::errors::SynapseError,
+        entities::friendship_history::FriendshipHistory,
+        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
     };
 
-    use super::{process_friendship_status, FriendshipEvent, FriendshipStatus};
+    use super::process_friendship_status;
 
     fn get_last_history(event: FriendshipEvent, acting_user: &str) -> Option<FriendshipHistory> {
         Some(FriendshipHistory {

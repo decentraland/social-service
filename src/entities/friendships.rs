@@ -276,7 +276,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 is_active: row.try_get("is_active").unwrap(),
                 synapse_room_id: row.try_get("synapse_room_id").unwrap(),
             },
-            // TODO: Handle error
+            // TODO: Handle error. Ticket #81
             Err(_) => todo!(),
         });
 
