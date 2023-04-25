@@ -7,11 +7,10 @@ use tokio::sync::Mutex;
 use crate::{
     components::{
         synapse::{user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent},
-        users_cache::UsersCacheComponent,
+        users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
     },
     entities::friendships::Friendship,
     models::friendship_event::FriendshipEvent,
-    ports::users_cache::{get_user_id_from_token, UserId},
     Payload,
 };
 
