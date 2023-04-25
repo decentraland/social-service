@@ -3,9 +3,9 @@ mod common;
 pub use common::*;
 
 use social_service::{
-    api::routes::synapse::room_events::FriendshipEvent,
     components::database::{DBRepositories, DatabaseComponentImplementation},
     entities::friendships::FriendshipRepositoryImplementation,
+    models::friendship_event::FriendshipEvent,
 };
 use uuid::Uuid;
 

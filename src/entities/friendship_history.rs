@@ -11,11 +11,11 @@ use sqlx::{
 };
 
 use crate::{
-    api::routes::synapse::room_events::FriendshipEvent,
     components::database::{DBConnection, DatabaseComponent, Executor},
     entities::queries::USER_REQUESTS_QUERY,
     entities::utils::get_transaction_result_from_executor,
     generate_uuid_v4,
+    models::friendship_event::FriendshipEvent,
 };
 
 #[derive(Clone)]
@@ -60,7 +60,7 @@ impl FriendshipHistoryRepository {
         metadata: Option<Json<FriendshipMetadata>>,
     ) -> Query<'a, Postgres, sqlx::postgres::PgArguments> {
         sqlx::query(
-                "INSERT INTO friendship_history (id,friendship_id, event, acting_user, metadata) VALUES ($1,$2,$3,$4,$5)",
+                "INSERT INTO friendship_history (id, friendship_id, event, acting_user, metadata) VALUES ($1, $2, $3, $4, $5)",
         )
         .bind(Uuid::parse_str(generate_uuid_v4().as_str()).unwrap())
         .bind(friendship_id)
