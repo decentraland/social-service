@@ -8,19 +8,18 @@ use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    api::routes::v1::error::CommonError,
+    api::{middlewares::check_auth::Token, routes::v1::error::CommonError},
     components::{
         app::AppComponents,
         database::{DatabaseComponent, DatabaseComponentImplementation},
         synapse::{RoomMembersResponse, SynapseComponent},
+        users_cache::UserId,
     },
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    middlewares::check_auth::Token,
     models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
-    ports::users_cache::UserId,
 };
 
 use super::errors::SynapseError;

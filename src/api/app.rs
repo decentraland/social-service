@@ -8,9 +8,9 @@ use crate::components::app::AppComponents;
 use crate::components::configuration::Config;
 use crate::components::tracing::init_telemetry;
 use crate::metrics::initialize_metrics;
-use crate::middlewares::check_auth::CheckAuthToken;
-use crate::middlewares::metrics_token::CheckMetricsToken;
 
+use super::middlewares::check_auth::CheckAuthToken;
+use super::middlewares::metrics_token::CheckMetricsToken;
 use super::routes::health::handlers::health;
 use super::routes::health::handlers::live;
 use super::routes::synapse::handlers::{login, version};

@@ -1,8 +1,9 @@
 use std::time::Duration;
 
-use social_service::{
-    components::{configuration::RedisConfig, redis::Redis, users_cache::UsersCacheComponent},
-    ports::users_cache::UserId,
+use social_service::components::{
+    configuration::RedisConfig,
+    redis::Redis,
+    users_cache::{UserId, UsersCacheComponent},
 };
 
 use actix_rt::time::sleep;

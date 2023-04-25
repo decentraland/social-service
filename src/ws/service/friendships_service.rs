@@ -8,13 +8,13 @@ use tokio::sync::RwLock;
 use crate::{
     components::notifications::RedisChannelPublisher,
     entities::friendships::FriendshipRepositoryImplementation, friendship_event_payload,
-    ws::app::SocialContext, ws::service::friendship_event_handler::handle_friendship_update,
-    FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
+    ws::app::SocialContext, FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
     SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
     User, Users,
 };
 
 use super::{
+    friendship_event_updates::handle_friendship_update,
     mapper::{event_response_as_update_response, friendship_requests_as_request_events},
     synapse_handler::get_user_id_from_request,
 };
@@ -255,8 +255,8 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 }
 
 async fn publish_on_channel(
-    request: UpdateFriendshipPayload,
-    publisher: Arc<RedisChannelPublisher>,
+    _request: UpdateFriendshipPayload,
+    _publisher: Arc<RedisChannelPublisher>,
 ) {
     todo!();
 }
