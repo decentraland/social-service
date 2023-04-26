@@ -215,14 +215,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         });
                         // TODO: fix this
                         let social_id = "";
-                        match cloned_request.event {
-                            Some(event) => {
-                                tokio::spawn(async move {
-                                    publish_on_channel(event, publisher, social_id, created_at)
-                                        .await;
-                                });
-                            }
-                            None => {}
+                        if let Some(event) = cloned_request.event {
+                            tokio::spawn(async move {
+                                publish_on_channel(event, publisher, social_id, created_at).await;
+                            });
                         };
 
                         res
