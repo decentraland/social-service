@@ -50,7 +50,7 @@ pub async fn run_ws_transport(
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
         dcl_rpc::server::RpcServer::create(ctx);
-    rpc_server.set_handler(|port| {
+    rpc_server.set_module_registrator_handler(|port| {
         FriendshipsServiceRegistration::register_service(
             port,
             friendships_service::MyFriendshipsService {},

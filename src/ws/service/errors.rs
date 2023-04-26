@@ -1,35 +1,49 @@
-use serde::{Deserialize, Serialize};
+use dcl_rpc::rpc_protocol::RemoteErrorResponse;
 use thiserror::Error;
 
-#[derive(Serialize, Deserialize, Debug)]
-// TODO: Ticket #81. Check all references and apply correctly
-pub struct FriendshipsServiceErrorResponse {
-    pub code: u16,
-    pub error: String,
-    pub message: String,
-}
+use crate::FriendshipErrors;
 
-#[derive(Error, Debug)]
+#[repr(i32)]
+#[derive(Debug, PartialEq, Eq, Error)]
 pub enum FriendshipsServiceError {
-    #[error("Internal Error")]
-    InternalServerError,
-    #[error("Unauthorized")]
-    Unauthorized,
+    #[error("Unknown: {0}")]
+    Unknown(String) = FriendshipErrors::Unknown as i32,
+    #[error("Bad request: {0}")]
+    BadRequest(String) = FriendshipErrors::BadRequest as i32,
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String) = FriendshipErrors::Unauthorized as i32,
+    #[error("Forbidden: {0}")]
+    Forbidden(String) = FriendshipErrors::Forbidden as i32,
+    #[error("Not found")]
+    NotFound = FriendshipErrors::NotFound as i32,
+    #[error("Too many requests: {0}")]
+    TooManyRequests(String) = FriendshipErrors::TooManyRequests as i32,
+    #[error("Internal server error")]
+    InternalServerError = FriendshipErrors::InternalServerError as i32,
 }
 
-impl From<FriendshipsServiceError> for FriendshipsServiceErrorResponse {
-    fn from(error: FriendshipsServiceError) -> Self {
-        match error {
-            FriendshipsServiceError::InternalServerError => FriendshipsServiceErrorResponse {
-                code: 500,
-                error: "Internal Error".to_string(),
-                message: "An unknown internal error occurred".to_string(),
-            },
-            FriendshipsServiceError::Unauthorized => FriendshipsServiceErrorResponse {
-                code: 401,
-                error: "Unauthorized".to_string(),
-                message: "Invalid or missing authentication token".to_string(),
-            },
+impl RemoteErrorResponse for FriendshipsServiceError {
+    fn error_code(&self) -> u32 {
+        match self {
+            Self::Unknown(_) => 0,
+            Self::BadRequest(_) => 400,
+            Self::Unauthorized(_) => 401,
+            Self::Forbidden(_) => 403,
+            Self::NotFound => 404,
+            Self::TooManyRequests(_) => 429,
+            Self::InternalServerError => 500,
+        }
+    }
+
+    fn error_message(&self) -> String {
+        match self {
+            Self::Unknown(value) => format!("{self}: {value}"),
+            Self::BadRequest(value) => format!("{self}: {value}"),
+            Self::Unauthorized(value) => format!("{self}: {value}"),
+            Self::Forbidden(value) => format!("{self}: {value}"),
+            Self::NotFound => self.to_string(),
+            Self::TooManyRequests(value) => format!("{self}: {value}"),
+            Self::InternalServerError => self.to_string(),
         }
     }
 }

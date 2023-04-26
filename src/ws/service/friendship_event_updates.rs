@@ -6,7 +6,7 @@ use crate::{
         app::SocialContext,
         service::{
             database_handler::{get_friendship, get_last_history, update_friendship_status},
-            errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
+            errors::FriendshipsServiceError,
             types::{EventResponse, FriendshipPortsWs, RoomInfoWs},
         },
     },
@@ -28,7 +28,7 @@ pub async fn handle_friendship_update(
     request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,
     acting_user: String,
-) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
+) -> Result<EventResponse, FriendshipsServiceError> {
     let event_payload = update_request_as_event_payload(request.clone())?;
     let new_event = event_payload.friendship_event;
     let second_user = event_payload.second_user;
@@ -89,7 +89,7 @@ pub async fn handle_friendship_update(
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Couldn't start transaction to store friendship update {error}");
-            return Err(FriendshipsServiceError::InternalServerError.into());
+            return Err(FriendshipsServiceError::InternalServerError);
         }
     };
 
@@ -139,11 +139,11 @@ pub async fn handle_friendship_update(
 
             match transaction_result {
                 Ok(_) => Ok(EventResponse {
-                    user_id: second_user,
+                    user_id: second_user.to_string(),
                 }),
-                Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
+                Err(_) => Err(FriendshipsServiceError::InternalServerError),
             }
         }
-        Err(_err) => Err(FriendshipsServiceError::InternalServerError.into()),
+        Err(_err) => Err(FriendshipsServiceError::InternalServerError),
     }
 }

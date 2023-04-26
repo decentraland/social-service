@@ -10,7 +10,7 @@ use crate::{
     },
     models::friendship_status::FriendshipStatus,
     ws::service::{
-        errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
+        errors::FriendshipsServiceError,
         types::{FriendshipPortsWs, RoomInfoWs},
     },
 };
@@ -21,17 +21,17 @@ use crate::{
 /// * `address_1` - The address to look for in the friendship relationship.
 /// * `address_2` - The address to look for in the friendship relationship.
 ///
-/// Returns an `Option<Friendship>` if the friendship was found, or a `FriendshipsServiceErrorResponse` if an error occurs.
+/// Returns an `Option<Friendship>` if the friendship was found, or a `FriendshipsServiceError` if an error occurs.
 pub async fn get_friendship(
     friendships_repository: &FriendshipsRepository,
     address_1: &str,
     address_2: &str,
-) -> Result<Option<Friendship>, FriendshipsServiceErrorResponse> {
+) -> Result<Option<Friendship>, FriendshipsServiceError> {
     let (friendship_result, _) = friendships_repository
         .get_friendship((address_1, address_2), None)
         .await;
 
-    friendship_result.map_err(|_err| FriendshipsServiceError::InternalServerError.into())
+    friendship_result.map_err(|_err| FriendshipsServiceError::InternalServerError)
 }
 
 /// Fetches the last friendship history for a given friendship.
@@ -39,11 +39,11 @@ pub async fn get_friendship(
 /// * `friendship_history_repository` - A reference to the `FriendshipHistoryRepository` instance.
 /// * `friendship` - An `Option<Friendship>` to fetch the last history for.
 ///
-/// Returns an `Option<FriendshipHistory>` if the last history was found, or a `FriendshipsServiceErrorResponse` if an error occurs.
+/// Returns an `Option<FriendshipHistory>` if the last history was found, or a `FriendshipsServiceError` if an error occurs.
 pub async fn get_last_history(
     friendship_history_repository: &FriendshipHistoryRepository,
     friendship: &Option<Friendship>,
-) -> Result<Option<FriendshipHistory>, FriendshipsServiceErrorResponse> {
+) -> Result<Option<FriendshipHistory>, FriendshipsServiceError> {
     let friendship = {
         match friendship {
             Some(friendship) => friendship,
@@ -55,7 +55,7 @@ pub async fn get_last_history(
         .get_last_history_for_friendship(friendship.id, None)
         .await;
 
-    friendship_history_result.map_err(|_err| FriendshipsServiceError::InternalServerError.into())
+    friendship_history_result.map_err(|_err| FriendshipsServiceError::InternalServerError)
 }
 
 /// Stores updates to a friendship or creates a new friendship if it does not exist.
@@ -68,7 +68,7 @@ async fn store_friendship_update(
     synapse_room_id: &str,
     transaction: Transaction<'static, Postgres>,
 ) -> (
-    Result<Uuid, FriendshipsServiceErrorResponse>,
+    Result<Uuid, FriendshipsServiceError>,
     Transaction<'static, Postgres>,
 ) {
     match friendship {
@@ -81,7 +81,7 @@ async fn store_friendship_update(
                 Ok(_) => Ok(friendship.id),
                 Err(err) => {
                     log::warn!("Couldn't update friendship {err}");
-                    Err(FriendshipsServiceError::InternalServerError.into())
+                    Err(FriendshipsServiceError::InternalServerError)
                 }
             };
 
@@ -99,7 +99,7 @@ async fn store_friendship_update(
             (
                 friendship_id.map_err(|err| {
                     log::warn!("Couldn't crate new friendship {err}");
-                    FriendshipsServiceError::InternalServerError.into()
+                    FriendshipsServiceError::InternalServerError
                 }),
                 transaction.unwrap(),
             )
@@ -116,7 +116,7 @@ pub async fn update_friendship_status<'a>(
     room_info: RoomInfoWs<'a>,
     friendship_ports: FriendshipPortsWs<'a>,
     transaction: Transaction<'static, Postgres>,
-) -> Result<Transaction<'static, Postgres>, FriendshipsServiceErrorResponse> {
+) -> Result<Transaction<'static, Postgres>, FriendshipsServiceError> {
     // Store friendship update
     let is_active = new_status == FriendshipStatus::Friends;
     let (friendship_id_result, transaction) = store_friendship_update(
@@ -144,7 +144,7 @@ pub async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Error serializing room event: {:?}", err);
             let _ = transaction.rollback().await;
-            return Err(FriendshipsServiceError::InternalServerError.into());
+            return Err(FriendshipsServiceError::InternalServerError);
         }
     };
 
@@ -175,7 +175,7 @@ pub async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Couldn't store friendship history update: {:?}", err);
             let _ = transaction.rollback().await;
-            Err(FriendshipsServiceError::InternalServerError.into())
+            Err(FriendshipsServiceError::InternalServerError)
         }
     }
 }

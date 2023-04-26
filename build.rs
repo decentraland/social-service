@@ -10,7 +10,7 @@ const DCL_PROTOCOL_REPO_URL: &str =
     "https://api.github.com/repos/decentraland/protocol/contents/proto/decentraland";
 const FRIENDSHIP_PROTO_PATH: &str = "/social/friendships/friendships.proto";
 /// Modify this value to update the proto version, it is the commit sha from protocol repo used for downloading the proto file
-const FRIENDSHIPS_PROTOCOL_VERSION: &str = "32cf19f00393c95bdb7e7cfc20f682ae19fb5837";
+const FRIENDSHIPS_PROTOCOL_VERSION: &str = "27e67152e0347a0937d0fe8933a15cf6dc7660a9";
 const DEFINITIONS_FOLDER: &str = "ext-proto";
 const PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
 

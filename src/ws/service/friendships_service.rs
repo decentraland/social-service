@@ -12,6 +12,7 @@ use crate::{
 };
 
 use super::{
+    errors::FriendshipsServiceError,
     friendship_event_updates::handle_friendship_update,
     mapper::{event_response_as_update_response, friendship_requests_as_request_events},
     synapse_handler::get_user_id_from_request,
@@ -21,141 +22,121 @@ use super::{
 pub struct MyFriendshipsService {}
 
 #[async_trait::async_trait]
-impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
+impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFriendshipsService {
     #[tracing::instrument(name = "RPC SERVER > Get Friends Generator", skip(request, context))]
     async fn get_friends(
         &self,
         request: Payload,
         context: Arc<SocialContext>,
-    ) -> ServerStreamResponse<Users> {
+    ) -> Result<ServerStreamResponse<Users>, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let user_id = get_user_id_from_request(
             &request,
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await;
+        .await?;
 
-        match user_id {
-            Ok(user_id) => {
-                let social_id = user_id.social_id.clone();
-                log::info!("Getting all friends for user: {}", social_id);
-                // Look for users friends
-                let mut friendship = match context.db.db_repos.clone() {
-                    Some(repos) => {
-                        let friendship = repos
-                            .friendships
-                            .get_user_friends_stream(&user_id.social_id, true)
-                            .await;
-                        match friendship {
-                            // TODO: Handle get friends stream query response error. Ticket #81
-                            Err(err) => {
-                                log::error!(
-                                    "Get Friends > Get User Friends Stream > Error: {err}."
-                                );
-                                todo!()
+        let social_id = user_id.social_id.clone();
+        log::info!("Getting all friends for user: {}", social_id);
+        // Look for users friends
+        let mut friendship = match context.db.db_repos.clone() {
+            Some(repos) => {
+                let friendship = repos
+                    .friendships
+                    .get_user_friends_stream(&user_id.social_id, true)
+                    .await;
+                match friendship {
+                    Err(err) => {
+                        log::error!("Get friends > Get user friends stream > Error: {err}.");
+                        return Err(FriendshipsServiceError::InternalServerError);
+                    }
+                    Ok(it) => it,
+                }
+            }
+            None => {
+                log::error!("Get friends > Db repositories > `repos` is None.");
+                return Err(FriendshipsServiceError::InternalServerError);
+            }
+        };
+
+        let (generator, generator_yielder) = Generator::create();
+
+        tokio::spawn(async move {
+            let mut users = Users::default();
+            // Map Frienships to Users
+            loop {
+                let friendship = friendship.next().await;
+                match friendship {
+                    Some(friendship) => {
+                        let user: User = {
+                            let address1: String = friendship.address_1;
+                            let address2: String = friendship.address_2;
+                            match address1.eq_ignore_ascii_case(&user_id.social_id) {
+                                true => User { address: address2 },
+                                false => User { address: address1 },
                             }
-                            Ok(it) => it,
+                        };
+
+                        let users_len = users.users.len();
+
+                        users.users.push(user);
+
+                        // TODO: Move this value (5) to a Env Variable, Config or sth like that
+                        if users_len == 5 {
+                            generator_yielder.r#yield(users).await.unwrap();
+                            users = Users::default();
                         }
                     }
-                    // TODO: Handle repos None. Ticket #81
                     None => {
-                        log::error!("Get Friends > Db Repositories > `repos` is None.");
-                        todo!()
+                        generator_yielder.r#yield(users).await.unwrap();
+                        break;
                     }
-                };
-
-                let (generator, generator_yielder) = Generator::create();
-
-                tokio::spawn(async move {
-                    let mut users = Users::default();
-                    // Map Frienships to Users
-                    loop {
-                        let friendship = friendship.next().await;
-                        match friendship {
-                            Some(friendship) => {
-                                let user: User = {
-                                    let address1: String = friendship.address_1;
-                                    let address2: String = friendship.address_2;
-                                    match address1.eq_ignore_ascii_case(&user_id.social_id) {
-                                        true => User { address: address2 },
-                                        false => User { address: address1 },
-                                    }
-                                };
-
-                                let users_len = users.users.len();
-
-                                users.users.push(user);
-
-                                // TODO: Move this value (5) to a Env Variable, Config or sth like that
-                                if users_len == 5 {
-                                    generator_yielder.r#yield(users).await.unwrap();
-                                    users = Users::default();
-                                }
-                            }
-                            None => {
-                                generator_yielder.r#yield(users).await.unwrap();
-                                break;
-                            }
-                        }
-                    }
-                });
-
-                log::info!("Returning generator for all friends for user {}", social_id);
-                generator
+                }
             }
-            Err(_err) => {
-                // TODO: Handle error when trying to get User Id. Ticket #81
-                log::error!("Get Friends > Get User ID from Token > Error.");
-                todo!()
-            }
-        }
+        });
+
+        log::info!("Returning generator for all friends for user {}", social_id);
+        Ok(generator)
     }
+
     #[tracing::instrument(name = "RPC SERVER > Get Request Events", skip(request, context))]
     async fn get_request_events(
         &self,
         request: Payload,
         context: Arc<SocialContext>,
-    ) -> RequestEvents {
+    ) -> Result<RequestEvents, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let user_id = get_user_id_from_request(
             &request,
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await;
+        .await?;
 
-        match user_id {
-            Ok(user_id) => {
-                // Look for users requests
-                match context.db.db_repos.clone() {
-                    Some(repos) => {
-                        let requests = repos
-                            .friendship_history
-                            .get_user_pending_request_events(&user_id.social_id)
-                            .await;
-                        match requests {
-                            // TODO: Handle get user requests query response error. Ticket #81
-                            Err(err) => {
-                                log::debug!("Get Friends > Get User Requests > Error: {err}.");
-                                todo!()
-                            }
-                            Ok(requests) => {
-                                friendship_requests_as_request_events(requests, user_id.social_id)
-                            }
-                        }
+        // Look for users requests
+        match context.db.db_repos.clone() {
+            Some(repos) => {
+                let requests = repos
+                    .friendship_history
+                    .get_user_pending_request_events(&user_id.social_id)
+                    .await;
+                match requests {
+                    Err(err) => {
+                        log::error!(
+                            "Get request events > Get user pending request events > Error: {err}."
+                        );
+                        Err(FriendshipsServiceError::InternalServerError)
                     }
-                    // TODO: Handle repos None. Ticket #81
-                    None => {
-                        log::error!("Get Friends > Db Repositories > `repos` is None.");
-                        todo!()
-                    }
+                    Ok(requests) => Ok(friendship_requests_as_request_events(
+                        requests,
+                        user_id.social_id,
+                    )),
                 }
             }
-            Err(_err) => {
-                // TODO: Handle error when trying to get User Id. Ticket #81
-                log::error!("Get Friends > Get User ID from Token > Error.");
-                todo!()
+            None => {
+                log::error!("Get request events > Db repositories > `repos` is None.");
+                return Err(FriendshipsServiceError::InternalServerError);
             }
         }
     }
@@ -165,40 +146,28 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         &self,
         request: UpdateFriendshipPayload,
         context: Arc<SocialContext>,
-    ) -> UpdateFriendshipResponse {
+    ) -> Result<UpdateFriendshipResponse, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
-        // TODO: Do not `unwrap`, handle error instead. Ticket #81
+        let auth_token = request.clone().auth_token.take().ok_or_else(|| {
+            FriendshipsServiceError::Unauthorized("`auth_token` was not provided".to_string())
+        })?;
+
         let user_id = get_user_id_from_request(
-            &request.clone().auth_token.unwrap(),
+            &auth_token,
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await;
+        .await?;
 
         // Handle friendship event update
-        match user_id {
-            Ok(user_id) => {
-                let process_room_event_response =
-                    handle_friendship_update(request.clone(), context, user_id.social_id).await;
+        let friendship_update_response =
+            handle_friendship_update(request.clone(), context, user_id.social_id).await?;
 
-                if let Ok(event_response) = process_room_event_response {
-                    if let Ok(res) = event_response_as_update_response(request, event_response) {
-                        res
-                    } else {
-                        // TODO: Ticket #81
-                        todo!()
-                    }
-                } else {
-                    // TODO: Ticket #81
-                    todo!()
-                }
-            }
-            Err(_) => {
-                // TODO: Handle error when trying to get User Id. Ticket #81
-                log::error!("Update Frienship Event > Get User ID from Token > Error.");
-                todo!()
-            }
-        }
+        // Convert event response to update response
+        let update_response =
+            event_response_as_update_response(request, friendship_update_response)?;
+
+        Ok(update_response)
     }
 
     #[tracing::instrument(
@@ -209,7 +178,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         &self,
         _request: Payload,
         _context: Arc<SocialContext>,
-    ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
+    ) -> Result<
+        ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
+        FriendshipsServiceError,
+    > {
         todo!()
     }
 }

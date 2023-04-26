@@ -5,7 +5,7 @@ use crate::{
     friendship_event_payload, friendship_event_response,
     models::friendship_event::FriendshipEvent,
     ws::service::{
-        errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
+        errors::FriendshipsServiceError,
         types::{EventPayload, EventResponse},
     },
     AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse, RejectResponse,
@@ -74,7 +74,7 @@ pub fn friendship_requests_as_request_events(
 /// that is, the room event, the other user who is part of the friendship event, and the message body from the request event.
 pub fn update_request_as_event_payload(
     request: UpdateFriendshipPayload,
-) -> Result<EventPayload, FriendshipsServiceErrorResponse> {
+) -> Result<EventPayload, FriendshipsServiceError> {
     let event_payload = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(request)) => EventPayload {
@@ -117,10 +117,10 @@ pub fn update_request_as_event_payload(
                     .ok_or(FriendshipsServiceError::InternalServerError)?
                     .address,
             },
-            None => return Err(FriendshipsServiceError::InternalServerError.into()),
+            None => return Err(FriendshipsServiceError::InternalServerError),
         }
     } else {
-        return Err(FriendshipsServiceError::InternalServerError.into());
+        return Err(FriendshipsServiceError::InternalServerError);
     };
 
     Ok(event_payload)
@@ -129,7 +129,7 @@ pub fn update_request_as_event_payload(
 pub fn event_response_as_update_response(
     request: UpdateFriendshipPayload,
     result: EventResponse,
-) -> Result<UpdateFriendshipResponse, FriendshipsServiceErrorResponse> {
+) -> Result<UpdateFriendshipResponse, FriendshipsServiceError> {
     let event_response = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(payload)) => {
@@ -197,10 +197,10 @@ pub fn event_response_as_update_response(
 
                 UpdateFriendshipResponse { event: Some(event) }
             }
-            None => return Err(FriendshipsServiceError::InternalServerError.into()),
+            None => return Err(FriendshipsServiceError::InternalServerError),
         }
     } else {
-        return Err(FriendshipsServiceError::InternalServerError.into());
+        return Err(FriendshipsServiceError::InternalServerError);
     };
 
     Ok(event_response)
