@@ -40,9 +40,9 @@ use crate::{
 };
 
 use super::service::friendships_service;
-use crate::Event;
-use crate::FriendshipsServiceRegistration;
-use crate::SubscribeFriendshipEventsUpdatesResponse;
+use crate::friendships::FriendshipsServiceRegistration;
+use crate::friendships::SubscribeFriendshipEventsUpdatesResponse;
+use crate::notifications::Event;
 
 pub struct ConfigRpcServer {
     pub rpc_server: Server,

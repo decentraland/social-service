@@ -7,10 +7,12 @@ use tokio::sync::RwLock;
 
 use crate::{
     components::notifications::RedisChannelPublisher,
-    entities::friendships::FriendshipRepositoryImplementation, friendship_event_payload,
-    ws::app::SocialContext, FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
-    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
-    User, Users,
+    entities::friendships::FriendshipRepositoryImplementation,
+    friendships::friendship_event_payload, friendships::FriendshipsServiceServer,
+    friendships::Payload, friendships::RequestEvents, friendships::ServerStreamResponse,
+    friendships::SubscribeFriendshipEventsUpdatesResponse, friendships::UpdateFriendshipPayload,
+    friendships::UpdateFriendshipResponse, friendships::User, friendships::Users,
+    ws::app::SocialContext,
 };
 
 use super::{

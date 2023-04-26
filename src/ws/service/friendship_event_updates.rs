@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     components::database::DatabaseComponentImplementation,
+    friendships::UpdateFriendshipPayload,
     ws::{
         app::SocialContext,
         service::{
@@ -10,7 +11,6 @@ use crate::{
             types::{EventResponse, FriendshipPortsWs, RoomInfoWs},
         },
     },
-    UpdateFriendshipPayload,
 };
 
 use super::{
