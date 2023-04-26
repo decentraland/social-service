@@ -218,14 +218,14 @@ pub fn event_response_as_update_response(
 
 pub fn update_friendship_payload_as_event(
     payload: FriendshipEventPayload,
-    from: &str,
+    from: String,
     created_at: i64,
 ) -> Event {
     let (friendship_event, to) = payload_event_as_response(payload, created_at);
 
     Event {
         friendship_event,
-        from: from.to_string(),
+        from,
         to,
     }
 }

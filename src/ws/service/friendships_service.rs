@@ -199,7 +199,8 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         match user_id {
             Ok(user_id) => {
                 let process_room_event_response =
-                    handle_friendship_update(request.clone(), context, user_id.social_id).await;
+                    handle_friendship_update(request.clone(), context, user_id.social_id.clone())
+                        .await;
 
                 if let Ok(event_response) = process_room_event_response {
                     if let Ok(res) = event_response_as_update_response(request, event_response) {
@@ -213,11 +214,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         tokio::spawn(async move {
                             notify_local_listeners(another_clone, subscriptions).await;
                         });
-                        // TODO: fix this
-                        let social_id = "";
                         if let Some(event) = cloned_request.event {
                             tokio::spawn(async move {
-                                publish_on_channel(event, publisher, social_id, created_at).await;
+                                publish_on_channel(event, publisher, user_id.social_id, created_at)
+                                    .await;
                             });
                         };
 
@@ -280,7 +280,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 async fn publish_on_channel(
     payload: FriendshipEventPayload,
     publisher: Arc<RedisChannelPublisher>,
-    actor: &str,
+    actor: String,
     created_at: i64,
 ) {
     let event: Event = update_friendship_payload_as_event(payload, actor, created_at);
