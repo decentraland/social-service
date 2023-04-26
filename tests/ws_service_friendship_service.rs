@@ -5,8 +5,15 @@ mod tests {
         entities::friendship_history::{
             FriendshipHistory, FriendshipMetadata, FriendshipRequestEvent,
         },
-        friendship_event_payload::Body,
-        friendship_event_response,
+        friendships::friendship_event_payload::Body,
+        friendships::friendship_event_response,
+        friendships::CancelPayload,
+        friendships::FriendshipEventPayload,
+        friendships::Payload,
+        friendships::RequestEvents,
+        friendships::RequestPayload,
+        friendships::UpdateFriendshipPayload,
+        friendships::User,
         models::friendship_event::FriendshipEvent,
         models::friendship_status::FriendshipStatus,
         ws::service::{
@@ -18,8 +25,6 @@ mod tests {
             },
             types::EventResponse,
         },
-        CancelPayload, FriendshipEventPayload, Payload, RequestEvents, RequestPayload,
-        UpdateFriendshipPayload, User,
     };
     use uuid::Uuid;
 
