@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use futures_util::StreamExt;
 
@@ -6,18 +10,28 @@ use dcl_rpc::stream_protocol::{Generator, GeneratorYielder};
 use tokio::sync::RwLock;
 
 use crate::{
-    components::notifications::RedisChannelPublisher,
+    components::notifications::{ChannelPublisher, RedisChannelPublisher},
     entities::friendships::FriendshipRepositoryImplementation,
-    friendships::friendship_event_payload, friendships::FriendshipsServiceServer,
-    friendships::Payload, friendships::RequestEvents, friendships::ServerStreamResponse,
-    friendships::SubscribeFriendshipEventsUpdatesResponse, friendships::UpdateFriendshipPayload,
-    friendships::UpdateFriendshipResponse, friendships::User, friendships::Users,
+    friendships::friendship_event_payload,
+    friendships::FriendshipsServiceServer,
+    friendships::Payload,
+    friendships::RequestEvents,
+    friendships::ServerStreamResponse,
+    friendships::SubscribeFriendshipEventsUpdatesResponse,
+    friendships::UpdateFriendshipResponse,
+    friendships::User,
+    friendships::Users,
+    friendships::{FriendshipEventPayload, UpdateFriendshipPayload},
+    notifications::Event,
     ws::app::SocialContext,
 };
 
 use super::{
     friendship_event_updates::handle_friendship_update,
-    mapper::{event_response_as_update_response, friendship_requests_as_request_events},
+    mapper::{
+        event_response_as_update_response, friendship_requests_as_request_events,
+        update_friendship_payload_as_event,
+    },
     synapse_handler::get_user_id_from_request,
 };
 
@@ -182,13 +196,35 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         )
         .await;
 
-        let update = match user_id {
+        match user_id {
             Ok(user_id) => {
                 let process_room_event_response =
                     handle_friendship_update(request.clone(), context, user_id.social_id).await;
 
                 if let Ok(event_response) = process_room_event_response {
                     if let Ok(res) = event_response_as_update_response(request, event_response) {
+                        // TODO: fix this
+                        let created_at = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs() as i64;
+                        // Notify everyone
+                        let another_clone = cloned_request.clone();
+                        tokio::spawn(async move {
+                            notify_local_listeners(another_clone, subscriptions).await;
+                        });
+                        // TODO: fix this
+                        let social_id = "";
+                        match cloned_request.event {
+                            Some(event) => {
+                                tokio::spawn(async move {
+                                    publish_on_channel(event, publisher, social_id, created_at)
+                                        .await;
+                                });
+                            }
+                            None => {}
+                        };
+
                         res
                     } else {
                         // TODO: Ticket #81
@@ -204,18 +240,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                 log::error!("Update Frienship Event > Get User ID from Token > Error.");
                 todo!()
             }
-        };
-
-        let another_clone = cloned_request.clone();
-        tokio::spawn(async move {
-            notify_local_listeners(another_clone, subscriptions).await;
-        });
-
-        tokio::spawn(async move {
-            publish_on_channel(cloned_request, publisher).await;
-        });
-
-        update
+        }
     }
 
     #[tracing::instrument(
@@ -257,10 +282,13 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 }
 
 async fn publish_on_channel(
-    _request: UpdateFriendshipPayload,
-    _publisher: Arc<RedisChannelPublisher>,
+    payload: FriendshipEventPayload,
+    publisher: Arc<RedisChannelPublisher>,
+    actor: &str,
+    created_at: i64,
 ) {
-    todo!();
+    let event: Event = update_friendship_payload_as_event(payload, actor, created_at);
+    publisher.publish(event).await;
 }
 
 async fn notify_local_listeners(

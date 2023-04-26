@@ -11,11 +11,12 @@ use crate::{
     friendships::RejectResponse,
     friendships::RequestEvents,
     friendships::RequestResponse,
-    friendships::Requests,
     friendships::UpdateFriendshipPayload,
     friendships::UpdateFriendshipResponse,
     friendships::User,
+    friendships::{FriendshipEventPayload, Requests},
     models::friendship_event::FriendshipEvent,
+    notifications::Event,
     ws::service::{
         errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
         types::{EventPayload, EventResponse},
@@ -213,4 +214,104 @@ pub fn event_response_as_update_response(
     };
 
     Ok(event_response)
+}
+
+pub fn update_friendship_payload_as_event(
+    payload: FriendshipEventPayload,
+    from: &str,
+    created_at: i64,
+) -> Event {
+    let (friendship_event, to) = payload_event_as_response(payload, created_at);
+
+    Event {
+        friendship_event,
+        from: from.to_string(),
+        to,
+    }
+}
+
+fn payload_event_as_response(
+    payload: FriendshipEventPayload,
+    created_at: i64,
+) -> (Option<FriendshipEventResponse>, String) {
+    match payload.body {
+        Some(friendship_event_payload::Body::Request(request)) => {
+            match request.user.map(|u| u.address) {
+                Some(user_to) => {
+                    let event = FriendshipEventResponse {
+                        body: Some(friendship_event_response::Body::Request(RequestResponse {
+                            user: Some(User {
+                                address: user_to.clone(),
+                            }),
+                            created_at,
+                            message: request.message,
+                        })),
+                    };
+                    (Some(event), user_to)
+                }
+                None => (None, "".to_owned()),
+            }
+        }
+        Some(friendship_event_payload::Body::Accept(accept)) => {
+            match accept.user.map(|u| u.address) {
+                Some(user_to) => {
+                    let event = FriendshipEventResponse {
+                        body: Some(friendship_event_response::Body::Accept(AcceptResponse {
+                            user: Some(User {
+                                address: user_to.clone(),
+                            }),
+                        })),
+                    };
+                    (Some(event), user_to)
+                }
+                None => (None, "".to_owned()),
+            }
+        }
+        Some(friendship_event_payload::Body::Reject(reject)) => {
+            match reject.user.map(|u| u.address) {
+                Some(user_to) => {
+                    let event = FriendshipEventResponse {
+                        body: Some(friendship_event_response::Body::Reject(RejectResponse {
+                            user: Some(User {
+                                address: user_to.clone(),
+                            }),
+                        })),
+                    };
+                    (Some(event), user_to)
+                }
+                None => (None, "".to_owned()),
+            }
+        }
+        Some(friendship_event_payload::Body::Cancel(cancel)) => {
+            match cancel.user.map(|u| u.address) {
+                Some(user_to) => {
+                    let event = FriendshipEventResponse {
+                        body: Some(friendship_event_response::Body::Cancel(CancelResponse {
+                            user: Some(User {
+                                address: user_to.clone(),
+                            }),
+                        })),
+                    };
+                    (Some(event), user_to)
+                }
+                None => (None, "".to_owned()),
+            }
+        }
+        Some(friendship_event_payload::Body::Delete(delete)) => {
+            match delete.user.map(|u| u.address) {
+                Some(user_to) => {
+                    let event = FriendshipEventResponse {
+                        body: Some(friendship_event_response::Body::Delete(DeleteResponse {
+                            user: Some(User {
+                                address: user_to.clone(),
+                            }),
+                        })),
+                    };
+                    (Some(event), user_to)
+                }
+                None => (None, "".to_owned()),
+            }
+        }
+        None => (None, "".to_owned()),
+    }
 }
