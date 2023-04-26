@@ -184,10 +184,6 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         request: UpdateFriendshipPayload,
         context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
-        let subscriptions = context.friendships_events_subscriptions.clone();
-        let publisher = context.redis_publisher.clone();
-        let cloned_request = request.clone();
-
         // TODO: Do not `unwrap`, handle error instead. Ticket #81
         let user_id = get_user_id_from_request(
             &request.clone().auth_token.unwrap(),
@@ -198,23 +194,30 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
         match user_id {
             Ok(user_id) => {
-                let process_room_event_response =
-                    handle_friendship_update(request.clone(), context, user_id.social_id.clone())
-                        .await;
+                let process_room_event_response = handle_friendship_update(
+                    request.clone(),
+                    context.clone(),
+                    user_id.social_id.clone(),
+                )
+                .await;
 
                 if let Ok(event_response) = process_room_event_response {
-                    if let Ok(res) = event_response_as_update_response(request, event_response) {
+                    if let Ok(res) =
+                        event_response_as_update_response(request.clone(), event_response)
+                    {
                         // TODO: fix this
                         let created_at = SystemTime::now()
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
                             .as_secs() as i64;
                         // Notify everyone
-                        let another_clone = cloned_request.clone();
+                        let cloned_request = request.clone();
+                        let subscriptions = context.friendships_events_subscriptions.clone();
                         tokio::spawn(async move {
-                            notify_local_listeners(another_clone, subscriptions).await;
+                            notify_local_listeners(cloned_request, subscriptions).await;
                         });
-                        if let Some(event) = cloned_request.event {
+                        let publisher = context.redis_publisher.clone();
+                        if let Some(event) = request.clone().event {
                             tokio::spawn(async move {
                                 publish_on_channel(event, publisher, user_id.social_id, created_at)
                                     .await;
