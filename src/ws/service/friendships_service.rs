@@ -7,19 +7,12 @@ use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
 
 use crate::{
-    components::notifications::{ChannelPublisher, RedisChannelPublisher},
+    components::notifications::ChannelPublisher,
     entities::friendships::FriendshipRepositoryImplementation,
-    friendships::FriendshipsServiceServer,
-    friendships::Payload,
-    friendships::RequestEvents,
-    friendships::ServerStreamResponse,
-    friendships::SubscribeFriendshipEventsUpdatesResponse,
-    friendships::UpdateFriendshipResponse,
-    friendships::User,
-    friendships::Users,
-    friendships::{FriendshipEventPayload, UpdateFriendshipPayload},
-    notifications::Event,
-    ws::app::SocialContext,
+    friendships::FriendshipsServiceServer, friendships::Payload, friendships::RequestEvents,
+    friendships::ServerStreamResponse, friendships::SubscribeFriendshipEventsUpdatesResponse,
+    friendships::UpdateFriendshipPayload, friendships::UpdateFriendshipResponse, friendships::User,
+    friendships::Users, ws::app::SocialContext,
 };
 
 use super::{
@@ -101,7 +94,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
                                 users.users.push(user);
 
-                                // TODO: Move this value (5) to a Env Variable, Config or sth like that
+                                // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
                                 if users_len == 5 {
                                     generator_yielder.r#yield(users).await.unwrap();
                                     users = Users::default();
@@ -201,7 +194,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     if let Ok(res) =
                         event_response_as_update_response(request.clone(), event_response)
                     {
-                        // TODO: fix this
+                        // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
                         let created_at = SystemTime::now()
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
@@ -210,11 +203,12 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         let publisher = context.redis_publisher.clone();
                         if let Some(event) = request.clone().event {
                             tokio::spawn(async move {
-                                log::debug!(
-                                    "About to publish on pub/sub system about new event: {:?}",
-                                    event.clone()
-                                );
-                                publish_on_channel(event, publisher, user_id.social_id, created_at)
+                                publisher
+                                    .publish(update_friendship_payload_as_event(
+                                        event,
+                                        user_id.social_id,
+                                        created_at,
+                                    ))
                                     .await;
                             });
                         };
@@ -258,15 +252,12 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         // Attach generator to the context by user_id
         match user_id {
             Ok(user_id) => {
-                log::debug!(
-                    "About to add new generator for user_id: {}",
-                    user_id.social_id
-                );
                 context
                     .friendships_events_subscriptions
                     .write()
                     .await
                     .insert(user_id.social_id.to_lowercase(), generator_yielder.clone());
+                // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
             }
             Err(_err) => {
                 // TODO: Handle error when trying to get User Id.
@@ -277,14 +268,4 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         // TODO: Remove generator from map when user has disconnected
         generator
     }
-}
-
-async fn publish_on_channel(
-    payload: FriendshipEventPayload,
-    publisher: Arc<RedisChannelPublisher>,
-    actor: String,
-    created_at: i64,
-) {
-    let event: Event = update_friendship_payload_as_event(payload, actor, created_at);
-    publisher.publish(event).await;
 }
