@@ -4,7 +4,9 @@ pub use common::*;
 
 use social_service::{
     components::database::{DBRepositories, DatabaseComponentImplementation},
-    entities::friendships::FriendshipRepositoryImplementation,
+    entities::{
+        friendship_history::FriendshipMetadata, friendships::FriendshipRepositoryImplementation,
+    },
     models::friendship_event::FriendshipEvent,
 };
 use uuid::Uuid;
@@ -47,7 +49,14 @@ async fn should_create_a_friendship_request_event() {
         .unwrap()
         .unwrap();
 
-    create_friendship_event(dbrepos, friendship.id, "\"request\"", "C").await;
+    let synapse_room_id = "room_id_C_D".to_string();
+    let metadata = Some(sqlx::types::Json(FriendshipMetadata {
+        message: None,
+        synapse_room_id: Some(synapse_room_id),
+        migrated_from_synapse: None,
+    }));
+
+    create_friendship_event(dbrepos, friendship.id, "\"request\"", "C", metadata).await;
 
     let friendship_history = dbrepos
         .friendship_history
@@ -57,19 +66,24 @@ async fn should_create_a_friendship_request_event() {
         .unwrap();
 
     assert!(friendship_history.is_some());
+    let friendship_history = friendship_history.as_ref().unwrap();
 
-    assert_eq!(
-        friendship_history.as_ref().unwrap().friendship_id,
-        friendship.id
-    );
-
-    assert_eq!(
-        friendship_history.as_ref().unwrap().event,
-        FriendshipEvent::REQUEST
-    );
-    assert_eq!(friendship_history.as_ref().unwrap().acting_user, "C");
-
-    assert!(friendship_history.as_ref().unwrap().metadata.is_none());
+    assert_eq!(friendship_history.friendship_id, friendship.id);
+    assert_eq!(friendship_history.event, FriendshipEvent::REQUEST);
+    assert_eq!(friendship_history.acting_user, "C");
+    assert!(friendship_history.metadata.is_some());
+    assert!(friendship_history
+        .metadata
+        .as_ref()
+        .unwrap()
+        .synapse_room_id
+        .is_some());
+    assert!(friendship_history
+        .metadata
+        .as_ref()
+        .unwrap()
+        .message
+        .is_none());
 }
 
 #[actix_web::test]
@@ -86,26 +100,17 @@ async fn should_create_a_user_feature() {
         .get_all_user_features("A")
         .await
         .unwrap();
+
     assert!(user_features.is_some());
-    assert_eq!(user_features.as_ref().unwrap().features.len(), 1);
+    let user_features = user_features.as_ref().unwrap();
+
+    assert_eq!(user_features.features.len(), 1);
     assert_eq!(
-        user_features
-            .as_ref()
-            .unwrap()
-            .features
-            .get(0)
-            .unwrap()
-            .feature_name,
+        user_features.features.get(0).unwrap().feature_name,
         "exposure_level"
     );
     assert_eq!(
-        user_features
-            .as_ref()
-            .unwrap()
-            .features
-            .get(0)
-            .unwrap()
-            .feature_value,
+        user_features.features.get(0).unwrap().feature_value,
         "anyone"
     )
 }
@@ -122,9 +127,9 @@ async fn should_get_pending_request_events() {
     let friendship_id_2 = create_friendship(dbrepos, "A", "C", false).await;
 
     // create friendship history entries to represent friendship events
-    create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "A").await;
-    create_friendship_event(dbrepos, friendship_id_2, "\"request\"", "A").await;
-    create_friendship_event(dbrepos, friendship_id_2, "\"accept\"", "C").await;
+    create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "A", None).await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"request\"", "A", None).await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"accept\"", "C", None).await;
 
     // retrieve the pending request events for the auth user
     let requests = dbrepos
@@ -154,9 +159,9 @@ async fn should_get_pending_request_events_other_acting_user() {
     let friendship_id_2 = create_friendship(dbrepos, "A", "C", false).await;
 
     // create friendship history entries to represent friendship events
-    create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "B").await;
-    create_friendship_event(dbrepos, friendship_id_2, "\"request\"", "C").await;
-    create_friendship_event(dbrepos, friendship_id_2, "\"accept\"", "A").await;
+    create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "B", None).await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"request\"", "C", None).await;
+    create_friendship_event(dbrepos, friendship_id_2, "\"accept\"", "A", None).await;
 
     // retrieve the pending request events for the auth user
     let requests = dbrepos
@@ -248,10 +253,11 @@ async fn create_friendship_event(
     friendship_id: Uuid,
     event: &str,
     acting_user: &str,
+    metadata: Option<sqlx::types::Json<FriendshipMetadata>>,
 ) {
     dbrepos
         .friendship_history
-        .create(friendship_id, event, acting_user, None, None)
+        .create(friendship_id, event, acting_user, metadata, None)
         .await
         .0
         .unwrap();

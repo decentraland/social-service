@@ -148,12 +148,10 @@ pub async fn update_friendship_status<'a>(
         }
     };
 
-    let metadata = room_info.room_message_body.map(|message| {
-        sqlx::types::Json(FriendshipMetadata {
-            message: Some(message.to_string()),
-            synapse_room_id: Some(room_info.room_id.to_string()),
-            migrated_from_synapse: None,
-        })
+    let metadata = sqlx::types::Json(FriendshipMetadata {
+        message: room_info.room_message_body.map(|m| m.to_string()),
+        synapse_room_id: Some(room_info.room_id.to_string()),
+        migrated_from_synapse: None,
     });
 
     // Store history
@@ -163,7 +161,7 @@ pub async fn update_friendship_status<'a>(
             friendship_id,
             &room_event,
             acting_user,
-            metadata,
+            Some(metadata),
             Some(transaction),
         )
         .await;
