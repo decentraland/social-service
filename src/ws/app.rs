@@ -161,12 +161,7 @@ fn subscribe_to_event_updates(
                 &event_update.to,
                 &subs_lock.contains_key(&event_update.to)
             );
-
-            log::debug!("Keys defined in subs: ");
-            for k in subs_lock.keys() {
-                println!("Key: {k}");
-            }
-            if let Some(generator) = subs_lock.get(&event_update.to) {
+            if let Some(generator) = subs_lock.get(&event_update.to.to_lowercase()) {
                 log::info!("Event Update received > event_update: {event_update:?}");
                 if generator.r#yield(to_response(event_update)).await.is_err() {
                     log::error!("Event Update received > Couldn't send update to subscriptors");

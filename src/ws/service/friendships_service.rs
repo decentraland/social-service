@@ -266,7 +266,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     .friendships_events_subscriptions
                     .write()
                     .await
-                    .insert(user_id.social_id, generator_yielder.clone());
+                    .insert(user_id.social_id.to_lowercase(), generator_yielder.clone());
             }
             Err(_err) => {
                 // TODO: Handle error when trying to get User Id.
