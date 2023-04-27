@@ -1,12 +1,15 @@
 // Responsible for managing Synapse rooms and storing events in these rooms.
 // The errors of this file are coupled with the `ws` scope.
 use std::{collections::HashMap, sync::Arc};
+use urlencoding::encode;
 
 use tokio::sync::Mutex;
 
 use crate::{
     components::{
-        synapse::{user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent},
+        synapse::{
+            extract_domain, user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent,
+        },
         users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
     },
     entities::friendships::Friendship,
@@ -18,12 +21,24 @@ use super::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse};
 
 /// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
 ///
-/// * `user_ids` - A mut vector of users addresses as strings.
+/// * `acting_user` - The address of the acting user.
+/// * `second_user` - The address of the second user.
+/// * `synapse_url` -
 ///
 /// Returns the room alias name as a string.
-fn build_room_alias_name(mut user_ids: Vec<&str>) -> String {
-    user_ids.sort();
-    user_ids.join("+")
+fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str) -> String {
+    let act_user_parsed = encode(&format!("#{acting_user}")).into_owned();
+    let sec_user_parsed: String = encode(&format!(
+        "{}:decentraland.{}",
+        second_user,
+        extract_domain(synapse_url)
+    ))
+    .into_owned();
+
+    let mut addrs = vec![act_user_parsed, sec_user_parsed];
+    addrs.sort();
+
+    addrs.join("+")
 }
 
 /// Retrieves the User Id associated with the given Authentication Token.
@@ -169,7 +184,8 @@ pub async fn get_or_create_synapse_room_id(
         Some(friendship) => Ok(friendship.synapse_room_id.clone()),
         None => {
             if new_event == &FriendshipEvent::REQUEST {
-                let room_alias_name: String = build_room_alias_name(vec![acting_user, second_user]);
+                let room_alias_name: String =
+                    build_room_alias_name(acting_user, second_user, &synapse.synapse_url);
 
                 let get_room_result =
                     get_room_id_for_alias_in_synapse(token, &room_alias_name, synapse).await;
@@ -177,9 +193,11 @@ pub async fn get_or_create_synapse_room_id(
                 match get_room_result {
                     Ok(room_id) => Ok(room_id),
                     Err(_) => {
+                        let second_user_as_synapse_id =
+                            user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
                         let create_room_result = create_private_room_in_synapse(
                             token,
-                            vec![second_user],
+                            vec![&second_user_as_synapse_id],
                             room_alias_name,
                             synapse,
                         )
@@ -213,7 +231,10 @@ pub async fn set_account_data(
     room_id: &str,
     synapse: &SynapseComponent,
 ) -> Result<(), FriendshipsServiceErrorResponse> {
-    let m_direct_event = synapse.get_account_data(token, acting_user).await;
+    let acting_user_as_synapse_id = user_id_as_synapse_user_id(acting_user, &synapse.synapse_url);
+    let m_direct_event = synapse
+        .get_account_data(token, &acting_user_as_synapse_id)
+        .await;
 
     match m_direct_event {
         Ok(m_direct_event) => {
@@ -231,7 +252,7 @@ pub async fn set_account_data(
                 } else {
                     direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
                     synapse
-                        .set_account_data(token, acting_user, direct_room_map)
+                        .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
                         .await
                         .map_err(|_err| FriendshipsServiceError::InternalServerError)?;
                     return Ok(());
@@ -240,5 +261,20 @@ pub async fn set_account_data(
             Ok(())
         }
         Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_room_alias_name;
+
+    #[test]
+    fn build_room_alias_name_for_users() {
+        let res = build_room_alias_name("0x1111ada11111", "0x1111ada11112", "zone");
+
+        assert_eq!(
+            res,
+            "%230x1111ada11111%2B0x1111ada11112%3Adecentraland.zone"
+        );
     }
 }
