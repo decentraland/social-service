@@ -24,7 +24,7 @@ pub fn get_new_friendship_status(
                 }
             }
             log::error!(
-                "Get new friendship status > Invalid friendship event: {:?} for acting user: {}",
+                "Get new friendship status > Invalid friendship event: {:?} for acting user: {}.",
                 room_event,
                 acting_user
             );
@@ -39,7 +39,7 @@ pub fn get_new_friendship_status(
                 }
             }
             log::error!(
-                "Get new friendship status > Invalid friendship event: {:?} for acting user: {}",
+                "Get new friendship status > Invalid friendship event: {:?} for acting user: {}.",
                 room_event,
                 acting_user
             );
@@ -63,7 +63,7 @@ fn calculate_new_friendship_status(
             FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
             _ => {
                 log::error!(
-                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded history is none, new event expected to be: {:?}",
+                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded history is none, new event expected to be: {:?}.",
                     room_event,
                     acting_user,
                     FriendshipEvent::REQUEST,
@@ -81,7 +81,7 @@ fn calculate_new_friendship_status(
         FriendshipEvent::REQUEST => {
             if last_history.acting_user.eq_ignore_ascii_case(acting_user) {
                 log::error!(
-                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?} and has the same acting user",
+                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?} and has the same acting user.",
                     room_event,
                     acting_user,
                     last_history.event
@@ -95,7 +95,7 @@ fn calculate_new_friendship_status(
                 FriendshipEvent::ACCEPT => Ok(FriendshipStatus::Friends),
                 _ => {
                     log::error!(
-                        "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?}",
+                        "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?}.",
                         room_event,
                         acting_user,
                         last_history.event
@@ -108,7 +108,7 @@ fn calculate_new_friendship_status(
         }
         FriendshipEvent::ACCEPT => {
             log::error!(
-                "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?}",
+                "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?}.",
                 room_event,
                 acting_user,
                 last_history.event,
@@ -121,7 +121,7 @@ fn calculate_new_friendship_status(
             FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
             _ => {
                 log::error!(
-                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?}",
+                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded event is: {:?}.",
                     room_event,
                     acting_user,
                     last_history.event,
