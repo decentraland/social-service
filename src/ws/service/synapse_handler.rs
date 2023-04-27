@@ -27,18 +27,19 @@ use super::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse};
 ///
 /// Returns the encoded room alias name as a string, created from the sorted and joined user addresses.
 fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str) -> String {
-    let act_user_parsed = encode(&format!("#{}", acting_user.to_ascii_lowercase())).into_owned();
-    let sec_user_parsed: String = encode(&format!(
+    let act_user_parsed = format!("#{}", acting_user.to_ascii_lowercase());
+    let sec_user_parsed: String = format!(
         "{}:decentraland.{}",
         second_user.to_ascii_lowercase(),
         extract_domain(synapse_url)
-    ))
-    .into_owned();
+    );
 
-    let mut addrs = vec![act_user_parsed, sec_user_parsed];
-    addrs.sort();
+    let mut addresses = vec![act_user_parsed, sec_user_parsed];
+    addresses.sort();
 
-    addrs.join("+")
+    let joined_addresses = addresses.join("+");
+
+    encode(&joined_addresses).into_owned()
 }
 
 /// Retrieves the User Id associated with the given Authentication Token.

@@ -439,7 +439,13 @@ pub fn clean_synapse_user_id(user_id: &str) -> String {
 /// `zone`.
 pub fn extract_domain(url: &str) -> &str {
     let splited_domain: Vec<&str> = url.split('.').collect();
-    splited_domain.last().unwrap_or(&"zone")
+    let last_part = splited_domain.last().unwrap_or(&"zone");
+
+    if last_part == &"zone" || last_part == &"org" {
+        last_part
+    } else {
+        "zone"
+    }
 }
 
 /// Gets the synapse user id for the given user id
