@@ -150,13 +150,23 @@ fn subscribe_to_event_updates(
         RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
 ) {
-    let subscriptions = generators;
+    let client_subscriptions = generators;
     event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
         log::info!("User Update received > event_update: {event_update:?}");
-        let subscriptions = subscriptions.clone();
+        let subscriptions = client_subscriptions.clone();
         async move {
-            let subs = subscriptions.read().await;
-            if let Some(generator) = subs.get(&event_update.to) {
+            let subs_lock = subscriptions.read().await;
+            log::debug!(
+                "Event Update received > obtained read lock. Recipient: {}, is present: {}",
+                &event_update.to,
+                &subs_lock.contains_key(&event_update.to)
+            );
+
+            log::debug!("Keys defined in subs: ");
+            for k in subs_lock.keys() {
+                println!("Key: {k}");
+            }
+            if let Some(generator) = subs_lock.get(&event_update.to) {
                 log::info!("Event Update received > event_update: {event_update:?}");
                 if generator.r#yield(to_response(event_update)).await.is_err() {
                     log::error!("Event Update received > Couldn't send update to subscriptors");

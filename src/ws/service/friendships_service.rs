@@ -1,18 +1,14 @@
 use std::{
-    collections::HashMap,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use dcl_rpc::stream_protocol::Generator;
 use futures_util::StreamExt;
-
-use dcl_rpc::stream_protocol::{Generator, GeneratorYielder};
-use tokio::sync::RwLock;
 
 use crate::{
     components::notifications::{ChannelPublisher, RedisChannelPublisher},
     entities::friendships::FriendshipRepositoryImplementation,
-    friendships::friendship_event_payload,
     friendships::FriendshipsServiceServer,
     friendships::Payload,
     friendships::RequestEvents,
@@ -210,15 +206,14 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
                             .as_secs() as i64;
-                        // Notify everyone
-                        let cloned_request = request.clone();
-                        let subscriptions = context.friendships_events_subscriptions.clone();
-                        tokio::spawn(async move {
-                            notify_local_listeners(cloned_request, subscriptions).await;
-                        });
+
                         let publisher = context.redis_publisher.clone();
                         if let Some(event) = request.clone().event {
                             tokio::spawn(async move {
+                                log::debug!(
+                                    "About to publish on pub/sub system about new event: {:?}",
+                                    event.clone()
+                                );
                                 publish_on_channel(event, publisher, user_id.social_id, created_at)
                                     .await;
                             });
@@ -263,6 +258,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         // Attach generator to the context by user_id
         match user_id {
             Ok(user_id) => {
+                log::debug!(
+                    "About to add new generator for user_id: {}",
+                    user_id.social_id
+                );
                 context
                     .friendships_events_subscriptions
                     .write()
@@ -288,48 +287,4 @@ async fn publish_on_channel(
 ) {
     let event: Event = update_friendship_payload_as_event(payload, actor, created_at);
     publisher.publish(event).await;
-}
-
-async fn notify_local_listeners(
-    request: UpdateFriendshipPayload,
-    subscriptions: Arc<
-        RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
-    >,
-) {
-    let user_id_to = get_user_id_to(request.clone());
-    let event_update = to_update(request);
-    let subs = subscriptions.read().await;
-
-    if let Some(user_to) = user_id_to {
-        if let Some(event) = event_update {
-            if let Some(generator) = subs.get(&user_to) {
-                if generator.r#yield(event).await.is_err() {
-                    log::error!("Event Update received > Couldn't send update to subscriptors");
-                }
-            }
-        }
-    }
-}
-
-fn to_update(
-    _request: UpdateFriendshipPayload,
-) -> Option<SubscribeFriendshipEventsUpdatesResponse> {
-    todo!()
-}
-
-fn get_user_id_to(request: UpdateFriendshipPayload) -> Option<String> {
-    if let Some(body) = request.event {
-        match body.body {
-            Some(friendship_event_payload::Body::Request(request)) => {
-                request.user.map(|u| u.address)
-            }
-            Some(friendship_event_payload::Body::Accept(accept)) => accept.user.map(|u| u.address),
-            Some(friendship_event_payload::Body::Reject(reject)) => reject.user.map(|u| u.address),
-            Some(friendship_event_payload::Body::Cancel(cancel)) => cancel.user.map(|u| u.address),
-            Some(friendship_event_payload::Body::Delete(delete)) => delete.user.map(|u| u.address),
-            None => None,
-        }
-    } else {
-        None
-    }
 }
