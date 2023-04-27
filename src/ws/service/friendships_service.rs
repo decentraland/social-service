@@ -114,6 +114,8 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         )
         .await?;
 
+        let social_id = user_id.social_id.clone();
+        log::info!("Getting requests events for user: {}", social_id);
         // Look for users requests
         match context.db.db_repos.clone() {
             Some(repos) => {
@@ -128,10 +130,13 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         );
                         Err(FriendshipsServiceError::InternalServerError)
                     }
-                    Ok(requests) => Ok(friendship_requests_as_request_events(
-                        requests,
-                        user_id.social_id,
-                    )),
+                    Ok(requests) => {
+                        log::info!("Returning requests events for user {}", social_id);
+                        Ok(friendship_requests_as_request_events(
+                            requests,
+                            user_id.social_id,
+                        ))
+                    }
                 }
             }
             None => {
@@ -151,7 +156,6 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         let auth_token = request.clone().auth_token.take().ok_or_else(|| {
             FriendshipsServiceError::Unauthorized("`auth_token` was not provided".to_string())
         })?;
-
         let user_id = get_user_id_from_request(
             &auth_token,
             context.synapse.clone(),

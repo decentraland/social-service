@@ -39,10 +39,11 @@ pub async fn get_user_id_from_request(
 ) -> Result<UserId, FriendshipsServiceError> {
     match request.synapse_token.clone() {
         // If an authentication token was provided, get the user id from the token
+        // TODO: Ticket #81
         Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
             .await
             .map_err(|err| -> FriendshipsServiceError {
-                FriendshipsServiceError::Unknown(format!("{}", err.name()))
+                FriendshipsServiceError::Unknown(err.name())
             }),
         // If no authentication token was provided, return an Unauthorized error.
         None => {
@@ -196,9 +197,9 @@ pub async fn get_or_create_synapse_room_id(
             } else {
                 // TODO: Ticket #81
                 log::error!("Get or create synapse room > Friendship does not exists and the event is different than Request");
-                Err(FriendshipsServiceError::BadRequest(format!(
-                    "Invalid Event"
-                )))
+                Err(FriendshipsServiceError::BadRequest(
+                    "Invalid frienship event update".to_string(),
+                ))
             }
         }
     }

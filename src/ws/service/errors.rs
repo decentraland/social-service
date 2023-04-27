@@ -1,25 +1,25 @@
 use dcl_rpc::rpc_protocol::RemoteErrorResponse;
 use thiserror::Error;
 
-use crate::FriendshipErrors;
+use crate::ServiceErrors;
 
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum FriendshipsServiceError {
     #[error("Unknown: {0}")]
-    Unknown(String) = FriendshipErrors::Unknown as i32,
+    Unknown(String) = ServiceErrors::Unknown as i32,
     #[error("Bad request: {0}")]
-    BadRequest(String) = FriendshipErrors::BadRequest as i32,
+    BadRequest(String) = ServiceErrors::BadRequest as i32,
     #[error("Unauthorized: {0}")]
-    Unauthorized(String) = FriendshipErrors::Unauthorized as i32,
+    Unauthorized(String) = ServiceErrors::Unauthorized as i32,
     #[error("Forbidden: {0}")]
-    Forbidden(String) = FriendshipErrors::Forbidden as i32,
+    Forbidden(String) = ServiceErrors::Forbidden as i32,
     #[error("Not found")]
-    NotFound = FriendshipErrors::NotFound as i32,
+    NotFound = ServiceErrors::NotFound as i32,
     #[error("Too many requests: {0}")]
-    TooManyRequests(String) = FriendshipErrors::TooManyRequests as i32,
+    TooManyRequests(String) = ServiceErrors::TooManyRequests as i32,
     #[error("Internal server error")]
-    InternalServerError = FriendshipErrors::InternalServerError as i32,
+    InternalServerError = ServiceErrors::InternalServerError as i32,
 }
 
 impl RemoteErrorResponse for FriendshipsServiceError {
