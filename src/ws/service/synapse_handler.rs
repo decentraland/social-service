@@ -26,20 +26,26 @@ use super::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse};
 /// * `synapse_url` -
 ///
 /// Returns the encoded room alias name as a string, created from the sorted and joined user addresses.
+///
+/// We need to build the room alias in this way because we're leveraging the room creation process from Matrix + SDK.
+/// It follows the pattern:
+/// `#{sorted and joined addresses}:decentraland.{domain}`
+/// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted, and `domain` is the domain of the Synapse server.
 fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str) -> String {
-    let act_user_parsed = format!("#{}", acting_user.to_ascii_lowercase());
-    let sec_user_parsed: String = format!(
-        "{}:decentraland.{}",
-        second_user.to_ascii_lowercase(),
-        extract_domain(synapse_url)
-    );
+    let act_user_parsed = acting_user.to_ascii_lowercase();
+    let sec_user_parsed: String = second_user.to_ascii_lowercase();
 
     let mut addresses = vec![act_user_parsed, sec_user_parsed];
     addresses.sort();
 
     let joined_addresses = addresses.join("+");
 
-    encode(&joined_addresses).into_owned()
+    encode(&format!(
+        "#{}:decentraland.{}",
+        joined_addresses,
+        extract_domain(synapse_url)
+    ))
+    .into_owned()
 }
 
 /// Retrieves the User Id associated with the given Authentication Token.
@@ -127,17 +133,17 @@ pub async fn store_room_event_in_synapse_room(
 /// Returns a `FriendshipsServiceErrorResponse` if there is an error communicating with Synapse.
 ///
 /// * `token` - A `&str` representing the auth token.
-/// * `user_ids` - A `Vec<&str>` containing the user ids to invite to the room. There is no need to include the current user id.
+/// * `synapse_user_ids` - A `Vec<&str>` containing the user ids to invite to the room. There is no need to include the current user id.
 /// * `room_alias_name` -
 /// * `synapse` - A reference to the `SynapseComponent` instance.
 async fn create_private_room_in_synapse(
     token: &str,
-    user_ids: Vec<&str>,
+    synapse_user_ids: Vec<&str>,
     room_alias_name: String,
     synapse: &SynapseComponent,
 ) -> Result<CreateRoomResponse, FriendshipsServiceErrorResponse> {
     let res = synapse
-        .create_private_room(token, user_ids, &room_alias_name)
+        .create_private_room(token, synapse_user_ids, &room_alias_name)
         .await;
 
     match res {
