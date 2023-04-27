@@ -249,12 +249,12 @@ impl SynapseComponent {
     pub async fn create_private_room(
         &self,
         token: &str,
-        user_ids: Vec<&str>,
+        synapse_user_ids: Vec<&str>,
         room_alias_name: &str,
     ) -> Result<CreateRoomResponse, CommonError> {
         let path = "/_matrix/client/r0/createRoom".to_string();
 
-        let invite = user_ids.iter().map(|id| id.to_string()).collect();
+        let invite = synapse_user_ids.iter().map(|id| id.to_string()).collect();
 
         Self::authenticated_post_request(
             &path,
