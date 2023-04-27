@@ -103,16 +103,9 @@ pub struct MessageRequestEventBody {
 }
 
 #[derive(Deserialize, Serialize)]
-pub enum Preset {
-    PrivateChat,
-    TrustedPrivateChat,
-    PublicChat,
-}
-
-#[derive(Deserialize, Serialize)]
 pub struct CreateRoomOpts {
     pub room_alias_name: String,
-    pub preset: Preset,
+    pub preset: String,
     pub invite: Vec<String>,
     pub is_direct: bool,
 }
@@ -256,12 +249,12 @@ impl SynapseComponent {
     pub async fn create_private_room(
         &self,
         token: &str,
-        user_ids: Vec<&str>,
+        synapse_user_ids: Vec<&str>,
         room_alias_name: &str,
     ) -> Result<CreateRoomResponse, CommonError> {
         let path = "/_matrix/client/r0/createRoom".to_string();
 
-        let invite = user_ids.iter().map(|id| id.to_string()).collect();
+        let invite = synapse_user_ids.iter().map(|id| id.to_string()).collect();
 
         Self::authenticated_post_request(
             &path,
@@ -269,7 +262,7 @@ impl SynapseComponent {
             &self.synapse_url,
             &CreateRoomOpts {
                 room_alias_name: room_alias_name.to_string(),
-                preset: Preset::PrivateChat,
+                preset: "trusted_private_chat".to_string(),
                 invite,
                 is_direct: true,
             },
@@ -282,13 +275,11 @@ impl SynapseComponent {
     pub async fn set_account_data(
         &self,
         token: &str,
-        user_id: &str,
+        synapse_user_id: &str,
         direct_room_map: HashMap<String, Vec<String>>,
     ) -> Result<(), CommonError> {
-        let formatted_user_id = user_id_as_synapse_user_id(user_id, &self.synapse_url);
-
         let path: String =
-            format!("/_matrix/client/r0/user/{formatted_user_id}/account_data/m.direct");
+            format!("/_matrix/client/r0/user/{synapse_user_id}/account_data/m.direct");
 
         Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
     }
@@ -298,12 +289,10 @@ impl SynapseComponent {
     pub async fn get_account_data(
         &self,
         token: &str,
-        user_id: &str,
+        synapse_user_id: &str,
     ) -> Result<AccountDataContentResponse, CommonError> {
-        let formatted_user_id = user_id_as_synapse_user_id(user_id, &self.synapse_url);
-
         let path: String =
-            format!("/_matrix/client/r0/user/{formatted_user_id}/account_data/m.direct");
+            format!("/_matrix/client/r0/user/{synapse_user_id}/account_data/m.direct");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
@@ -450,9 +439,15 @@ pub fn clean_synapse_user_id(user_id: &str) -> String {
 /// Returns a string representing the domain extracted from the URL. If the URL cannot
 /// be split into parts or the domain is empty, the function returns the default value
 /// `zone`.
-fn extract_domain(url: &str) -> &str {
+pub fn extract_domain(url: &str) -> &str {
     let splited_domain: Vec<&str> = url.split('.').collect();
-    splited_domain.last().unwrap_or(&"zone")
+    let last_part = splited_domain.last().unwrap_or(&"zone");
+
+    if last_part == &"zone" || last_part == &"org" {
+        last_part
+    } else {
+        "zone"
+    }
 }
 
 /// Gets the synapse user id for the given user id
@@ -467,7 +462,7 @@ pub fn user_id_as_synapse_user_id(user_id: &str, synapse_url: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::clean_synapse_user_id;
+    use super::{clean_synapse_user_id, user_id_as_synapse_user_id};
 
     #[test]
     fn clear_should_obtain_expected_string_for_synapse_user() {
@@ -481,5 +476,12 @@ mod tests {
         let res = clean_synapse_user_id("0x1111ada11111");
 
         assert_eq!(res, "0x1111ada11111");
+    }
+
+    #[test]
+    fn user_id_as_synapse_id_for_plain_user() {
+        let res = user_id_as_synapse_user_id("0x1111ada11111", "");
+
+        assert_eq!(res, "@0x1111ada11111:decentraland.zone");
     }
 }
