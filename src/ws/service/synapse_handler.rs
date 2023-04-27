@@ -25,12 +25,12 @@ use super::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse};
 /// * `second_user` - The address of the second user.
 /// * `synapse_url` -
 ///
-/// Returns the room alias name as a string.
+/// Returns the encoded room alias name as a string, created from the sorted and joined user addresses.
 fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str) -> String {
-    let act_user_parsed = encode(&format!("#{acting_user}")).into_owned();
+    let act_user_parsed = encode(&format!("#{}", acting_user.to_ascii_lowercase())).into_owned();
     let sec_user_parsed: String = encode(&format!(
         "{}:decentraland.{}",
-        second_user,
+        second_user.to_ascii_lowercase(),
         extract_domain(synapse_url)
     ))
     .into_owned();
