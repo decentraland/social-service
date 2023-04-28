@@ -247,7 +247,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
             context.users_cache.clone(),
         )
         .await;
-        let (generator, generator_yielder) = Generator::create();
+        let (friendship_updates_generator, friendship_updates_yielder) = Generator::create();
 
         // Attach generator to the context by user_id
         match user_id {
@@ -256,7 +256,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                     .friendships_events_subscriptions
                     .write()
                     .await
-                    .insert(user_id.social_id.to_lowercase(), generator_yielder.clone());
+                    .insert(
+                        user_id.social_id.to_lowercase(),
+                        friendship_updates_yielder.clone(),
+                    );
                 // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
             }
             Err(_err) => {
@@ -266,6 +269,6 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
             }
         }
         // TODO: Remove generator from map when user has disconnected
-        generator
+        friendship_updates_generator
     }
 }

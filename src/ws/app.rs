@@ -81,8 +81,8 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
             }
         }
         Err(err) => {
-            log::error!("There was an error initializing Redis: {}", err);
-            panic!("There was an error initializing Redis");
+            log::error!("There was an error initializing Redis for Pub/Sub: {}", err);
+            panic!("There was an error initializing Redis for Pub/Sub");
         }
     }
 }
@@ -144,37 +144,48 @@ pub async fn run_ws_transport(
     (rpc_server_handle, http_server_handle)
 }
 
+// Subscribe to Redis Pub/Sub to listen on friendship events updates, so then can notify the affected users on their corresponding generators
 fn subscribe_to_event_updates(
     event_subscriptions: Arc<RedisChannelSubscriber>,
-    generators: Arc<
+    client_generators: Arc<
         RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
 ) {
-    let client_subscriptions = generators;
     event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
-        log::info!("User Update received > event_update: {event_update:?}");
-        let subscriptions = client_subscriptions.clone();
+        log::debug!("User Update received > event_update: {event_update:?}");
+        let generators = client_generators.clone();
         async move {
-            let subs_lock = subscriptions.read().await;
-            if let Some(generator) = subs_lock.get(&event_update.to.to_lowercase()) {
-                if generator.r#yield(to_response(event_update)).await.is_err() {
-                    log::error!("Event Update received > Couldn't send update to subscriptors");
-                }
-            }
+            send_update_to_corresponding_generator(generators, event_update).await;
         }
     });
 }
 
-fn to_response(event_update: Event) -> SubscribeFriendshipEventsUpdatesResponse {
-    match event_update.friendship_event {
-        Some(update) => SubscribeFriendshipEventsUpdatesResponse {
-            events: [update].to_vec(),
-        },
-        None => {
-            log::error!("There was an error when retrieving an event: Empty event");
-            panic!("There was an error when retrieving an event");
+async fn send_update_to_corresponding_generator(
+    generators: Arc<
+        RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
+    >,
+    event_update: Event,
+) {
+    let generators_lock = generators.read().await;
+    let corresponding_user_id = &event_update.to.to_lowercase();
+
+    if let Some(generator) = generators_lock.get(corresponding_user_id) {
+        if let Some(response) = event_as_friendship_update_response(event_update) {
+            if generator.r#yield(response.clone()).await.is_err() {
+                log::error!("Event Update received > Couldn't send update to subscriptors. Update: {:?}, Subscriptor: {:?}", response, corresponding_user_id);
+            }
         }
     }
+}
+
+fn event_as_friendship_update_response(
+    event_update: Event,
+) -> Option<SubscribeFriendshipEventsUpdatesResponse> {
+    event_update
+        .friendship_event
+        .map(|update| SubscribeFriendshipEventsUpdatesResponse {
+            events: [update].to_vec(),
+        })
 }
 
 type ReadStream = SplitStream<WebSocket>;

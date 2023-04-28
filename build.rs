@@ -12,9 +12,9 @@ const FRIENDSHIP_PROTO_PATH: &str = "/social/friendships/friendships.proto";
 /// Modify this value to update the proto version, it is the commit sha from protocol repo used for downloading the proto file
 const FRIENDSHIPS_PROTOCOL_VERSION: &str = "32cf19f00393c95bdb7e7cfc20f682ae19fb5837";
 const EXTERNAL_DEFINITIONS_FOLDER: &str = "ext-proto";
-const FRIENDSHIPS_PROTO_FILE_DEST: &str = "ext-proto/friendships.proto";
+const EXT_FRIENDSHIPS_PROTO_FILE: &str = "ext-proto/friendships.proto";
 const INTERNAL_DEFINITIONS_FOLDER: &str = "int-proto";
-const NOTIFICATIONS_PROTO_INTERNAL_PATH: &str = "int-proto/notifications.proto";
+const INT_NOTIFICATIONS_PROTO_FILE: &str = "int-proto/notifications.proto";
 
 fn main() -> Result<()> {
     if should_download_proto() {
@@ -29,10 +29,7 @@ fn main() -> Result<()> {
     prost_config.protoc_arg("--experimental_allow_proto3_optional");
     prost_config.service_generator(Box::new(dcl_rpc::codegen::RPCServiceGenerator::new()));
     prost_config.compile_protos(
-        &[
-            FRIENDSHIPS_PROTO_FILE_DEST,
-            NOTIFICATIONS_PROTO_INTERNAL_PATH,
-        ],
+        &[EXT_FRIENDSHIPS_PROTO_FILE, INT_NOTIFICATIONS_PROTO_FILE],
         &[EXTERNAL_DEFINITIONS_FOLDER, INTERNAL_DEFINITIONS_FOLDER],
     )?;
     Ok(())
@@ -43,7 +40,7 @@ fn main() -> Result<()> {
 /// If the file has been modified within the last hour, the function will return `false`.
 fn should_download_proto() -> bool {
     if let Ok(cwd) = env::current_dir() {
-        let path = cwd.join(FRIENDSHIPS_PROTO_FILE_DEST);
+        let path = cwd.join(EXT_FRIENDSHIPS_PROTO_FILE);
         if let Ok(metadata) = std::fs::metadata(path) {
             if let Ok(modified) = metadata.modified() {
                 if modified
@@ -78,7 +75,7 @@ fn save_content_to_file(content: reqwest::blocking::Response) -> Result<()> {
         String::from(cwd.to_string_lossy()) + "/" + EXTERNAL_DEFINITIONS_FOLDER,
     )?;
 
-    let file_path: String = String::from(cwd.to_string_lossy()) + "/" + FRIENDSHIPS_PROTO_FILE_DEST;
+    let file_path: String = String::from(cwd.to_string_lossy()) + "/" + EXT_FRIENDSHIPS_PROTO_FILE;
     // Create destination file
     let mut file = std::fs::File::create(file_path)?;
     let inner = match content.bytes() {
