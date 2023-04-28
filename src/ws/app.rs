@@ -166,11 +166,12 @@ async fn send_update_to_corresponding_generator(
     >,
     event_update: Event,
 ) {
-    let generators_lock = generators.read().await;
-    let corresponding_user_id = &event_update.to.to_lowercase();
+    if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
+        let corresponding_user_id = &event_update.to.to_lowercase();
 
-    if let Some(generator) = generators_lock.get(corresponding_user_id) {
-        if let Some(response) = event_as_friendship_update_response(event_update) {
+        let generators_lock = generators.read().await;
+
+        if let Some(generator) = generators_lock.get(corresponding_user_id) {
             if generator.r#yield(response.clone()).await.is_err() {
                 log::error!("Event Update received > Couldn't send update to subscriptors. Update: {:?}, Subscriptor: {:?}", response, corresponding_user_id);
             }
