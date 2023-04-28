@@ -3,6 +3,7 @@ use std::sync::Arc;
 use futures_util::StreamExt;
 
 use dcl_rpc::stream_protocol::Generator;
+use sqlx::Error;
 
 use crate::{
     entities::friendships::FriendshipRepositoryImplementation, ws::app::SocialContext,
@@ -47,11 +48,14 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                     .get_user_friends_stream(&user_id.social_id, true)
                     .await;
                 match friendship {
+                    Ok(it) => it,
                     Err(err) => {
                         log::error!("Get friends > Get user friends stream > Error: {err}.");
-                        return Err(FriendshipsServiceError::InternalServerError);
+                        match err {
+                            Error::RowNotFound => return Err(FriendshipsServiceError::NotFound),
+                            _ => return Err(FriendshipsServiceError::InternalServerError),
+                        }
                     }
-                    Ok(it) => it,
                 }
             }
             None => {
@@ -124,18 +128,21 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                     .get_user_pending_request_events(&user_id.social_id)
                     .await;
                 match requests {
-                    Err(err) => {
-                        log::error!(
-                            "Get request events > Get user pending request events > Error: {err}."
-                        );
-                        Err(FriendshipsServiceError::InternalServerError)
-                    }
                     Ok(requests) => {
                         log::info!("Returning requests events for user {}", social_id);
                         Ok(friendship_requests_as_request_events(
                             requests,
                             user_id.social_id,
                         ))
+                    }
+                    Err(err) => {
+                        log::error!(
+                            "Get request events > Get user pending request events > Error: {err}."
+                        );
+                        match err {
+                            Error::RowNotFound => Err(FriendshipsServiceError::NotFound),
+                            _ => Err(FriendshipsServiceError::InternalServerError),
+                        }
                     }
                 }
             }
