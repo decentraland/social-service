@@ -231,3 +231,38 @@ pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipsSer
         _ => FriendshipsServiceError::InternalServerError,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::map_common_error_to_friendships_error;
+    use crate::{
+        api::routes::v1::error::CommonError, ws::service::errors::FriendshipsServiceError,
+    };
+
+    #[test]
+    fn test_map_common_error_to_friendships_error() {
+        let err = CommonError::Forbidden("".to_owned());
+        assert_eq!(
+            map_common_error_to_friendships_error(err),
+            FriendshipsServiceError::Forbidden("".to_owned())
+        );
+
+        let err = CommonError::Unauthorized;
+        assert_eq!(
+            map_common_error_to_friendships_error(err),
+            FriendshipsServiceError::Unauthorized("".to_owned())
+        );
+
+        let err = CommonError::TooManyRequests;
+        assert_eq!(
+            map_common_error_to_friendships_error(err),
+            FriendshipsServiceError::TooManyRequests("".to_owned())
+        );
+
+        let err = CommonError::Unknown;
+        assert_eq!(
+            map_common_error_to_friendships_error(err),
+            FriendshipsServiceError::InternalServerError
+        );
+    }
+}
