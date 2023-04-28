@@ -365,7 +365,7 @@ fn test_request_as_response() {
             assert_eq!(user_to, "0xBob");
         }
         Err(()) => {
-            assert!(false, "Parsing to request response should not fail")
+            unreachable!("Parsing to request response should not fail")
         }
     }
 }
@@ -397,7 +397,7 @@ fn test_accept_as_response() {
             assert_eq!(user_to, "0xBob");
         }
         Err(()) => {
-            assert!(false, "Parsing to accept response should not fail")
+            unreachable!("Parsing to accept response should not fail")
         }
     }
 }
@@ -429,7 +429,7 @@ fn test_reject_as_response() {
             assert_eq!(user_to, "0xBob");
         }
         Err(()) => {
-            assert!(false, "Parsing to reject response should not fail")
+            unreachable!("Parsing to reject response should not fail")
         }
     }
 }
@@ -461,7 +461,7 @@ fn test_cancel_as_response() {
             assert_eq!(user_to, "0xBob");
         }
         Err(()) => {
-            assert!(false, "Parsing to cancel response should not fail")
+            unreachable!("Parsing to cancel response should not fail")
         }
     }
 }
@@ -493,7 +493,7 @@ fn test_delete_as_response() {
             assert_eq!(user_to, "0xBob");
         }
         Err(()) => {
-            assert!(false, "Parsing to delete response should not fail")
+            unreachable!("Parsing to delete response should not fail")
         }
     }
 }
