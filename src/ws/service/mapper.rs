@@ -146,7 +146,7 @@ pub fn event_response_as_update_response(
     request: UpdateFriendshipPayload,
     result: EventResponse,
 ) -> Result<UpdateFriendshipResponse, FriendshipsServiceError> {
-    let event_response = if let Some(body) = request.event {
+    let update_response = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(payload)) => {
                 let request_response = RequestResponse {
@@ -219,5 +219,5 @@ pub fn event_response_as_update_response(
         return Err(FriendshipsServiceError::InternalServerError);
     };
 
-    Ok(event_response)
+    Ok(update_response)
 }
