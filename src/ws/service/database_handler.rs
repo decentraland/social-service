@@ -1,6 +1,6 @@
 // Responsible for managing friendship relationships between two users,
 // The errors of this file are coupled with the `ws` scope.
-use sqlx::{Postgres, Transaction};
+use sqlx::{Error, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -31,7 +31,13 @@ pub async fn get_friendship(
         .get_friendship((address_1, address_2), None)
         .await;
 
-    friendship_result.map_err(|_err| FriendshipsServiceError::InternalServerError)
+    friendship_result.map_err(|err| match err {
+        Error::RowNotFound => FriendshipsServiceError::NotFound,
+        _ => {
+            log::error!("Database handler > Get friendship > Error {err}");
+            FriendshipsServiceError::InternalServerError
+        }
+    })
 }
 
 /// Fetches the last friendship history for a given friendship.
@@ -55,7 +61,13 @@ pub async fn get_last_history(
         .get_last_history_for_friendship(friendship.id, None)
         .await;
 
-    friendship_history_result.map_err(|_err| FriendshipsServiceError::InternalServerError)
+    friendship_history_result.map_err(|err| match err {
+        Error::RowNotFound => FriendshipsServiceError::NotFound,
+        _ => {
+            log::error!("Database handler > Get last history > Error {err}");
+            FriendshipsServiceError::InternalServerError
+        }
+    })
 }
 
 /// Stores updates to a friendship or creates a new friendship if it does not exist.
@@ -80,7 +92,7 @@ async fn store_friendship_update(
             let res = match res {
                 Ok(_) => Ok(friendship.id),
                 Err(err) => {
-                    log::warn!("Couldn't update friendship {err}");
+                    log::error!("Database handler > Store friendship update > Couldn't update friendship {err}");
                     Err(FriendshipsServiceError::InternalServerError)
                 }
             };
@@ -98,7 +110,7 @@ async fn store_friendship_update(
                 .await;
             (
                 friendship_id.map_err(|err| {
-                    log::warn!("Couldn't crate new friendship {err}");
+                    log::error!("Database handler > Create new friendship > Couldn't create new friendship {err}");
                     FriendshipsServiceError::InternalServerError
                 }),
                 transaction.unwrap(),
@@ -133,7 +145,9 @@ pub async fn update_friendship_status<'a>(
     let friendship_id = match friendship_id_result {
         Ok(friendship_id) => friendship_id,
         Err(err) => {
-            log::error!("Couldn't store friendship update");
+            log::error!(
+                "Database handler > Update friendship status > Couldn't store friendship update"
+            );
             let _ = transaction.rollback().await;
             return Err(err);
         }
@@ -142,7 +156,9 @@ pub async fn update_friendship_status<'a>(
     let room_event = match serde_json::to_string(&room_info.room_event) {
         Ok(room_event_string) => room_event_string,
         Err(err) => {
-            log::error!("Error serializing room event: {:?}", err);
+            log::error!(
+                "Database handler > Update friendship status > Error serializing room event: {err}"
+            );
             let _ = transaction.rollback().await;
             return Err(FriendshipsServiceError::InternalServerError);
         }
@@ -171,7 +187,7 @@ pub async fn update_friendship_status<'a>(
     match friendship_history_result {
         Ok(_) => Ok(transaction),
         Err(err) => {
-            log::error!("Couldn't store friendship history update: {:?}", err);
+            log::error!("Database handler > Update friendship status > Couldn't store friendship history update: {err}");
             let _ = transaction.rollback().await;
             Err(FriendshipsServiceError::InternalServerError)
         }

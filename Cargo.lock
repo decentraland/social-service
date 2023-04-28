@@ -677,9 +677,9 @@ dependencies = [
 
 [[package]]
 name = "dcl-rpc"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9225e165f28e9d4b13542e59b7e5c70750f6ecb4c6b4b61a6ba67f5606073ffd"
+checksum = "9f2cf12edb56aad35b1766bd85cffd8b9542da227b2645da15b7f9c89f237e96"
 dependencies = [
  "async-channel",
  "async-trait",
