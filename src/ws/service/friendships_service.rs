@@ -203,13 +203,15 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
                         let publisher = context.redis_publisher.clone();
                         if let Some(event) = request.clone().event {
                             tokio::spawn(async move {
-                                publisher
-                                    .publish(update_friendship_payload_as_event(
+                                if let Some(update_friendship_payload_as_event) =
+                                    update_friendship_payload_as_event(
                                         event,
-                                        user_id.social_id,
+                                        user_id.social_id.as_str(),
                                         created_at,
-                                    ))
-                                    .await;
+                                    )
+                                {
+                                    publisher.publish(update_friendship_payload_as_event).await;
+                                }
                             });
                         };
 
@@ -252,14 +254,10 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         // Attach generator to the context by user_id
         match user_id {
             Ok(user_id) => {
-                context
-                    .friendships_events_subscriptions
-                    .write()
-                    .await
-                    .insert(
-                        user_id.social_id.to_lowercase(),
-                        friendship_updates_yielder.clone(),
-                    );
+                context.friendships_events_generators.write().await.insert(
+                    user_id.social_id.to_lowercase(),
+                    friendship_updates_yielder.clone(),
+                );
                 // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
             }
             Err(_err) => {

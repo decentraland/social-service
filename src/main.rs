@@ -26,7 +26,7 @@ async fn main() -> io::Result<()> {
         },
         redis_publisher: ws_components.redis_publisher.clone(),
         redis_subscriber: ws_components.redis_subscriber.clone(),
-        friendships_events_subscriptions: ws_components.friendships_events_subscriptions.clone(),
+        friendships_events_generators: ws_components.friendships_events_generators.clone(),
     };
     // Run RPC Websocket Transport
     let (rpc_server_handle, http_server_handle) = run_ws_transport(ctx).await;

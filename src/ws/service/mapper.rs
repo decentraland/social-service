@@ -218,100 +218,119 @@ pub fn event_response_as_update_response(
 
 pub fn update_friendship_payload_as_event(
     payload: FriendshipEventPayload,
-    from: String,
+    from: &str,
     created_at: i64,
-) -> Event {
-    let (friendship_event, to) = payload_event_as_response(payload, created_at);
-
-    Event {
-        friendship_event,
-        from,
-        to,
+) -> Option<Event> {
+    if let Ok((friendship_event, to)) = payload_event_as_response(payload, from, created_at) {
+        Some(Event {
+            friendship_event,
+            from: from.to_string(),
+            to,
+        })
+    } else {
+        None
     }
 }
 
 fn payload_event_as_response(
     payload: FriendshipEventPayload,
+    from: &str,
     created_at: i64,
-) -> (Option<FriendshipEventResponse>, String) {
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
     match payload.body {
         Some(friendship_event_payload::Body::Request(request)) => {
-            match request.user.map(|u| u.address) {
-                Some(user_to) => {
-                    let event = FriendshipEventResponse {
-                        body: Some(friendship_event_response::Body::Request(RequestResponse {
-                            user: Some(User {
-                                address: user_to.clone(),
-                            }),
-                            created_at,
-                            message: request.message,
-                        })),
-                    };
-                    (Some(event), user_to)
-                }
-                None => (None, "".to_owned()),
-            }
+            request_payload_as_response(request, from, created_at)
         }
         Some(friendship_event_payload::Body::Accept(accept)) => {
-            match accept.user.map(|u| u.address) {
-                Some(user_to) => {
-                    let event = FriendshipEventResponse {
-                        body: Some(friendship_event_response::Body::Accept(AcceptResponse {
-                            user: Some(User {
-                                address: user_to.clone(),
-                            }),
-                        })),
-                    };
-                    (Some(event), user_to)
-                }
-                None => (None, "".to_owned()),
-            }
+            accept_payload_as_response(accept, from)
         }
         Some(friendship_event_payload::Body::Reject(reject)) => {
-            match reject.user.map(|u| u.address) {
-                Some(user_to) => {
-                    let event = FriendshipEventResponse {
-                        body: Some(friendship_event_response::Body::Reject(RejectResponse {
-                            user: Some(User {
-                                address: user_to.clone(),
-                            }),
-                        })),
-                    };
-                    (Some(event), user_to)
-                }
-                None => (None, "".to_owned()),
-            }
+            reject_payload_as_response(reject, from)
         }
         Some(friendship_event_payload::Body::Cancel(cancel)) => {
-            match cancel.user.map(|u| u.address) {
-                Some(user_to) => {
-                    let event = FriendshipEventResponse {
-                        body: Some(friendship_event_response::Body::Cancel(CancelResponse {
-                            user: Some(User {
-                                address: user_to.clone(),
-                            }),
-                        })),
-                    };
-                    (Some(event), user_to)
-                }
-                None => (None, "".to_owned()),
-            }
+            cancel_payload_as_response(cancel, from)
         }
         Some(friendship_event_payload::Body::Delete(delete)) => {
-            match delete.user.map(|u| u.address) {
-                Some(user_to) => {
-                    let event = FriendshipEventResponse {
-                        body: Some(friendship_event_response::Body::Delete(DeleteResponse {
-                            user: Some(User {
-                                address: user_to.clone(),
-                            }),
-                        })),
-                    };
-                    (Some(event), user_to)
-                }
-                None => (None, "".to_owned()),
-            }
+            delete_payload_as_response(delete, from)
         }
-        None => (None, "".to_owned()),
+        None => Err(()),
+    }
+}
+
+fn user(from: &str) -> Option<User> {
+    Some(User {
+        address: from.to_string(),
+    })
+}
+
+fn request_payload_as_response(
+    request: crate::friendships::RequestPayload,
+    from: &str,
+    created_at: i64,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = request.user.map(|u| u.address) {
+        let request = friendship_event_response::Body::Request(RequestResponse {
+            user: user(from),
+            created_at,
+            message: request.message,
+        });
+        let event = FriendshipEventResponse {
+            body: Some(request),
+        };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn accept_payload_as_response(
+    accept: crate::friendships::AcceptPayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = accept.user.map(|u| u.address) {
+        let accept = friendship_event_response::Body::Accept(AcceptResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(accept) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn reject_payload_as_response(
+    reject: crate::friendships::RejectPayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = reject.user.map(|u| u.address) {
+        let reject = friendship_event_response::Body::Reject(RejectResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(reject) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn cancel_payload_as_response(
+    cancel: crate::friendships::CancelPayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = cancel.user.map(|u| u.address) {
+        let cancel = friendship_event_response::Body::Cancel(CancelResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(cancel) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn delete_payload_as_response(
+    delete: crate::friendships::DeletePayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = delete.user.map(|u| u.address) {
+        let delete = friendship_event_response::Body::Delete(DeleteResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(delete) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
     }
 }

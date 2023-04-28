@@ -55,14 +55,14 @@ pub struct SocialContext {
     pub config: ConfigRpcServer,
     pub redis_publisher: Arc<RedisChannelPublisher>,
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
-    pub friendships_events_subscriptions:
+    pub friendships_events_generators:
         Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
 }
 
 pub struct WsComponents {
     pub redis_publisher: Arc<RedisChannelPublisher>,
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
-    pub friendships_events_subscriptions:
+    pub friendships_events_generators:
         Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
 }
 
@@ -73,16 +73,15 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
             let redis = Arc::new(redis);
             let redis_publisher = Arc::new(init_events_channel_publisher(redis.clone()).await);
             let redis_subscriber = Arc::new(init_events_channel_subscriber(redis));
-            let friendships_events_subscriptions = Arc::new(RwLock::new(HashMap::new()));
+            let friendships_events_generators = Arc::new(RwLock::new(HashMap::new()));
             WsComponents {
                 redis_publisher,
                 redis_subscriber,
-                friendships_events_subscriptions,
+                friendships_events_generators,
             }
         }
         Err(err) => {
-            log::error!("There was an error initializing Redis for Pub/Sub: {}", err);
-            panic!("There was an error initializing Redis for Pub/Sub");
+            panic!("There was an error initializing Redis for Pub/Sub: {}", err);
         }
     }
 }
@@ -95,7 +94,7 @@ pub async fn run_ws_transport(
     }
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
-    let generators = ctx.friendships_events_subscriptions.clone();
+    let generators = ctx.friendships_events_generators.clone();
 
     tokio::spawn(async move {
         subscribe_to_event_updates(subs, generators);
