@@ -2,19 +2,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     entities::friendship_history::FriendshipRequestEvent,
-    friendships::friendship_event_payload,
-    friendships::friendship_event_response,
     friendships::AcceptResponse,
     friendships::CancelResponse,
     friendships::DeleteResponse,
     friendships::FriendshipEventResponse,
     friendships::RejectResponse,
-    friendships::RequestEvents,
-    friendships::RequestResponse,
-    friendships::UpdateFriendshipPayload,
     friendships::UpdateFriendshipResponse,
     friendships::User,
+    friendships::{friendship_event_payload, AcceptPayload},
+    friendships::{friendship_event_response, DeletePayload},
+    friendships::{CancelPayload, RequestEvents},
     friendships::{FriendshipEventPayload, Requests},
+    friendships::{RejectPayload, RequestResponse},
+    friendships::{RequestPayload, UpdateFriendshipPayload},
     models::friendship_event::FriendshipEvent,
     notifications::Event,
     ws::service::{
@@ -332,5 +332,158 @@ fn delete_payload_as_response(
         Ok((Some(event), user_to))
     } else {
         Err(())
+    }
+}
+
+#[test]
+fn test_request_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Request(RequestPayload {
+            user: Some(User {
+                address: "0xBob".to_owned(),
+            }),
+            message: Some("Hi Bob, let's be friends!".to_owned()),
+        })),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Request(RequestResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        }),
+                        created_at: 1234567890,
+                        message: Some("Hi Bob, let's be friends!".to_owned()),
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            assert!(false, "Parsing to request response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_accept_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Accept(AcceptPayload {
+            user: Some(User {
+                address: "0xBob".to_owned(),
+            }),
+        })),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Accept(AcceptResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            assert!(false, "Parsing to accept response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_reject_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Reject(RejectPayload {
+            user: Some(User {
+                address: "0xBob".to_owned(),
+            }),
+        })),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Reject(RejectResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            assert!(false, "Parsing to reject response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_cancel_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Cancel(CancelPayload {
+            user: Some(User {
+                address: "0xBob".to_owned(),
+            }),
+        })),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Cancel(CancelResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            assert!(false, "Parsing to cancel response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_delete_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Delete(DeletePayload {
+            user: Some(User {
+                address: "0xBob".to_owned(),
+            }),
+        })),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Delete(DeleteResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            assert!(false, "Parsing to delete response should not fail")
+        }
     }
 }
