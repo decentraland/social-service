@@ -19,7 +19,7 @@ mod tests {
         ws::service::{
             friendship_event_validator::validate_new_event,
             friendship_status_calculator::get_new_friendship_status,
-            mapper::{
+            mapper::events::{
                 event_response_as_update_response, friendship_requests_as_request_events,
                 update_request_as_event_payload,
             },

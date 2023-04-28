@@ -18,8 +18,8 @@ use crate::{
 use super::{
     friendship_event_updates::handle_friendship_update,
     mapper::{
-        event_response_as_update_response, friendship_requests_as_request_events,
-        update_friendship_payload_as_event,
+        events::{event_response_as_update_response, friendship_requests_as_request_events},
+        payload_to_response::update_friendship_payload_as_event,
     },
     synapse_handler::get_user_id_from_request,
 };
