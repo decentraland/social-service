@@ -2,19 +2,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     entities::friendship_history::FriendshipRequestEvent,
+    friendships::friendship_event_payload,
+    friendships::friendship_event_response,
     friendships::AcceptResponse,
     friendships::CancelResponse,
     friendships::DeleteResponse,
     friendships::FriendshipEventResponse,
     friendships::RejectResponse,
+    friendships::RequestEvents,
+    friendships::RequestResponse,
+    friendships::UpdateFriendshipPayload,
     friendships::UpdateFriendshipResponse,
     friendships::User,
-    friendships::{friendship_event_payload, AcceptPayload},
-    friendships::{friendship_event_response, DeletePayload},
-    friendships::{CancelPayload, RequestEvents},
     friendships::{FriendshipEventPayload, Requests},
-    friendships::{RejectPayload, RequestResponse},
-    friendships::{RequestPayload, UpdateFriendshipPayload},
     models::friendship_event::FriendshipEvent,
     notifications::Event,
     ws::service::{
@@ -338,12 +338,14 @@ fn delete_payload_as_response(
 #[test]
 fn test_request_as_response() {
     let payload = FriendshipEventPayload {
-        body: Some(friendship_event_payload::Body::Request(RequestPayload {
-            user: Some(User {
-                address: "0xBob".to_owned(),
-            }),
-            message: Some("Hi Bob, let's be friends!".to_owned()),
-        })),
+        body: Some(friendship_event_payload::Body::Request(
+            crate::friendships::RequestPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+                message: Some("Hi Bob, let's be friends!".to_owned()),
+            },
+        )),
     };
     let result = payload_event_as_response(payload, "0xAlice", 1234567890);
     match result {
@@ -371,11 +373,13 @@ fn test_request_as_response() {
 #[test]
 fn test_accept_as_response() {
     let payload = FriendshipEventPayload {
-        body: Some(friendship_event_payload::Body::Accept(AcceptPayload {
-            user: Some(User {
-                address: "0xBob".to_owned(),
-            }),
-        })),
+        body: Some(friendship_event_payload::Body::Accept(
+            crate::friendships::AcceptPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
     };
     let result = payload_event_as_response(payload, "0xAlice", 1234567890);
     match result {
@@ -401,11 +405,13 @@ fn test_accept_as_response() {
 #[test]
 fn test_reject_as_response() {
     let payload = FriendshipEventPayload {
-        body: Some(friendship_event_payload::Body::Reject(RejectPayload {
-            user: Some(User {
-                address: "0xBob".to_owned(),
-            }),
-        })),
+        body: Some(friendship_event_payload::Body::Reject(
+            crate::friendships::RejectPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
     };
     let result = payload_event_as_response(payload, "0xAlice", 1234567890);
     match result {
@@ -431,11 +437,13 @@ fn test_reject_as_response() {
 #[test]
 fn test_cancel_as_response() {
     let payload = FriendshipEventPayload {
-        body: Some(friendship_event_payload::Body::Cancel(CancelPayload {
-            user: Some(User {
-                address: "0xBob".to_owned(),
-            }),
-        })),
+        body: Some(friendship_event_payload::Body::Cancel(
+            crate::friendships::CancelPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
     };
     let result = payload_event_as_response(payload, "0xAlice", 1234567890);
     match result {
@@ -461,11 +469,13 @@ fn test_cancel_as_response() {
 #[test]
 fn test_delete_as_response() {
     let payload = FriendshipEventPayload {
-        body: Some(friendship_event_payload::Body::Delete(DeletePayload {
-            user: Some(User {
-                address: "0xBob".to_owned(),
-            }),
-        })),
+        body: Some(friendship_event_payload::Body::Delete(
+            crate::friendships::DeletePayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
     };
     let result = payload_event_as_response(payload, "0xAlice", 1234567890);
     match result {
