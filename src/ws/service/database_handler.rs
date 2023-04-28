@@ -110,7 +110,7 @@ async fn store_friendship_update(
                 .await;
             (
                 friendship_id.map_err(|err| {
-                    log::error!("Database handler > Create new friendship > Couldn't create new friendship {err}");
+                    log::error!("Database handler > Store friendship update > Couldn't create new friendship {err}");
                     FriendshipsServiceError::InternalServerError
                 }),
                 transaction.unwrap(),

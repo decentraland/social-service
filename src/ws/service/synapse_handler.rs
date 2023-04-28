@@ -14,6 +14,7 @@ use crate::{
     },
     entities::friendships::Friendship,
     models::friendship_event::FriendshipEvent,
+    ws::service::mapper::map_common_error_to_friendships_error,
     Payload,
 };
 
@@ -61,15 +62,15 @@ pub async fn get_user_id_from_request(
 ) -> Result<UserId, FriendshipsServiceError> {
     match request.synapse_token.clone() {
         // If an authentication token was provided, get the user id from the token
-        // TODO: Ticket #81
         Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
             .await
-            .map_err(|err| -> FriendshipsServiceError {
-                FriendshipsServiceError::Unknown(err.name())
+            .map_err(|err| {
+                log::error!("Get user id from request > Error {err}");
+                map_common_error_to_friendships_error(err)
             }),
         // If no authentication token was provided, return an Unauthorized error.
         None => {
-            log::debug!("Get user id from request > `synapse_token` is None.");
+            log::error!("Get user id from request > `synapse_token` is None.");
             Err(FriendshipsServiceError::Unauthorized(
                 "`synapse_token` was not provided".to_string(),
             ))
@@ -102,9 +103,10 @@ pub async fn store_message_in_synapse_room<'a>(
                     Ok(_) => {
                         return Ok(());
                     }
-                    Err(_err) => {
+                    Err(err) => {
                         if retry_count == 2 {
-                            return Err(FriendshipsServiceError::InternalServerError);
+                            log::error!("Store message in synapse room > Error {err}");
+                            return Err(map_common_error_to_friendships_error(err));
                         }
                     }
                 }
@@ -128,7 +130,10 @@ pub async fn store_room_event_in_synapse_room(
 
     match res {
         Ok(_) => Ok(()),
-        Err(_) => Err(FriendshipsServiceError::InternalServerError),
+        Err(err) => {
+            log::error!("Store room event in synapse room > Error {err}");
+            Err(map_common_error_to_friendships_error(err))
+        }
     }
 }
 
@@ -156,7 +161,10 @@ async fn create_private_room_in_synapse(
             };
             Ok(res)
         }
-        Err(_) => Err(FriendshipsServiceError::InternalServerError),
+        Err(err) => {
+            log::error!("Create private room in synapse > Error {err}");
+            Err(map_common_error_to_friendships_error(err))
+        }
     }
 }
 
@@ -169,7 +177,10 @@ async fn get_room_id_for_alias_in_synapse(
 
     match res {
         Ok(response) => Ok(response.room_id),
-        Err(_) => Err(FriendshipsServiceError::InternalServerError),
+        Err(err) => {
+            log::error!("Get room id for alias in synapse > Error {err}");
+            Err(map_common_error_to_friendships_error(err))
+        }
     }
 }
 
@@ -215,12 +226,11 @@ pub async fn get_or_create_synapse_room_id(
 
                         match create_room_result {
                             Ok(res) => Ok(res.room_id),
-                            Err(_) => Err(FriendshipsServiceError::InternalServerError),
+                            Err(err) => Err(err),
                         }
                     }
                 }
             } else {
-                // TODO: Ticket #81
                 log::error!("Get or create synapse room > Friendship does not exists and the event is different than Request");
                 Err(FriendshipsServiceError::BadRequest(
                     "Invalid frienship event update".to_string(),
@@ -267,13 +277,19 @@ pub async fn set_account_data(
                     synapse
                         .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
                         .await
-                        .map_err(|_err| FriendshipsServiceError::InternalServerError)?;
+                        .map_err(|err| {
+                            log::error!("Set account data > Error setting account data {err}");
+                            map_common_error_to_friendships_error(err)
+                        })?;
                     return Ok(());
                 }
             };
             Ok(())
         }
-        Err(_) => Err(FriendshipsServiceError::InternalServerError),
+        Err(err) => {
+            log::error!("Set account data > Error getting account data {err}");
+            Err(map_common_error_to_friendships_error(err))
+        }
     }
 }
 

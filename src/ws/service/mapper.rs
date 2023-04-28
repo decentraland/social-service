@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
+    api::routes::v1::error::CommonError,
     entities::friendship_history::FriendshipRequestEvent,
     friendship_event_payload, friendship_event_response,
     models::friendship_event::FriendshipEvent,
@@ -220,4 +221,13 @@ pub fn event_response_as_update_response(
     };
 
     Ok(update_response)
+}
+
+pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipsServiceError {
+    match err {
+        CommonError::Forbidden(_) => FriendshipsServiceError::Forbidden("".to_owned()),
+        CommonError::Unauthorized => FriendshipsServiceError::Unauthorized("".to_owned()),
+        CommonError::TooManyRequests => FriendshipsServiceError::TooManyRequests("".to_owned()),
+        _ => FriendshipsServiceError::InternalServerError,
+    }
 }
