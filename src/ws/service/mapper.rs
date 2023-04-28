@@ -83,7 +83,7 @@ pub fn update_request_as_event_payload(
                 second_user: request
                     .user
                     .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is None".to_string(),
+                        "`user address` is missing".to_string(),
                     ))?
                     .address,
             },
@@ -93,7 +93,7 @@ pub fn update_request_as_event_payload(
                 second_user: accept
                     .user
                     .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is None".to_string(),
+                        "`user address` is missing".to_string(),
                     ))?
                     .address,
             },
@@ -103,7 +103,7 @@ pub fn update_request_as_event_payload(
                 second_user: reject
                     .user
                     .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is None".to_string(),
+                        "`user address` is missing".to_string(),
                     ))?
                     .address,
             },
@@ -113,7 +113,7 @@ pub fn update_request_as_event_payload(
                 second_user: cancel
                     .user
                     .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is None".to_string(),
+                        "`user address` is missing".to_string(),
                     ))?
                     .address,
             },
@@ -123,19 +123,19 @@ pub fn update_request_as_event_payload(
                 second_user: delete
                     .user
                     .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is None".to_string(),
+                        "`user address` is missing".to_string(),
                     ))?
                     .address,
             },
             None => {
                 return Err(FriendshipsServiceError::BadRequest(
-                    "`friendship_event_payload::body` is None".to_string(),
+                    "`friendship_event_payload::body` is missing".to_string(),
                 ))
             }
         }
     } else {
         return Err(FriendshipsServiceError::BadRequest(
-            "`event` is None".to_string(),
+            "`event` is missing".to_string(),
         ));
     };
 

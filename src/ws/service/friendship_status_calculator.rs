@@ -63,7 +63,7 @@ fn calculate_new_friendship_status(
             FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
             _ => {
                 log::error!(
-                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded history is none, new event expected to be: {:?}.",
+                    "Calculate new friendship status > Invalid friendship event: {:?} for acting user: {}. Last recorded history is None, new event expected to be: {:?}.",
                     room_event,
                     acting_user,
                     FriendshipEvent::REQUEST,

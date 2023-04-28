@@ -147,9 +147,8 @@ impl Transport for WarpWebSocketTransport {
                     err.to_string()
                 );
 
-                let error = match err {
-                    error => TransportError::Internal(Box::new(error)),
-                };
+                let error = err;
+                let error = TransportError::Internal(Box::new(error));
 
                 Err(error)
             }
