@@ -82,7 +82,9 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: request.message,
                 second_user: request
                     .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .ok_or(FriendshipsServiceError::BadRequest(
+                        "`user address` is None".to_string(),
+                    ))?
                     .address,
             },
             Some(friendship_event_payload::Body::Accept(accept)) => EventPayload {
@@ -90,7 +92,9 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: accept
                     .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .ok_or(FriendshipsServiceError::BadRequest(
+                        "`user address` is None".to_string(),
+                    ))?
                     .address,
             },
             Some(friendship_event_payload::Body::Reject(reject)) => EventPayload {
@@ -98,7 +102,9 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: reject
                     .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .ok_or(FriendshipsServiceError::BadRequest(
+                        "`user address` is None".to_string(),
+                    ))?
                     .address,
             },
             Some(friendship_event_payload::Body::Cancel(cancel)) => EventPayload {
@@ -106,7 +112,9 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: cancel
                     .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .ok_or(FriendshipsServiceError::BadRequest(
+                        "`user address` is None".to_string(),
+                    ))?
                     .address,
             },
             Some(friendship_event_payload::Body::Delete(delete)) => EventPayload {
@@ -114,13 +122,21 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: delete
                     .user
-                    .ok_or(FriendshipsServiceError::InternalServerError)?
+                    .ok_or(FriendshipsServiceError::BadRequest(
+                        "`user address` is None".to_string(),
+                    ))?
                     .address,
             },
-            None => return Err(FriendshipsServiceError::InternalServerError),
+            None => {
+                return Err(FriendshipsServiceError::BadRequest(
+                    "`friendship_event_payload::body` is None".to_string(),
+                ))
+            }
         }
     } else {
-        return Err(FriendshipsServiceError::InternalServerError);
+        return Err(FriendshipsServiceError::BadRequest(
+            "`event` is None".to_string(),
+        ));
     };
 
     Ok(event_payload)
