@@ -6,6 +6,8 @@ use crate::ServiceErrors;
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum FriendshipsServiceError {
+    #[error("Unknown: {0}")]
+    Unknown(String) = ServiceErrors::Unknown as i32,
     #[error("Bad request: {0}")]
     BadRequest(String) = ServiceErrors::BadRequest as i32,
     #[error("Unauthorized: {0}")]
@@ -23,6 +25,7 @@ pub enum FriendshipsServiceError {
 impl RemoteErrorResponse for FriendshipsServiceError {
     fn error_code(&self) -> u32 {
         match self {
+            Self::Unknown(_) => 0,
             Self::BadRequest(_) => 400,
             Self::Unauthorized(_) => 401,
             Self::Forbidden(_) => 403,
@@ -34,6 +37,7 @@ impl RemoteErrorResponse for FriendshipsServiceError {
 
     fn error_message(&self) -> String {
         match self {
+            Self::Unknown(value) => format!("{self}: {value}"),
             Self::BadRequest(value) => format!("{self}: {value}"),
             Self::Unauthorized(value) => format!("{self}: {value}"),
             Self::Forbidden(value) => format!("{self}: {value}"),
