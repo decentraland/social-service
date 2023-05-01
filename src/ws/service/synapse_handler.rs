@@ -13,8 +13,8 @@ use crate::{
         users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
     },
     entities::friendships::Friendship,
+    friendships::Payload,
     models::friendship_event::FriendshipEvent,
-    Payload,
 };
 
 use super::errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse};

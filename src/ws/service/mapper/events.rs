@@ -2,15 +2,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     entities::friendship_history::FriendshipRequestEvent,
-    friendship_event_payload, friendship_event_response,
+    friendships::{
+        friendship_event_payload, friendship_event_response, AcceptResponse, CancelResponse,
+        DeleteResponse, FriendshipEventResponse, RejectResponse, RequestEvents, RequestResponse,
+        Requests, UpdateFriendshipPayload, UpdateFriendshipResponse, User,
+    },
     models::friendship_event::FriendshipEvent,
     ws::service::{
         errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
         types::{EventPayload, EventResponse},
     },
-    AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse, RejectResponse,
-    RequestEvents, RequestResponse, Requests, UpdateFriendshipPayload, UpdateFriendshipResponse,
-    User,
 };
 
 /// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.

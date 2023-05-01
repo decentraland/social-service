@@ -1,0 +1,290 @@
+use crate::{
+    friendships::{
+        friendship_event_payload, friendship_event_response, AcceptResponse, CancelResponse,
+        DeleteResponse, FriendshipEventPayload, FriendshipEventResponse, RejectResponse,
+        RequestResponse, User,
+    },
+    notifications::Event,
+};
+
+pub fn update_friendship_payload_as_event(
+    payload: FriendshipEventPayload,
+    from: &str,
+    created_at: i64,
+) -> Option<Event> {
+    if let Ok((friendship_event, to)) = payload_event_as_response(payload, from, created_at) {
+        Some(Event {
+            friendship_event,
+            from: from.to_string(),
+            to,
+        })
+    } else {
+        None
+    }
+}
+
+fn payload_event_as_response(
+    payload: FriendshipEventPayload,
+    from: &str,
+    created_at: i64,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    match payload.body {
+        Some(friendship_event_payload::Body::Request(request)) => {
+            request_payload_as_response(request, from, created_at)
+        }
+        Some(friendship_event_payload::Body::Accept(accept)) => {
+            accept_payload_as_response(accept, from)
+        }
+        Some(friendship_event_payload::Body::Reject(reject)) => {
+            reject_payload_as_response(reject, from)
+        }
+        Some(friendship_event_payload::Body::Cancel(cancel)) => {
+            cancel_payload_as_response(cancel, from)
+        }
+        Some(friendship_event_payload::Body::Delete(delete)) => {
+            delete_payload_as_response(delete, from)
+        }
+        None => Err(()),
+    }
+}
+
+fn user(from: &str) -> Option<User> {
+    Some(User {
+        address: from.to_string(),
+    })
+}
+
+fn request_payload_as_response(
+    request: crate::friendships::RequestPayload,
+    from: &str,
+    created_at: i64,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = request.user.map(|u| u.address) {
+        let request = friendship_event_response::Body::Request(RequestResponse {
+            user: user(from),
+            created_at,
+            message: request.message,
+        });
+        let event = FriendshipEventResponse {
+            body: Some(request),
+        };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn accept_payload_as_response(
+    accept: crate::friendships::AcceptPayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = accept.user.map(|u| u.address) {
+        let accept = friendship_event_response::Body::Accept(AcceptResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(accept) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn reject_payload_as_response(
+    reject: crate::friendships::RejectPayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = reject.user.map(|u| u.address) {
+        let reject = friendship_event_response::Body::Reject(RejectResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(reject) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn cancel_payload_as_response(
+    cancel: crate::friendships::CancelPayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = cancel.user.map(|u| u.address) {
+        let cancel = friendship_event_response::Body::Cancel(CancelResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(cancel) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+fn delete_payload_as_response(
+    delete: crate::friendships::DeletePayload,
+    from: &str,
+) -> Result<(Option<FriendshipEventResponse>, String), ()> {
+    if let Some(user_to) = delete.user.map(|u| u.address) {
+        let delete = friendship_event_response::Body::Delete(DeleteResponse { user: user(from) });
+        let event = FriendshipEventResponse { body: Some(delete) };
+        Ok((Some(event), user_to))
+    } else {
+        Err(())
+    }
+}
+
+#[test]
+fn test_request_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Request(
+            crate::friendships::RequestPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+                message: Some("Hi Bob, let's be friends!".to_owned()),
+            },
+        )),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Request(RequestResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        }),
+                        created_at: 1234567890,
+                        message: Some("Hi Bob, let's be friends!".to_owned()),
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            unreachable!("Parsing to request response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_accept_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Accept(
+            crate::friendships::AcceptPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Accept(AcceptResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            unreachable!("Parsing to accept response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_reject_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Reject(
+            crate::friendships::RejectPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Reject(RejectResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            unreachable!("Parsing to reject response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_cancel_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Cancel(
+            crate::friendships::CancelPayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Cancel(CancelResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            unreachable!("Parsing to cancel response should not fail")
+        }
+    }
+}
+
+#[test]
+fn test_delete_as_response() {
+    let payload = FriendshipEventPayload {
+        body: Some(friendship_event_payload::Body::Delete(
+            crate::friendships::DeletePayload {
+                user: Some(User {
+                    address: "0xBob".to_owned(),
+                }),
+            },
+        )),
+    };
+    let result = payload_event_as_response(payload, "0xAlice", 1234567890);
+    match result {
+        Ok((response, user_to)) => {
+            assert_eq!(
+                response,
+                Some(FriendshipEventResponse {
+                    body: Some(friendship_event_response::Body::Delete(DeleteResponse {
+                        user: Some(User {
+                            address: "0xAlice".to_owned(),
+                        })
+                    })),
+                })
+            );
+            assert_eq!(user_to, "0xBob");
+        }
+        Err(()) => {
+            unreachable!("Parsing to delete response should not fail")
+        }
+    }
+}

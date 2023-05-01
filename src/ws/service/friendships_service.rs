@@ -1,19 +1,28 @@
-use std::sync::Arc;
-
-use futures_util::StreamExt;
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use dcl_rpc::stream_protocol::Generator;
+use futures_util::StreamExt;
 
 use crate::{
-    entities::friendships::FriendshipRepositoryImplementation, ws::app::SocialContext,
-    FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
-    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload, UpdateFriendshipResponse,
-    User, Users,
+    components::notifications::ChannelPublisher,
+    entities::friendships::FriendshipRepositoryImplementation,
+    friendships::{
+        FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
+        SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User, Users,
+    },
+    ws::app::SocialContext,
 };
 
 use super::{
     friendship_event_updates::handle_friendship_update,
-    mapper::{event_response_as_update_response, friendship_requests_as_request_events},
+    mapper::{
+        events::{event_response_as_update_response, friendship_requests_as_request_events},
+        payload_to_response::update_friendship_payload_as_event,
+    },
     synapse_handler::get_user_id_from_request,
 };
 
@@ -87,7 +96,7 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
                                 users.users.push(user);
 
-                                // TODO: Move this value (5) to a Env Variable, Config or sth like that
+                                // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
                                 if users_len == 5 {
                                     generator_yielder.r#yield(users).await.unwrap();
                                     users = Users::default();
@@ -166,7 +175,6 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         request: UpdateFriendshipPayload,
         context: Arc<SocialContext>,
     ) -> UpdateFriendshipResponse {
-        // Get user id with the given Authentication Token.
         // TODO: Do not `unwrap`, handle error instead. Ticket #81
         let user_id = get_user_id_from_request(
             &request.clone().auth_token.unwrap(),
@@ -175,14 +183,40 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
         )
         .await;
 
-        // Handle friendship event update
         match user_id {
             Ok(user_id) => {
-                let process_room_event_response =
-                    handle_friendship_update(request.clone(), context, user_id.social_id).await;
+                let process_room_event_response = handle_friendship_update(
+                    request.clone(),
+                    context.clone(),
+                    user_id.social_id.clone(),
+                )
+                .await;
 
                 if let Ok(event_response) = process_room_event_response {
-                    if let Ok(res) = event_response_as_update_response(request, event_response) {
+                    if let Ok(res) =
+                        event_response_as_update_response(request.clone(), event_response)
+                    {
+                        // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
+                        let created_at = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs() as i64;
+
+                        let publisher = context.redis_publisher.clone();
+                        if let Some(event) = request.clone().event {
+                            tokio::spawn(async move {
+                                if let Some(update_friendship_payload_as_event) =
+                                    update_friendship_payload_as_event(
+                                        event,
+                                        user_id.social_id.as_str(),
+                                        created_at,
+                                    )
+                                {
+                                    publisher.publish(update_friendship_payload_as_event).await;
+                                }
+                            });
+                        };
+
                         res
                     } else {
                         // TODO: Ticket #81
@@ -203,13 +237,38 @@ impl FriendshipsServiceServer<SocialContext> for MyFriendshipsService {
 
     #[tracing::instrument(
         name = "RPC SERVER > Subscribe to friendship updates",
-        skip(_request, _context)
+        skip(request, context)
     )]
     async fn subscribe_friendship_events_updates(
         &self,
-        _request: Payload,
-        _context: Arc<SocialContext>,
+        request: Payload,
+        context: Arc<SocialContext>,
     ) -> ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse> {
-        todo!()
+        // Get user id with the given Authentication Token.
+        let user_id = get_user_id_from_request(
+            &request,
+            context.synapse.clone(),
+            context.users_cache.clone(),
+        )
+        .await;
+        let (friendship_updates_generator, friendship_updates_yielder) = Generator::create();
+
+        // Attach generator to the context by user_id
+        match user_id {
+            Ok(user_id) => {
+                context.friendships_events_generators.write().await.insert(
+                    user_id.social_id.to_lowercase(),
+                    friendship_updates_yielder.clone(),
+                );
+                // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
+            }
+            Err(_err) => {
+                // TODO: Handle error when trying to get User Id.
+                log::error!("Subscribe friendship event updates > Get User ID from Token > Error.");
+                todo!()
+            }
+        }
+        // TODO: Remove generator from map when user has disconnected
+        friendship_updates_generator
     }
 }

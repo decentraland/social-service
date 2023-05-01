@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use social_service::components::{
-    configuration::Redis as RedisConfig,
+    configuration::RedisConfig,
     redis::Redis,
     users_cache::{UserId, UsersCacheComponent},
 };
@@ -14,7 +14,8 @@ async fn create_users_cache_component() -> UsersCacheComponent {
     let redis = Redis::new_and_run(&RedisConfig {
         host: "0.0.0.0:6379".to_string(),
     })
-    .await;
+    .await
+    .expect("There was an error initializing Redis");
 
     UsersCacheComponent::new(redis, TEST_KEY.to_string())
 }
@@ -24,10 +25,11 @@ async fn test_should_return_no_connection_available() -> Result<(), String> {
     let token = "my test token";
     let user_id = "joni";
 
-    let mut redis = Redis::new_and_run(&RedisConfig {
+    let redis = Redis::new_and_run(&RedisConfig {
         host: "0.0.0.0:6379".to_string(),
     })
-    .await;
+    .await
+    .expect("Failed starting Redis");
 
     // When redis is closed, adding a user should return an error
     redis.stop();
