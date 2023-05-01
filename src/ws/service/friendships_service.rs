@@ -3,7 +3,6 @@ use std::sync::Arc;
 use futures_util::StreamExt;
 
 use dcl_rpc::stream_protocol::Generator;
-use sqlx::Error;
 
 use crate::{
     entities::friendships::FriendshipRepositoryImplementation, ws::app::SocialContext,
@@ -51,10 +50,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                     Ok(it) => it,
                     Err(err) => {
                         log::error!("Get friends > Get user friends stream > Error: {err}.");
-                        match err {
-                            Error::RowNotFound => return Err(FriendshipsServiceError::NotFound),
-                            _ => return Err(FriendshipsServiceError::InternalServerError),
-                        }
+                        return Err(FriendshipsServiceError::InternalServerError);
                     }
                 }
             }
@@ -139,10 +135,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         log::error!(
                             "Get request events > Get user pending request events > Error: {err}."
                         );
-                        match err {
-                            Error::RowNotFound => Err(FriendshipsServiceError::NotFound),
-                            _ => Err(FriendshipsServiceError::InternalServerError),
-                        }
+                        Err(FriendshipsServiceError::InternalServerError)
                     }
                 }
             }
