@@ -1,8 +1,9 @@
 use crate::{
-    friendships::friendship_event_payload, friendships::friendship_event_response,
-    friendships::AcceptResponse, friendships::CancelResponse, friendships::DeleteResponse,
-    friendships::FriendshipEventPayload, friendships::FriendshipEventResponse,
-    friendships::RejectResponse, friendships::RequestResponse, friendships::User,
+    friendships::{
+        friendship_event_payload, friendship_event_response, AcceptResponse, CancelResponse,
+        DeleteResponse, FriendshipEventPayload, FriendshipEventResponse, RejectResponse,
+        RequestResponse, User,
+    },
     notifications::Event,
 };
 

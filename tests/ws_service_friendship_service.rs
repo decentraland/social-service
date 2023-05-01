@@ -5,17 +5,12 @@ mod tests {
         entities::friendship_history::{
             FriendshipHistory, FriendshipMetadata, FriendshipRequestEvent,
         },
-        friendships::friendship_event_payload::Body,
-        friendships::friendship_event_response,
-        friendships::CancelPayload,
-        friendships::FriendshipEventPayload,
-        friendships::Payload,
-        friendships::RequestEvents,
-        friendships::RequestPayload,
-        friendships::UpdateFriendshipPayload,
-        friendships::User,
-        models::friendship_event::FriendshipEvent,
-        models::friendship_status::FriendshipStatus,
+        friendships::{
+            friendship_event_payload::Body, friendship_event_response, CancelPayload,
+            FriendshipEventPayload, Payload, RequestEvents, RequestPayload,
+            UpdateFriendshipPayload, User,
+        },
+        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
         ws::service::{
             friendship_event_validator::validate_new_event,
             friendship_status_calculator::get_new_friendship_status,

@@ -9,10 +9,12 @@ use futures_util::StreamExt;
 use crate::{
     components::notifications::ChannelPublisher,
     entities::friendships::FriendshipRepositoryImplementation,
-    friendships::FriendshipsServiceServer, friendships::Payload, friendships::RequestEvents,
-    friendships::ServerStreamResponse, friendships::SubscribeFriendshipEventsUpdatesResponse,
-    friendships::UpdateFriendshipPayload, friendships::UpdateFriendshipResponse, friendships::User,
-    friendships::Users, ws::app::SocialContext,
+    friendships::{
+        FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
+        SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User, Users,
+    },
+    ws::app::SocialContext,
 };
 
 use super::{

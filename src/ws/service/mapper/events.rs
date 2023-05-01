@@ -2,19 +2,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     entities::friendship_history::FriendshipRequestEvent,
-    friendships::friendship_event_payload,
-    friendships::friendship_event_response,
-    friendships::AcceptResponse,
-    friendships::CancelResponse,
-    friendships::DeleteResponse,
-    friendships::FriendshipEventResponse,
-    friendships::RejectResponse,
-    friendships::RequestEvents,
-    friendships::RequestResponse,
-    friendships::Requests,
-    friendships::UpdateFriendshipPayload,
-    friendships::UpdateFriendshipResponse,
-    friendships::User,
+    friendships::{
+        friendship_event_payload, friendship_event_response, AcceptResponse, CancelResponse,
+        DeleteResponse, FriendshipEventResponse, RejectResponse, RequestEvents, RequestResponse,
+        Requests, UpdateFriendshipPayload, UpdateFriendshipResponse, User,
+    },
     models::friendship_event::FriendshipEvent,
     ws::service::{
         errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
