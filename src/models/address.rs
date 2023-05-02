@@ -5,7 +5,7 @@ pub struct Address(pub String);
 
 impl PartialEq for Address {
     fn eq(&self, other: &Self) -> bool {
-        self.0.to_lowercase() == other.0.to_lowercase()
+        self.0.eq_ignore_ascii_case(&other.0)
     }
 }
 
@@ -13,33 +13,42 @@ impl Eq for Address {}
 
 impl Hash for Address {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.to_lowercase().hash(state);
+        // Hashing each char to avoid copying the String
+        for c in self.0.as_bytes() {
+            c.to_ascii_lowercase().hash(state)
+        }
     }
 }
 
-#[test]
-fn test_different_addresses() {
-    let first_address = Address("0xAlice".to_string());
-    let second_address = Address("0xBob".to_string());
+#[cfg(test)]
+mod tests {
+    use crate::models::address::Address;
+    use std::collections::HashMap;
 
-    assert_ne!(first_address, second_address);
-}
+    #[test]
+    fn test_different_addresses() {
+        let first_address = Address("0xAlice".to_string());
+        let second_address = Address("0xBob".to_string());
 
-#[test]
-fn test_same_address_lower() {
-    let first_address = Address("0xAlice".to_string());
-    let second_address = Address("0xaLICE".to_string());
+        assert_ne!(first_address, second_address);
+    }
 
-    assert_eq!(first_address, second_address);
-}
+    #[test]
+    fn test_same_address_lower() {
+        let first_address = Address("0xAlice".to_string());
+        let second_address = Address("0xaLICE".to_string());
 
-#[test]
-fn test_hash_map() {
-    let mut map = std::collections::HashMap::new();
+        assert_eq!(first_address, second_address);
+    }
 
-    map.insert(Address("0xAlice".to_string()), "first_value");
+    #[test]
+    fn test_hash_map() {
+        let mut map = HashMap::new();
 
-    assert!(map.contains_key(&Address("0xAlice".to_string())));
-    assert!(map.contains_key(&Address("0xaLICE".to_string())));
-    assert!(!map.contains_key(&Address("0xBob".to_string())));
+        map.insert(Address("0xAlice".to_string()), "first_value");
+
+        assert!(map.contains_key(&Address("0xAlice".to_string())));
+        assert!(map.contains_key(&Address("0xaLICE".to_string())));
+        assert!(!map.contains_key(&Address("0xBob".to_string())));
+    }
 }
