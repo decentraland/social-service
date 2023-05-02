@@ -13,9 +13,9 @@ use crate::{
         users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
     },
     entities::friendships::Friendship,
+    friendships::Payload,
     models::friendship_event::FriendshipEvent,
-    ws::service::mapper::map_common_error_to_friendships_error,
-    Payload,
+    ws::service::mapper::events::map_common_error_to_friendships_error,
 };
 
 use super::errors::FriendshipsServiceError;

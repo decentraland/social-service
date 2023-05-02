@@ -1,7 +1,7 @@
 use dcl_rpc::rpc_protocol::RemoteErrorResponse;
 use thiserror::Error;
 
-use crate::ServiceErrors;
+use crate::friendships::ServiceErrors;
 
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Error)]

@@ -5,21 +5,21 @@ mod tests {
         entities::friendship_history::{
             FriendshipHistory, FriendshipMetadata, FriendshipRequestEvent,
         },
-        friendship_event_payload::Body,
-        friendship_event_response,
-        models::friendship_event::FriendshipEvent,
-        models::friendship_status::FriendshipStatus,
+        friendships::{
+            friendship_event_payload::Body, friendship_event_response, CancelPayload,
+            FriendshipEventPayload, Payload, RequestEvents, RequestPayload,
+            UpdateFriendshipPayload, User,
+        },
+        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
         ws::service::{
             friendship_event_validator::validate_new_event,
             friendship_status_calculator::get_new_friendship_status,
-            mapper::{
+            mapper::events::{
                 event_response_as_update_response, friendship_requests_as_request_events,
                 update_request_as_event_payload,
             },
             types::EventResponse,
         },
-        CancelPayload, FriendshipEventPayload, Payload, RequestEvents, RequestPayload,
-        UpdateFriendshipPayload, User,
     };
     use uuid::Uuid;
 
