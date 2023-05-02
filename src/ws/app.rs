@@ -39,6 +39,9 @@ use crate::{
     },
 };
 
+use lazy_static::lazy_static;
+use prometheus::{self, IntCounterVec, Opts, Registry};
+
 use super::service::friendships_service;
 use crate::friendships::FriendshipsServiceRegistration;
 use crate::friendships::SubscribeFriendshipEventsUpdatesResponse;
@@ -84,6 +87,15 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
             panic!("There was an error initializing Redis for Pub/Sub: {}", err);
         }
     }
+}
+
+lazy_static! {
+    pub static ref ERROR_RESPONSE_CODE_COLLECTOR: IntCounterVec = IntCounterVec::new(
+        Opts::new("error_response_code", "Error Response Codes"),
+        &["env", "statuscode", "type"]
+    )
+    .expect("error_response_code metric can be created");
+    pub static ref REGISTRY: Registry = Registry::new();
 }
 
 pub async fn run_ws_transport(
@@ -186,6 +198,12 @@ fn event_as_friendship_update_response(
         .map(|update| SubscribeFriendshipEventsUpdatesResponse {
             events: [update].to_vec(),
         })
+}
+
+fn register_metrics() {
+    REGISTRY
+        .register(Box::new(ERROR_RESPONSE_CODE_COLLECTOR.clone()))
+        .expect("collector can be registered");
 }
 
 type ReadStream = SplitStream<WebSocket>;

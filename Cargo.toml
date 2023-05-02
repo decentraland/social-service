@@ -43,6 +43,7 @@ tokio = {version = "1.0.0", default-features = false, features = ["io-util", "io
 warp = "0.3"
 tokio-tungstenite = "0.18.0"
 urlencoding = "2.1.2"
+prometheus = { version = "0.13.3", features = ["process"] }
 
 [build-dependencies]
 dcl-rpc = "2.0.1"
