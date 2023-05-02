@@ -15,10 +15,6 @@ impl PartialEq for Address {
     fn eq(&self, other: &Self) -> bool {
         self.address.to_lowercase() == other.address.to_lowercase()
     }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
-    }
 }
 
 impl Eq for Address {}
