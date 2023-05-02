@@ -7,7 +7,7 @@ use crate::{
         app::SocialContext,
         service::{
             database_handler::{get_friendship, get_last_history, update_friendship_status},
-            errors::{FriendshipsServiceError, FriendshipsServiceErrorResponse},
+            errors::FriendshipsServiceError,
             types::{EventResponse, FriendshipPortsWs, RoomInfoWs},
         },
     },
@@ -28,22 +28,29 @@ pub async fn handle_friendship_update(
     request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,
     acting_user: String,
-) -> Result<EventResponse, FriendshipsServiceErrorResponse> {
+) -> Result<EventResponse, FriendshipsServiceError> {
     let event_payload = update_request_as_event_payload(request.clone())?;
     let new_event = event_payload.friendship_event;
     let second_user = event_payload.second_user;
 
     let token = request
         .auth_token
-        .ok_or(FriendshipsServiceError::InternalServerError)?
+        .as_ref()
+        .ok_or_else(|| {
+            log::error!("Handle friendship update > `auth_token` is missing.");
+            FriendshipsServiceError::Unauthorized("`auth_token` is missing".to_owned())
+        })?
         .synapse_token
-        .ok_or(FriendshipsServiceError::InternalServerError)?;
+        .as_ref()
+        .ok_or_else(|| {
+            log::error!("Handle friendship update > `synapse_token` is missing.");
+            FriendshipsServiceError::Unauthorized("`synapse_token` is missing".to_owned())
+        })?;
 
-    let db_repos = &context
-        .db
-        .clone()
-        .db_repos
-        .ok_or(FriendshipsServiceError::InternalServerError)?;
+    let db_repos = context.db.clone().db_repos.ok_or_else(|| {
+        log::error!("Handle friendship update > Db repositories > `repos` is None.");
+        FriendshipsServiceError::InternalServerError
+    })?;
 
     // Get the friendship info
     let friendships_repository = &db_repos.friendships;
@@ -54,13 +61,13 @@ pub async fn handle_friendship_update(
         &new_event,
         &acting_user,
         &second_user,
-        &token,
+        token,
         &context.synapse.clone(),
     )
     .await?;
 
     set_account_data(
-        &token,
+        token,
         &acting_user,
         &second_user,
         &synapse_room_id,
@@ -88,8 +95,8 @@ pub async fn handle_friendship_update(
     let transaction = match friendship_ports.db.start_transaction().await {
         Ok(tx) => tx,
         Err(error) => {
-            log::error!("Couldn't start transaction to store friendship update {error}");
-            return Err(FriendshipsServiceError::InternalServerError.into());
+            log::error!("Handle friendship update > Couldn't start transaction to store friendship update {error}");
+            return Err(FriendshipsServiceError::InternalServerError);
         }
     };
 
@@ -113,7 +120,7 @@ pub async fn handle_friendship_update(
 
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
     store_message_in_synapse_room(
-        &token,
+        token,
         synapse_room_id.as_str(),
         new_event,
         room_message_body,
@@ -124,7 +131,7 @@ pub async fn handle_friendship_update(
     // Store the friendship event in the given room.
     // We'll continue storing the event in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates
     let result = store_room_event_in_synapse_room(
-        &token,
+        token,
         synapse_room_id.as_str(),
         new_event,
         room_message_body,
@@ -139,11 +146,14 @@ pub async fn handle_friendship_update(
 
             match transaction_result {
                 Ok(_) => Ok(EventResponse {
-                    user_id: second_user,
+                    user_id: second_user.to_string(),
                 }),
-                Err(_) => Err(FriendshipsServiceError::InternalServerError.into()),
+                Err(err) => {
+                    log::error!("Handle friendship update > Couldn't end transaction to store friendship update {err}");
+                    Err(FriendshipsServiceError::InternalServerError)
+                }
             }
         }
-        Err(_err) => Err(FriendshipsServiceError::InternalServerError.into()),
+        Err(err) => Err(err),
     }
 }

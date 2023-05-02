@@ -9,7 +9,7 @@ use std::{
 use dcl_rpc::{
     server::RpcServer,
     stream_protocol::GeneratorYielder,
-    transports::{Transport, TransportError, TransportEvent},
+    transports::{Transport, TransportError, TransportMessage},
 };
 
 use futures_util::{
@@ -102,7 +102,7 @@ pub async fn run_ws_transport(
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
         dcl_rpc::server::RpcServer::create(ctx);
-    rpc_server.set_handler(|port| {
+    rpc_server.set_module_registrator_handler(|port| {
         FriendshipsServiceRegistration::register_service(
             port,
             friendships_service::MyFriendshipsService {},
@@ -211,18 +211,16 @@ impl WarpWebSocketTransport {
 
 #[async_trait::async_trait]
 impl Transport for WarpWebSocketTransport {
-    async fn receive(&self) -> Result<TransportEvent, TransportError> {
+    async fn receive(&self) -> Result<TransportMessage, TransportError> {
         match self.read.lock().await.next().await {
             Some(Ok(message)) => {
                 if message.is_binary() {
-                    let message = self.message_to_transport_event(message.into_bytes());
-                    if let TransportEvent::Connect = message {
-                        self.ready.store(true, Ordering::SeqCst);
-                    }
-                    return Ok(message);
+                    let message_data = message.into_bytes();
+                    return Ok(message_data);
                 } else {
                     // Ignore messages that are not binary
-                    return Err(TransportError::Internal);
+                    log::error!("> WebSocketTransport > Received message is not binary");
+                    return Err(TransportError::NotBinaryMessage);
                 }
             }
             Some(Err(err)) => {
@@ -234,18 +232,24 @@ impl Transport for WarpWebSocketTransport {
         }
         println!("Closing transport...");
         self.close().await;
-        Ok(TransportEvent::Close)
+        Err(TransportError::Closed)
     }
 
     async fn send(&self, message: Vec<u8>) -> Result<(), TransportError> {
         let message = WarpWSMessage::binary(message);
-        self.write
-            .lock()
-            .await
-            .send(message)
-            .await
-            .map_err(|_| TransportError::Internal)?;
-        Ok(())
+        match self.write.lock().await.send(message).await {
+            Err(err) => {
+                log::error!(
+                    "> WebSocketTransport > Error on sending in a ws connection {}",
+                    err.to_string()
+                );
+
+                let error = TransportError::Internal(Box::new(err));
+
+                Err(error)
+            }
+            Ok(_) => Ok(()),
+        }
     }
 
     async fn close(&self) {
@@ -254,12 +258,8 @@ impl Transport for WarpWebSocketTransport {
                 self.ready.store(false, Ordering::SeqCst);
             }
             _ => {
-                println!("Couldn't close transport")
+                log::error!("Couldn't close transport")
             }
         }
-    }
-
-    fn is_connected(&self) -> bool {
-        self.ready.load(Ordering::Relaxed)
     }
 }
