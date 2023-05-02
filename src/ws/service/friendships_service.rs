@@ -14,6 +14,7 @@ use crate::{
         SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
         UpdateFriendshipResponse, User, Users,
     },
+    models::address::Address,
     ws::app::SocialContext,
 };
 
@@ -227,8 +228,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
         // Attach generator to the context by user_id
         context.friendships_events_generators.write().await.insert(
-            // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
-            user_id.social_id.to_lowercase(),
+            Address::new(user_id.social_id),
             friendship_updates_yielder.clone(),
         );
 

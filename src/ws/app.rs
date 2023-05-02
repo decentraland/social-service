@@ -37,6 +37,7 @@ use crate::{
         synapse::SynapseComponent,
         users_cache::UsersCacheComponent,
     },
+    models::address::Address,
 };
 
 use super::service::friendships_service;
@@ -56,14 +57,14 @@ pub struct SocialContext {
     pub redis_publisher: Arc<RedisChannelPublisher>,
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
     pub friendships_events_generators:
-        Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
+        Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
 }
 
 pub struct WsComponents {
     pub redis_publisher: Arc<RedisChannelPublisher>,
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
     pub friendships_events_generators:
-        Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
+        Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
 }
 
 pub async fn init_ws_components(config: Config) -> WsComponents {
@@ -147,7 +148,7 @@ pub async fn run_ws_transport(
 fn subscribe_to_event_updates(
     event_subscriptions: Arc<RedisChannelSubscriber>,
     client_generators: Arc<
-        RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
+        RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
 ) {
     event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
@@ -161,18 +162,18 @@ fn subscribe_to_event_updates(
 
 async fn send_update_to_corresponding_generator(
     generators: Arc<
-        RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
+        RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
     event_update: Event,
 ) {
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
-        let corresponding_user_id = &event_update.to.to_lowercase();
+        let corresponding_user_id = Address::new(event_update.to.to_lowercase());
 
         let generators_lock = generators.read().await;
 
-        if let Some(generator) = generators_lock.get(corresponding_user_id) {
+        if let Some(generator) = generators_lock.get(&corresponding_user_id) {
             if generator.r#yield(response.clone()).await.is_err() {
-                log::error!("Event Update received > Couldn't send update to subscriptors. Update: {:?}, Subscriptor: {:?}", response, corresponding_user_id);
+                log::error!("Event Update received > Couldn't send update to subscriptors. Update: {:?}, Subscriptor: {:?}", response, &corresponding_user_id);
             }
         }
     }
