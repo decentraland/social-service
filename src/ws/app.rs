@@ -21,7 +21,7 @@ use tokio::sync::{Mutex, RwLock};
 
 use warp::{
     ws::{Message as WarpWSMessage, WebSocket},
-    Filter,
+    Filter, Rejection, Reply,
 };
 
 use crate::{
@@ -145,7 +145,16 @@ pub async fn run_ws_transport(
         .and(warp::path("live"))
         .and(warp::path::end())
         .map(|| "\"alive\"".to_string());
-    let routes = warp::get().and(rpc_route.or(rest_routes));
+
+    // Register metrics
+    register_metrics();
+
+    // Metrics route
+    let metrics_route = warp::path!("metrics")
+        .and(warp::path::end())
+        .and_then(metrics_handler);
+
+    let routes = warp::get().and(rpc_route.or(rest_routes).or(metrics_route));
 
     let http_server_handle = tokio::spawn(async move {
         log::info!("Running RPC WebSocket Server at 0.0.0.:{}", port);
@@ -203,7 +212,27 @@ fn event_as_friendship_update_response(
 fn register_metrics() {
     REGISTRY
         .register(Box::new(ERROR_RESPONSE_CODE_COLLECTOR.clone()))
-        .expect("collector can be registered");
+        .expect("Collector can be registered");
+}
+
+async fn metrics_handler() -> Result<impl Reply, Rejection> {
+    use prometheus::Encoder;
+    let encoder = prometheus::TextEncoder::new();
+
+    let mut buffer = Vec::new();
+    if let Err(err) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
+        log::debug!("Could not encode metrics for RPC WebSocket Server: {}", err);
+    };
+    let res = match String::from_utf8(buffer.clone()) {
+        Ok(v) => v,
+        Err(err) => {
+            log::debug!("Metrics could not be from_utf8'd: {}", err);
+            String::default()
+        }
+    };
+    buffer.clear();
+
+    Ok(res)
 }
 
 type ReadStream = SplitStream<WebSocket>;
