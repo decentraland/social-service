@@ -267,19 +267,24 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
 
         let response = DatabaseComponent::fetch_stream(query, pool);
-
-        let friends_stream = response.map(|row| match row {
-            Ok(row) => Friendship {
-                id: row.try_get("id").unwrap(),
-                address_1: row.try_get("address_1").unwrap(),
-                address_2: row.try_get("address_2").unwrap(),
-                is_active: row.try_get("is_active").unwrap(),
-                synapse_room_id: row.try_get("synapse_room_id").unwrap(),
-            },
-            // TODO: Handle error. Ticket #81
-            Err(_) => todo!(),
+        let friends_stream = response.filter_map(|row| async move {
+            match row {
+                Ok(row) => {
+                    let friendship = Friendship {
+                        id: row.try_get("id").unwrap(),
+                        address_1: row.try_get("address_1").unwrap(),
+                        address_2: row.try_get("address_2").unwrap(),
+                        is_active: row.try_get("is_active").unwrap(),
+                        synapse_room_id: row.try_get("synapse_room_id").unwrap(),
+                    };
+                    Some(friendship)
+                }
+                Err(err) => {
+                    log::error!("Couldn't stream fetch user friends, {}", err);
+                    None
+                }
+            }
         });
-
         Ok(Box::pin(friends_stream))
     }
 

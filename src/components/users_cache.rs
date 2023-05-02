@@ -146,7 +146,7 @@ pub async fn get_user_id_from_token(
                             .await
                         {
                             log::error!(
-                                "check_auth.rs > Error on storing token into Redis: {:?}",
+                                "Get user id from token > check_auth.rs > Error on storing token into Redis: {:?}",
                                 err
                             )
                         }

@@ -143,7 +143,7 @@ impl FriendshipHistoryRepository {
         }
     }
 
-    /// Fetches the request events of the given user.
+    /// Fetches the pending request events of the given user.
     pub async fn get_user_pending_request_events(
         &self,
         address: &str,
