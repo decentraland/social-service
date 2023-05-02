@@ -221,24 +221,17 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await;
+        .await?;
+
         let (friendship_updates_generator, friendship_updates_yielder) = Generator::create();
 
         // Attach generator to the context by user_id
-        match user_id {
-            Ok(user_id) => {
-                context.friendships_events_generators.write().await.insert(
-                    user_id.social_id.to_lowercase(),
-                    friendship_updates_yielder.clone(),
-                );
-                // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
-            }
-            Err(_err) => {
-                // TODO: Handle error when trying to get User Id.
-                log::error!("Subscribe friendship event updates > Get User ID from Token > Error.");
-                todo!()
-            }
-        }
+        context.friendships_events_generators.write().await.insert(
+            // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
+            user_id.social_id.to_lowercase(),
+            friendship_updates_yielder.clone(),
+        );
+
         // TODO: Remove generator from map when user has disconnected
         Ok(friendship_updates_generator)
     }
