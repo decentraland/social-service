@@ -167,7 +167,7 @@ async fn send_update_to_corresponding_generator(
     event_update: Event,
 ) {
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
-        let corresponding_user_id = Address::new(event_update.to.to_lowercase());
+        let corresponding_user_id = Address(event_update.to.to_lowercase());
 
         let generators_lock = generators.read().await;
 

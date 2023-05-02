@@ -228,7 +228,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
         // Attach generator to the context by user_id
         context.friendships_events_generators.write().await.insert(
-            Address::new(user_id.social_id),
+            Address(user_id.social_id),
             friendship_updates_yielder.clone(),
         );
 
