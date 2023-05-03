@@ -126,8 +126,7 @@ pub async fn run_ws_transport(
         let generators_clone = generators_clone.clone();
         tokio::spawn(async move {
             let transport_contexts_lock = transport_contexts_clone.read().await;
-            let transport_ctx = transport_contexts_lock.get(&transport_id);
-            if let Some(transport_ctx) = transport_ctx {
+            if let Some(transport_ctx) = transport_contexts_lock.get(&transport_id) {
                 generators_clone
                     .write()
                     .await
