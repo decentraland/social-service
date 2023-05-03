@@ -11,6 +11,7 @@ use crate::{
         SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
         UpdateFriendshipResponse, User, Users,
     },
+    models::address::Address,
     ws::app::{SocialContext, SocialTransportContext},
 };
 
@@ -246,12 +247,10 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             .write()
             .await
             .insert(
-                // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
-                user_id.social_id.to_lowercase(),
+                Address(user_id.social_id),
                 friendship_updates_yielder.clone(),
             );
 
-        // TODO: Remove generator from map when user has disconnected
         Ok(friendship_updates_generator)
     }
 }
