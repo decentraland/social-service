@@ -63,12 +63,20 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                     Ok(it) => it,
                     Err(err) => {
                         log::error!("Get friends > Get user friends stream > Error: {err}.");
+                        record_error_response_code(
+                            FriendshipsServiceError::InternalServerError.error_code(),
+                            &FriendshipsServiceError::InternalServerError.error_message(),
+                        );
                         return Err(FriendshipsServiceError::InternalServerError);
                     }
                 }
             }
             None => {
                 log::error!("Get friends > Db repositories > `repos` is None.");
+                record_error_response_code(
+                    FriendshipsServiceError::InternalServerError.error_code(),
+                    &FriendshipsServiceError::InternalServerError.error_message(),
+                );
                 return Err(FriendshipsServiceError::InternalServerError);
             }
         };
@@ -152,12 +160,20 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         log::error!(
                             "Get request events > Get user pending request events > Error: {err}."
                         );
+                        record_error_response_code(
+                            FriendshipsServiceError::InternalServerError.error_code(),
+                            &FriendshipsServiceError::InternalServerError.error_message(),
+                        );
                         Err(FriendshipsServiceError::InternalServerError)
                     }
                 }
             }
             None => {
                 log::error!("Get request events > Db repositories > `repos` is None.");
+                record_error_response_code(
+                    FriendshipsServiceError::InternalServerError.error_code(),
+                    &FriendshipsServiceError::InternalServerError.error_message(),
+                );
                 return Err(FriendshipsServiceError::InternalServerError);
             }
         }

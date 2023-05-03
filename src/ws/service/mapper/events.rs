@@ -226,7 +226,9 @@ pub fn event_response_as_update_response(
 
 pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipsServiceError {
     match err {
-        CommonError::Forbidden(_) => FriendshipsServiceError::Forbidden("".to_owned()),
+        CommonError::Forbidden(error_message) => {
+            FriendshipsServiceError::Forbidden(error_message.to_owned())
+        }
         CommonError::Unauthorized => FriendshipsServiceError::Unauthorized("".to_owned()),
         CommonError::TooManyRequests => FriendshipsServiceError::TooManyRequests("".to_owned()),
         _ => FriendshipsServiceError::InternalServerError,
