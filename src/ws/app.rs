@@ -108,6 +108,9 @@ pub async fn run_ws_transport(
             friendships_service::MyFriendshipsService {},
         )
     });
+    // rpc_server.set_on_transport_closes_handler(async |_, transport_id| {
+    //     generators.write().await.remove(&transport_id);
+    // });
 
     // Get the Server Events Sender
     let server_events_sender = rpc_server.get_server_events_sender();
