@@ -11,7 +11,7 @@ use crate::{
         SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
         UpdateFriendshipResponse, User, Users,
     },
-    ws::app::SocialContext,
+    ws::app::{SocialContext, SocialTransportContext},
 };
 
 use super::{
@@ -224,6 +224,20 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         .await?;
 
         let (friendship_updates_generator, friendship_updates_yielder) = Generator::create();
+
+        // Attach transport_id to the context by transport
+        context
+            .server_context
+            .transport_context
+            .write()
+            .await
+            .insert(
+                // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
+                context.transport_id,
+                SocialTransportContext {
+                    address: user_id.social_id.to_string(),
+                },
+            );
 
         // Attach generator to the context by user_id
         context

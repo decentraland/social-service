@@ -48,6 +48,10 @@ pub struct ConfigRpcServer {
     pub rpc_server: Server,
 }
 
+pub struct SocialTransportContext {
+    pub address: String, // TODO: Change to Address
+}
+
 pub struct SocialContext {
     pub synapse: SynapseComponent,
     pub db: DatabaseComponent,
@@ -57,6 +61,7 @@ pub struct SocialContext {
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
     pub friendships_events_generators:
         Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
+    pub transport_context: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
 }
 
 pub struct WsComponents {
@@ -64,6 +69,7 @@ pub struct WsComponents {
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
     pub friendships_events_generators:
         Arc<RwLock<HashMap<String, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
+    pub transport_context: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
 }
 
 pub async fn init_ws_components(config: Config) -> WsComponents {
@@ -74,10 +80,12 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
             let redis_publisher = Arc::new(init_events_channel_publisher(redis.clone()).await);
             let redis_subscriber = Arc::new(init_events_channel_subscriber(redis));
             let friendships_events_generators = Arc::new(RwLock::new(HashMap::new()));
+            let transport_context = Arc::new(RwLock::new(HashMap::new()));
             WsComponents {
                 redis_publisher,
                 redis_subscriber,
                 friendships_events_generators,
+                transport_context,
             }
         }
         Err(err) => {
@@ -95,9 +103,11 @@ pub async fn run_ws_transport(
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
+    let generators_clone = ctx.friendships_events_generators.clone();
+    let transport_contexts = ctx.transport_context.clone();
 
     tokio::spawn(async move {
-        subscribe_to_event_updates(subs, generators);
+        subscribe_to_event_updates(subs, generators.clone());
     });
 
     let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
@@ -108,9 +118,22 @@ pub async fn run_ws_transport(
             friendships_service::MyFriendshipsService {},
         )
     });
-    // rpc_server.set_on_transport_closes_handler(async |_, transport_id| {
-    //     generators.write().await.remove(&transport_id);
-    // });
+    rpc_server.set_on_transport_closes_handler(move |_, transport_id| {
+        let transport_contexts_clone = transport_contexts.clone();
+        let generators_clone = generators_clone.clone();
+        tokio::spawn(async move {
+            let transport_contexts_lock = transport_contexts_clone.read().await;
+            let transport_ctx = transport_contexts_lock.get(&transport_id);
+            if let Some(transport_ctx) = transport_ctx {
+                generators_clone
+                    .write()
+                    .await
+                    .remove(&transport_ctx.address);
+            };
+            let mut transport_contexts_lock = transport_contexts_clone.write().await;
+            transport_contexts_lock.remove(&transport_id);
+        });
+    });
 
     // Get the Server Events Sender
     let server_events_sender = rpc_server.get_server_events_sender();
