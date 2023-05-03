@@ -233,10 +233,9 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             .write()
             .await
             .insert(
-                // TODO: handle this as a new Address type (#ISSUE: https://github.com/decentraland/social-service/issues/198)
                 context.transport_id,
                 SocialTransportContext {
-                    address: user_id.social_id.to_string(),
+                    address: Address(user_id.social_id.to_string()),
                 },
             );
 

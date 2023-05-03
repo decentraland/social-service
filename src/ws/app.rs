@@ -50,8 +50,10 @@ pub struct ConfigRpcServer {
 }
 
 pub struct SocialTransportContext {
-    pub address: String, // TODO: Change to Address
+    pub address: Address,
 }
+
+type TransportId = u32;
 
 pub struct SocialContext {
     pub synapse: SynapseComponent,
@@ -62,7 +64,7 @@ pub struct SocialContext {
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
     pub friendships_events_generators:
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
-    pub transport_context: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
+    pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
 }
 
 pub struct WsComponents {
@@ -70,7 +72,7 @@ pub struct WsComponents {
     pub redis_subscriber: Arc<RedisChannelSubscriber>,
     pub friendships_events_generators:
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
-    pub transport_context: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
+    pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
 }
 
 pub async fn init_ws_components(config: Config) -> WsComponents {
