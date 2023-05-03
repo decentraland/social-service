@@ -85,7 +85,7 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
             }
         }
         Err(err) => {
-            panic!("There was an error initializing Redis for Pub/Sub: {}", err);
+            panic!("There was an error initializing Redis for Pub/Sub: {err}");
         }
     }
 }
@@ -213,7 +213,7 @@ lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();
 }
 
-pub fn record_error_response_code(status_code: u16, error_type: &str) {
+pub fn record_error_response_code(status_code: u32, error_type: &str) {
     ERROR_RESPONSE_CODE_COLLECTOR
         .with_label_values(&[&status_code.to_string(), error_type])
         .inc();

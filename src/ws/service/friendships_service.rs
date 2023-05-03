@@ -3,7 +3,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use dcl_rpc::stream_protocol::Generator;
+use dcl_rpc::{rpc_protocol::RemoteErrorResponse, stream_protocol::Generator};
 use futures_util::StreamExt;
 
 use crate::{
@@ -46,7 +46,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         )
         .await
         .map_err(|err| {
-            record_error_response_code(500, "internal_server_error");
+            record_error_response_code(err.error_code(), &err.error_message());
             err
         })?;
 
@@ -125,7 +125,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code(), &err.error_message());
+            err
+        })?;
 
         let social_id = user_id.social_id.clone();
         log::info!("Getting requests events for user: {}", social_id);
@@ -174,16 +178,28 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code(), &err.error_message());
+            err
+        })?;
 
         // Handle friendship event update
         let friendship_update_response =
             handle_friendship_update(request.clone(), context.clone(), user_id.clone().social_id)
-                .await?;
+                .await
+                .map_err(|err| {
+                    record_error_response_code(err.error_code(), &err.error_message());
+                    err
+                })?;
 
         // Convert event response to update response
         let update_response =
-            event_response_as_update_response(request.clone(), friendship_update_response)?;
+            event_response_as_update_response(request.clone(), friendship_update_response)
+                .map_err(|err| {
+                    record_error_response_code(err.error_code(), &err.error_message());
+                    err
+                })?;
 
         // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
         let created_at = SystemTime::now()
@@ -225,7 +241,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code(), &err.error_message());
+            err
+        })?;
 
         let (friendship_updates_generator, friendship_updates_yielder) = Generator::create();
 
