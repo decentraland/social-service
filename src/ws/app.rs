@@ -40,7 +40,7 @@ use crate::{
 };
 
 use lazy_static::lazy_static;
-use prometheus::{self, IntCounterVec, Opts, Registry};
+use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
 
 use super::service::friendships_service;
 use crate::friendships::FriendshipsServiceRegistration;
@@ -49,6 +49,7 @@ use crate::notifications::Event;
 
 pub struct ConfigRpcServer {
     pub rpc_server: Server,
+    pub env: String,
 }
 
 pub struct SocialContext {
@@ -89,15 +90,6 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
     }
 }
 
-lazy_static! {
-    pub static ref ERROR_RESPONSE_CODE_COLLECTOR: IntCounterVec = IntCounterVec::new(
-        Opts::new("error_response_code", "Error Response Codes"),
-        &["env", "statuscode", "type"]
-    )
-    .expect("error_response_code metric can be created");
-    pub static ref REGISTRY: Registry = Registry::new();
-}
-
 pub async fn run_ws_transport(
     ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
@@ -107,6 +99,7 @@ pub async fn run_ws_transport(
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
+    let environment = ctx.config.env.clone();
 
     tokio::spawn(async move {
         subscribe_to_event_updates(subs, generators);
@@ -147,7 +140,7 @@ pub async fn run_ws_transport(
         .map(|| "\"alive\"".to_string());
 
     // Register metrics
-    register_metrics();
+    register_metrics(&environment);
 
     // Metrics route
     let metrics_route = warp::path!("metrics")
@@ -209,20 +202,40 @@ fn event_as_friendship_update_response(
         })
 }
 
-fn register_metrics() {
+lazy_static! {
+    pub static ref ERROR_RESPONSE_CODE_COLLECTOR: IntCounterVec = {
+        let mut opts = Opts::new("error_response_code", "Error Response Codes");
+        opts = opts.variable_label("env");
+
+        IntCounterVec::new(opts, &["statuscode", "type"])
+            .expect("error_response_code metric can be created")
+    };
+    pub static ref REGISTRY: Registry = Registry::new();
+}
+
+pub fn record_error_response_code(status_code: u16, error_type: &str) {
+    ERROR_RESPONSE_CODE_COLLECTOR
+        .with_label_values(&[&status_code.to_string(), error_type])
+        .inc();
+}
+
+fn register_metrics(environment: &str) {
+    let collector = ERROR_RESPONSE_CODE_COLLECTOR.clone();
+    collector.with_label_values(&[environment]);
+
     REGISTRY
-        .register(Box::new(ERROR_RESPONSE_CODE_COLLECTOR.clone()))
+        .register(Box::new(collector))
         .expect("Collector can be registered");
 }
 
 async fn metrics_handler() -> Result<impl Reply, Rejection> {
-    use prometheus::Encoder;
     let encoder = prometheus::TextEncoder::new();
 
     let mut buffer = Vec::new();
     if let Err(err) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
         log::debug!("Could not encode metrics for RPC WebSocket Server: {}", err);
     };
+
     let res = match String::from_utf8(buffer.clone()) {
         Ok(v) => v,
         Err(err) => {

@@ -14,7 +14,7 @@ use crate::{
         SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
         UpdateFriendshipResponse, User, Users,
     },
-    ws::app::SocialContext,
+    ws::app::{record_error_response_code, SocialContext},
 };
 
 use super::{
@@ -44,7 +44,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.synapse.clone(),
             context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(500, "internal_server_error");
+            err
+        })?;
 
         let social_id = user_id.social_id.clone();
         log::info!("Getting all friends for user: {}", social_id);
