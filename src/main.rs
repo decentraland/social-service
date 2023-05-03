@@ -24,6 +24,7 @@ async fn main() -> io::Result<()> {
         config: ConfigRpcServer {
             rpc_server: app_data.config.rpc_server.clone(),
             env: app_data.config.env.clone(),
+            wkc_metrics_bearer_token: app_data.config.wkc_metrics_bearer_token.clone(),
         },
         redis_publisher: ws_components.redis_publisher.clone(),
         redis_subscriber: ws_components.redis_subscriber.clone(),

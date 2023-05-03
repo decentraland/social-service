@@ -20,6 +20,7 @@ use futures_util::{
 use tokio::sync::{Mutex, RwLock};
 
 use warp::{
+    header,
     ws::{Message as WarpWSMessage, WebSocket},
     Filter, Rejection, Reply,
 };
@@ -50,6 +51,7 @@ use crate::notifications::Event;
 pub struct ConfigRpcServer {
     pub rpc_server: Server,
     pub env: String,
+    pub wkc_metrics_bearer_token: String,
 }
 
 pub struct SocialContext {
@@ -100,6 +102,7 @@ pub async fn run_ws_transport(
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
     let environment = ctx.config.env.clone();
+    let wkc_metrics_bearer_token = Arc::new(ctx.config.wkc_metrics_bearer_token.clone());
 
     tokio::spawn(async move {
         subscribe_to_event_updates(subs, generators);
@@ -145,6 +148,7 @@ pub async fn run_ws_transport(
     // Metrics route
     let metrics_route = warp::path!("metrics")
         .and(warp::path::end())
+        .and(header::exact("authorization", &wkc_metrics_bearer_token))
         .and_then(metrics_handler);
 
     let routes = warp::get().and(rpc_route.or(rest_routes).or(metrics_route));
