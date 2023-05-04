@@ -20,7 +20,7 @@ use futures_util::{
 use tokio::sync::{Mutex, RwLock};
 
 use warp::{
-    header,
+    http::header::HeaderValue,
     ws::{Message as WarpWSMessage, WebSocket},
     Filter, Rejection, Reply,
 };
@@ -148,7 +148,23 @@ pub async fn run_ws_transport(
     // Metrics route
     let metrics_route = warp::path!("metrics")
         .and(warp::path::end())
-        .and(header::exact("authorization", &wkc_metrics_bearer_token))
+        .and(warp::header::value("authorization"))
+        .and(warp::any().map(move || wkc_metrics_bearer_token.clone()))
+        .and_then(
+            |header_value: HeaderValue, expected_token: Arc<String>| async move {
+                match header_value.to_str() {
+                    Ok(header_value_str) => {
+                        if header_value_str == &**expected_token {
+                            Ok(())
+                        } else {
+                            Err(warp::reject::not_found())
+                        }
+                    }
+                    Err(_) => Err(warp::reject::not_found()),
+                }
+            },
+        )
+        .untuple_one()
         .and_then(metrics_handler);
 
     let routes = warp::get().and(rpc_route.or(rest_routes).or(metrics_route));
