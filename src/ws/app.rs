@@ -149,21 +149,21 @@ pub async fn run_ws_transport(
     let metrics_route = warp::path!("metrics")
         .and(warp::path::end())
         .and(warp::header::value("authorization"))
-        .and(warp::any().map(move || wkc_metrics_bearer_token.clone()))
-        .and_then(
-            |header_value: HeaderValue, expected_token: Arc<String>| async move {
-                match header_value.to_str() {
-                    Ok(header_value_str) => {
-                        if header_value_str == &**expected_token {
+        .and_then(move |header_value: HeaderValue| {
+            let expected_token = wkc_metrics_bearer_token.clone();
+            async move {
+                header_value
+                    .to_str()
+                    .map_err(|_| warp::reject::not_found())
+                    .and_then(|header_value_str| {
+                        if header_value_str == *expected_token {
                             Ok(())
                         } else {
                             Err(warp::reject::not_found())
                         }
-                    }
-                    Err(_) => Err(warp::reject::not_found()),
-                }
-            },
-        )
+                    })
+            }
+        })
         .untuple_one()
         .and_then(metrics_handler);
 
