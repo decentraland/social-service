@@ -51,7 +51,6 @@ use crate::notifications::Event;
 
 pub struct ConfigRpcServer {
     pub rpc_server: Server,
-    pub env: String,
     pub wkc_metrics_bearer_token: String,
 }
 
@@ -102,7 +101,6 @@ pub async fn run_ws_transport(
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
-    let environment = ctx.config.env.clone();
     let wkc_metrics_bearer_token = Arc::new(ctx.config.wkc_metrics_bearer_token.clone());
 
     tokio::spawn(async move {
@@ -144,7 +142,7 @@ pub async fn run_ws_transport(
         .map(|| "\"alive\"".to_string());
 
     // Register metrics
-    register_metrics(&environment);
+    register_metrics();
 
     // Metrics route
     let metrics_route = warp::path!("metrics")
@@ -240,13 +238,15 @@ pub fn record_error_response_code(status_code: u32, error_type: &str) {
         .inc();
 }
 
-fn register_metrics(environment: &str) {
+fn register_metrics() {
+    log::info!("Registering ERROR_RESPONSE_CODE_COLLECTOR");
     let collector = ERROR_RESPONSE_CODE_COLLECTOR.clone();
-    collector.with_label_values(&[environment]);
 
     REGISTRY
         .register(Box::new(collector))
         .expect("Collector can be registered");
+
+    log::info!("Registered ERROR_RESPONSE_CODE_COLLECTOR");
 }
 
 async fn metrics_handler() -> Result<impl Reply, Rejection> {
