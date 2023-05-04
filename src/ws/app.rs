@@ -253,13 +253,19 @@ async fn metrics_handler() -> Result<impl Reply, Rejection> {
 
     let mut buffer = Vec::new();
     if let Err(err) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
-        log::debug!("Could not encode metrics for RPC WebSocket Server: {}", err);
+        log::debug!(
+            "metrics_handler > Could not encode metrics for RPC WebSocket Server: {}",
+            err
+        );
     };
 
     let res = match String::from_utf8(buffer.clone()) {
         Ok(v) => v,
         Err(err) => {
-            log::debug!("Metrics could not be from_utf8'd: {}", err);
+            log::debug!(
+                "metrics_handler > Metrics could not be from_utf8'd: {}",
+                err
+            );
             String::default()
         }
     };
