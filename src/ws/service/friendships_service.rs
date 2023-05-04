@@ -47,7 +47,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         )
         .await
         .map_err(|err| {
-            record_error_response_code(err.error_code(), &err.error_message());
+            record_error_response_code(err.error_code());
             err
         })?;
 
@@ -66,7 +66,6 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         log::error!("Get friends > Get user friends stream > Error: {err}.");
                         record_error_response_code(
                             FriendshipsServiceError::InternalServerError.error_code(),
-                            &FriendshipsServiceError::InternalServerError.error_message(),
                         );
                         return Err(FriendshipsServiceError::InternalServerError);
                     }
@@ -76,7 +75,6 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 log::error!("Get friends > Db repositories > `repos` is None.");
                 record_error_response_code(
                     FriendshipsServiceError::InternalServerError.error_code(),
-                    &FriendshipsServiceError::InternalServerError.error_message(),
                 );
                 return Err(FriendshipsServiceError::InternalServerError);
             }
@@ -136,7 +134,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         )
         .await
         .map_err(|err| {
-            record_error_response_code(err.error_code(), &err.error_message());
+            record_error_response_code(err.error_code());
             err
         })?;
 
@@ -163,7 +161,6 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         );
                         record_error_response_code(
                             FriendshipsServiceError::InternalServerError.error_code(),
-                            &FriendshipsServiceError::InternalServerError.error_message(),
                         );
                         Err(FriendshipsServiceError::InternalServerError)
                     }
@@ -173,7 +170,6 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 log::error!("Get request events > Db repositories > `repos` is None.");
                 record_error_response_code(
                     FriendshipsServiceError::InternalServerError.error_code(),
-                    &FriendshipsServiceError::InternalServerError.error_message(),
                 );
                 return Err(FriendshipsServiceError::InternalServerError);
             }
@@ -197,7 +193,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         )
         .await
         .map_err(|err| {
-            record_error_response_code(err.error_code(), &err.error_message());
+            record_error_response_code(err.error_code());
             err
         })?;
 
@@ -206,7 +202,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             handle_friendship_update(request.clone(), context.clone(), user_id.clone().social_id)
                 .await
                 .map_err(|err| {
-                    record_error_response_code(err.error_code(), &err.error_message());
+                    record_error_response_code(err.error_code());
                     err
                 })?;
 
@@ -214,7 +210,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         let update_response =
             event_response_as_update_response(request.clone(), friendship_update_response)
                 .map_err(|err| {
-                    record_error_response_code(err.error_code(), &err.error_message());
+                    record_error_response_code(err.error_code());
                     err
                 })?;
 
@@ -260,7 +256,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         )
         .await
         .map_err(|err| {
-            record_error_response_code(err.error_code(), &err.error_message());
+            record_error_response_code(err.error_code());
             err
         })?;
 

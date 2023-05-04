@@ -101,7 +101,7 @@ pub async fn run_ws_transport(
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
-    let wkc_metrics_bearer_token = Arc::new(ctx.config.wkc_metrics_bearer_token.clone());
+    let wkc_metrics_bearer_token = ctx.config.wkc_metrics_bearer_token.clone();
 
     tokio::spawn(async move {
         subscribe_to_event_updates(subs, generators);
@@ -153,12 +153,12 @@ pub async fn run_ws_transport(
             async move {
                 header_value
                     .to_str()
-                    .map_err(|_| warp::reject::not_found())
+                    .map_err(|_| warp::reject::reject())
                     .and_then(|header_value_str| {
-                        if header_value_str == *expected_token {
+                        if header_value_str == &*expected_token {
                             Ok(())
                         } else {
-                            Err(warp::reject::not_found())
+                            Err(warp::reject::reject())
                         }
                     })
             }
@@ -223,18 +223,17 @@ fn event_as_friendship_update_response(
 
 lazy_static! {
     pub static ref ERROR_RESPONSE_CODE_COLLECTOR: IntCounterVec = {
-        let mut opts = Opts::new("error_response_code", "Error Response Codes");
-        opts = opts.variable_label("env");
+        let opts = Opts::new("error_response_code", "Error Response Codes");
 
-        IntCounterVec::new(opts, &["statuscode", "type"])
+        IntCounterVec::new(opts, &["status_code"])
             .expect("error_response_code metric can be created")
     };
     pub static ref REGISTRY: Registry = Registry::new();
 }
 
-pub fn record_error_response_code(status_code: u32, error_type: &str) {
+pub fn record_error_response_code(status_code: u32) {
     ERROR_RESPONSE_CODE_COLLECTOR
-        .with_label_values(&[&status_code.to_string(), error_type])
+        .with_label_values(&[&status_code.to_string()])
         .inc();
 }
 
