@@ -169,8 +169,8 @@ pub async fn run_ws_transport(
 }
 
 async fn remove_transport_id_from_context(
-    transport_id: u32,
-    transport_contexts: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
+    transport_id: TransportId,
+    transport_contexts: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
     generators: Arc<
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
