@@ -223,10 +223,13 @@ fn event_as_friendship_update_response(
 
 lazy_static! {
     pub static ref ERROR_RESPONSE_CODE_COLLECTOR: IntCounterVec = {
-        let opts = Opts::new("error_response_code", "Error Response Codes");
+        let opts = Opts::new(
+            "dcl_social_service_rpc_error_response_code",
+            "Social Service RPC Websocket Error Response Codes",
+        );
 
         IntCounterVec::new(opts, &["status_code"])
-            .expect("error_response_code metric can be created")
+            .expect("dcl_social_service_rpc_error_response_code metric can be created")
     };
     pub static ref REGISTRY: Registry = Registry::new();
 }
