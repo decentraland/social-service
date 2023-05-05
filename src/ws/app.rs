@@ -125,15 +125,12 @@ pub async fn run_ws_transport(
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
         tokio::spawn(async move {
-            let transport_contexts_lock = transport_contexts_clone.read().await;
-            if let Some(transport_ctx) = transport_contexts_lock.get(&transport_id) {
-                generators_clone
-                    .write()
-                    .await
-                    .remove(&transport_ctx.address);
-            };
-            let mut transport_contexts_lock = transport_contexts_clone.write().await;
-            transport_contexts_lock.remove(&transport_id);
+            remove_transport_id_from_context(
+                transport_contexts_clone,
+                transport_id,
+                generators_clone,
+            )
+            .await;
         });
     });
 
@@ -169,6 +166,26 @@ pub async fn run_ws_transport(
     });
 
     (rpc_server_handle, http_server_handle)
+}
+
+async fn remove_transport_id_from_context(
+    transport_contexts_clone: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
+    transport_id: u32,
+    generators_clone: Arc<
+        RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
+    >,
+) {
+    let transport_contexts_read_lock = transport_contexts_clone.read().await;
+    if let Some(transport_ctx) = transport_contexts_read_lock.get(&transport_id) {
+        // First remove the generators of the corresponding address
+        generators_clone
+            .write()
+            .await
+            .remove(&transport_ctx.address);
+    };
+    drop(transport_contexts_read_lock);
+    let mut transport_contexts_write_lock = transport_contexts_clone.write().await;
+    transport_contexts_write_lock.remove(&transport_id);
 }
 
 // Subscribe to Redis Pub/Sub to listen on friendship events updates, so then can notify the affected users on their corresponding generators
