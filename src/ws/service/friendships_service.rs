@@ -10,9 +10,9 @@ use crate::{
     components::notifications::ChannelPublisher,
     entities::friendships::FriendshipRepositoryImplementation,
     friendships::{
-        FriendshipsServiceServer, Payload, RequestEvents, ServerStreamResponse,
-        SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
-        UpdateFriendshipResponse, User, Users,
+        users_response, FriendshipsServiceServer, Payload, RequestEventsResponse,
+        ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User, Users, UsersResponse,
     },
     models::address::Address,
     ws::app::{record_error_response_code, SocialContext, SocialTransportContext},
@@ -22,7 +22,9 @@ use super::{
     errors::FriendshipsServiceError,
     friendship_event_updates::handle_friendship_update,
     mapper::{
-        events::{event_response_as_update_response, friendship_requests_as_request_events},
+        events::{
+            event_response_as_update_response, friendship_requests_as_request_events_response,
+        },
         payload_to_response::update_friendship_payload_as_event,
     },
     synapse_handler::get_user_id_from_request,
@@ -38,7 +40,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         &self,
         request: Payload,
         context: ProcedureContext<SocialContext>,
-    ) -> Result<ServerStreamResponse<Users>, FriendshipsServiceError> {
+    ) -> Result<ServerStreamResponse<UsersResponse>, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let user_id = get_user_id_from_request(
             &request,
@@ -104,12 +106,22 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
                         // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
                         if users_len == 5 {
-                            generator_yielder.r#yield(users).await.unwrap();
+                            generator_yielder
+                                .r#yield(UsersResponse {
+                                    response: Some(users_response::Response::Users(users)),
+                                })
+                                .await
+                                .unwrap();
                             users = Users::default();
                         }
                     }
                     None => {
-                        generator_yielder.r#yield(users).await.unwrap();
+                        generator_yielder
+                            .r#yield(UsersResponse {
+                                response: Some(users_response::Response::Users(users)),
+                            })
+                            .await
+                            .unwrap();
                         break;
                     }
                 }
@@ -125,7 +137,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         &self,
         request: Payload,
         context: ProcedureContext<SocialContext>,
-    ) -> Result<RequestEvents, FriendshipsServiceError> {
+    ) -> Result<RequestEventsResponse, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let user_id = get_user_id_from_request(
             &request,
@@ -150,7 +162,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 match requests {
                     Ok(requests) => {
                         log::info!("Returning requests events for user {}", social_id);
-                        Ok(friendship_requests_as_request_events(
+                        Ok(friendship_requests_as_request_events_response(
                             requests,
                             user_id.social_id,
                         ))

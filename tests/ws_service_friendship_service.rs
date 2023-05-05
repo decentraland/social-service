@@ -7,15 +7,14 @@ mod tests {
         },
         friendships::{
             friendship_event_payload::Body, friendship_event_response, CancelPayload,
-            FriendshipEventPayload, Payload, RequestEvents, RequestPayload,
-            UpdateFriendshipPayload, User,
+            FriendshipEventPayload, Payload, RequestPayload, UpdateFriendshipPayload, User,
         },
         models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
         ws::service::{
             friendship_event_validator::validate_new_event,
             friendship_status_calculator::get_new_friendship_status,
             mapper::events::{
-                event_response_as_update_response, friendship_requests_as_request_events,
+                event_response_as_update_response, friendship_requests_as_request_events_response,
                 update_request_as_event_payload,
             },
             types::EventResponse,
@@ -31,20 +30,33 @@ mod tests {
         // Authenticated user
         let user_id: String = "Pizarnik".to_string();
 
-        let mut result: RequestEvents = friendship_requests_as_request_events(requests, user_id);
+        let result = friendship_requests_as_request_events_response(requests, user_id)
+            .response
+            .unwrap();
 
-        assert_eq!(result.outgoing.unwrap().total, 1);
-        assert_eq!(result.incoming.clone().unwrap().total, 1);
+        match result {
+            social_service::friendships::request_events_response::Response::Error(_) => {
+                assert!(false, "An error response was found");
+            }
+            social_service::friendships::request_events_response::Response::Events(result) => {
+                assert_eq!(result.outgoing.unwrap().total, 1);
+                match result.incoming {
+                    Some(incoming) => {
+                        assert_eq!(incoming.total, 1);
 
-        let incoming_requests = result.incoming.take();
-        if let Some(incoming_requests) = incoming_requests {
-            let incoming_request = incoming_requests.items.get(0).unwrap();
-            assert_eq!(incoming_request.user.as_ref().unwrap().address, "Martha");
-            assert!(incoming_request.created_at > 0);
-            assert_eq!(
-                incoming_request.message.clone().unwrap_or_default(),
-                "Hey, let's be friends!"
-            );
+                        let first_request = incoming.items.get(0);
+                        match first_request {
+                            Some(req) => {
+                                assert_eq!(req.user.as_ref().unwrap().address, "Martha");
+                                assert!(req.created_at > 0);
+                                assert_eq!(req.message.as_ref().unwrap(), "Hey, let's be friends!");
+                            }
+                            None => assert!(false, "An error response was found"),
+                        }
+                    }
+                    None => assert!(false, "An error response was found"),
+                }
+            }
         }
     }
 
@@ -113,25 +125,31 @@ mod tests {
         let result = event_response_as_update_response(update_payload, event_response);
         assert!(result.is_ok());
 
-        let update_response = result.unwrap();
-        assert!(update_response.event.is_some());
-
-        let event = update_response.event.unwrap();
-        assert!(event.body.is_some());
-
-        let body = event.body.unwrap();
-        match body {
-            friendship_event_response::Body::Request(request_response) => {
-                assert_eq!(
-                    request_response.user.unwrap().address,
-                    "Pizarnik".to_string()
-                );
-                assert_eq!(
-                    request_response.message.unwrap(),
-                    "Let's be friends!".to_string()
-                );
+        let update_response = result.unwrap().response.unwrap();
+        match update_response {
+            social_service::friendships::update_friendship_response::Response::Error(_) => {
+                assert!(false, "An error response was found");
             }
-            _ => panic!("Expected Request body"),
+            social_service::friendships::update_friendship_response::Response::Event(
+                update_response,
+            ) => {
+                assert!(update_response.body.is_some());
+
+                let body = update_response.body.unwrap();
+                match body {
+                    friendship_event_response::Body::Request(request_response) => {
+                        assert_eq!(
+                            request_response.user.unwrap().address,
+                            "Pizarnik".to_string()
+                        );
+                        assert_eq!(
+                            request_response.message.unwrap(),
+                            "Let's be friends!".to_string()
+                        );
+                    }
+                    _ => panic!("Expected Request body"),
+                }
+            }
         }
     }
 

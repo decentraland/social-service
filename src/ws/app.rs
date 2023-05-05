@@ -38,16 +38,18 @@ use crate::{
         synapse::SynapseComponent,
         users_cache::UsersCacheComponent,
     },
+    friendships::{
+        subscribe_friendship_events_updates_response, FriendshipEventResponses,
+        FriendshipsServiceRegistration, SubscribeFriendshipEventsUpdatesResponse,
+    },
     models::address::Address,
+    notifications::Event,
 };
 
 use lazy_static::lazy_static;
 use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
 
 use super::service::friendships_service;
-use crate::friendships::FriendshipsServiceRegistration;
-use crate::friendships::SubscribeFriendshipEventsUpdatesResponse;
-use crate::notifications::Event;
 
 pub struct ConfigRpcServer {
     pub rpc_server: Server,
@@ -258,7 +260,13 @@ fn event_as_friendship_update_response(
     event_update
         .friendship_event
         .map(|update| SubscribeFriendshipEventsUpdatesResponse {
-            events: [update].to_vec(),
+            response: Some(
+                subscribe_friendship_events_updates_response::Response::Events(
+                    FriendshipEventResponses {
+                        responses: [update].to_vec(),
+                    },
+                ),
+            ),
         })
 }
 
