@@ -36,7 +36,7 @@ mod tests {
 
         match result {
             social_service::friendships::request_events_response::Response::Error(_) => {
-                assert!(false, "An error response was found");
+                unreachable!("An error response was found");
             }
             social_service::friendships::request_events_response::Response::Events(result) => {
                 assert_eq!(result.outgoing.unwrap().total, 1);
@@ -51,10 +51,10 @@ mod tests {
                                 assert!(req.created_at > 0);
                                 assert_eq!(req.message.as_ref().unwrap(), "Hey, let's be friends!");
                             }
-                            None => assert!(false, "An error response was found"),
+                            None => unreachable!("An error response was found"),
                         }
                     }
-                    None => assert!(false, "An error response was found"),
+                    None => unreachable!("An error response was found"),
                 }
             }
         }
@@ -128,7 +128,7 @@ mod tests {
         let update_response = result.unwrap().response.unwrap();
         match update_response {
             social_service::friendships::update_friendship_response::Response::Error(_) => {
-                assert!(false, "An error response was found");
+                unreachable!("An error response was found");
             }
             social_service::friendships::update_friendship_response::Response::Event(
                 update_response,
