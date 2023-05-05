@@ -126,8 +126,8 @@ pub async fn run_ws_transport(
         let generators_clone = generators_clone.clone();
         tokio::spawn(async move {
             remove_transport_id_from_context(
-                transport_contexts_clone,
                 transport_id,
+                transport_contexts_clone,
                 generators_clone,
             )
             .await;
@@ -169,22 +169,19 @@ pub async fn run_ws_transport(
 }
 
 async fn remove_transport_id_from_context(
-    transport_contexts_clone: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
     transport_id: u32,
-    generators_clone: Arc<
+    transport_contexts: Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
+    generators: Arc<
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
 ) {
-    let transport_contexts_read_lock = transport_contexts_clone.read().await;
+    let transport_contexts_read_lock = transport_contexts.read().await;
     if let Some(transport_ctx) = transport_contexts_read_lock.get(&transport_id) {
         // First remove the generators of the corresponding address
-        generators_clone
-            .write()
-            .await
-            .remove(&transport_ctx.address);
+        generators.write().await.remove(&transport_ctx.address);
     };
     drop(transport_contexts_read_lock);
-    let mut transport_contexts_write_lock = transport_contexts_clone.write().await;
+    let mut transport_contexts_write_lock = transport_contexts.write().await;
     transport_contexts_write_lock.remove(&transport_id);
 }
 
