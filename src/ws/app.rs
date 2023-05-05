@@ -20,8 +20,9 @@ use futures_util::{
 use tokio::sync::{Mutex, RwLock};
 
 use warp::{
+    http::header::HeaderValue,
     ws::{Message as WarpWSMessage, WebSocket},
-    Filter,
+    Filter, Rejection, Reply,
 };
 
 use crate::{
@@ -40,6 +41,9 @@ use crate::{
     models::address::Address,
 };
 
+use lazy_static::lazy_static;
+use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
+
 use super::service::friendships_service;
 use crate::friendships::FriendshipsServiceRegistration;
 use crate::friendships::SubscribeFriendshipEventsUpdatesResponse;
@@ -47,6 +51,7 @@ use crate::notifications::Event;
 
 pub struct ConfigRpcServer {
     pub rpc_server: Server,
+    pub wkc_metrics_bearer_token: String,
 }
 
 pub struct SocialTransportContext {
@@ -92,7 +97,7 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
             }
         }
         Err(err) => {
-            panic!("There was an error initializing Redis for Pub/Sub: {}", err);
+            panic!("There was an error initializing Redis for Pub/Sub: {err}");
         }
     }
 }
@@ -106,6 +111,7 @@ pub async fn run_ws_transport(
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
+    let wkc_metrics_bearer_token = ctx.config.wkc_metrics_bearer_token.clone();
     let generators_clone = ctx.friendships_events_generators.clone();
     let transport_contexts = ctx.transport_context.clone();
 
@@ -158,7 +164,33 @@ pub async fn run_ws_transport(
         .and(warp::path("live"))
         .and(warp::path::end())
         .map(|| "\"alive\"".to_string());
-    let routes = warp::get().and(rpc_route.or(rest_routes));
+
+    // Register metrics
+    register_metrics();
+
+    // Metrics route
+    let metrics_route = warp::path!("metrics")
+        .and(warp::path::end())
+        .and(warp::header::value("authorization"))
+        .and_then(move |header_value: HeaderValue| {
+            let expected_token = wkc_metrics_bearer_token.clone();
+            async move {
+                header_value
+                    .to_str()
+                    .map_err(|_| warp::reject::reject())
+                    .and_then(|header_value_str| {
+                        if header_value_str == &*expected_token {
+                            Ok(())
+                        } else {
+                            Err(warp::reject::reject())
+                        }
+                    })
+            }
+        })
+        .untuple_one()
+        .and_then(metrics_handler);
+
+    let routes = warp::get().and(rpc_route.or(rest_routes).or(metrics_route));
 
     let http_server_handle = tokio::spawn(async move {
         log::info!("Running RPC WebSocket Server at 0.0.0.:{}", port);
@@ -228,6 +260,62 @@ fn event_as_friendship_update_response(
         .map(|update| SubscribeFriendshipEventsUpdatesResponse {
             events: [update].to_vec(),
         })
+}
+
+lazy_static! {
+    pub static ref ERROR_RESPONSE_CODE_COLLECTOR: IntCounterVec = {
+        let opts = Opts::new(
+            "dcl_social_service_rpc_error_response_code",
+            "Social Service RPC Websocket Error Response Codes",
+        );
+
+        IntCounterVec::new(opts, &["status_code"])
+            .expect("dcl_social_service_rpc_error_response_code metric can be created")
+    };
+    pub static ref REGISTRY: Registry = Registry::new();
+}
+
+pub fn record_error_response_code(status_code: u32) {
+    ERROR_RESPONSE_CODE_COLLECTOR
+        .with_label_values(&[&status_code.to_string()])
+        .inc();
+}
+
+fn register_metrics() {
+    log::info!("Registering ERROR_RESPONSE_CODE_COLLECTOR");
+    let collector = ERROR_RESPONSE_CODE_COLLECTOR.clone();
+
+    REGISTRY
+        .register(Box::new(collector))
+        .expect("Collector can be registered");
+
+    log::info!("Registered ERROR_RESPONSE_CODE_COLLECTOR");
+}
+
+async fn metrics_handler() -> Result<impl Reply, Rejection> {
+    let encoder = prometheus::TextEncoder::new();
+
+    let mut buffer = Vec::new();
+    if let Err(err) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
+        log::debug!(
+            "metrics_handler > Could not encode metrics for RPC WebSocket Server: {}",
+            err
+        );
+    };
+
+    let res = match String::from_utf8(buffer.clone()) {
+        Ok(v) => v,
+        Err(err) => {
+            log::debug!(
+                "metrics_handler > Metrics could not be from_utf8'd: {}",
+                err
+            );
+            String::default()
+        }
+    };
+    buffer.clear();
+
+    Ok(res)
 }
 
 type ReadStream = SplitStream<WebSocket>;

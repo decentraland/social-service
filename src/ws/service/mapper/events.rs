@@ -226,7 +226,7 @@ pub fn event_response_as_update_response(
 
 pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipsServiceError {
     match err {
-        CommonError::Forbidden(_) => FriendshipsServiceError::Forbidden("".to_owned()),
+        CommonError::Forbidden(error_message) => FriendshipsServiceError::Forbidden(error_message),
         CommonError::Unauthorized => FriendshipsServiceError::Unauthorized("".to_owned()),
         CommonError::TooManyRequests => FriendshipsServiceError::TooManyRequests("".to_owned()),
         _ => FriendshipsServiceError::InternalServerError,
@@ -242,10 +242,10 @@ mod tests {
 
     #[test]
     fn test_map_common_error_to_friendships_error() {
-        let err = CommonError::Forbidden("".to_owned());
+        let err = CommonError::Forbidden("Forbidden".to_owned());
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::Forbidden("".to_owned())
+            FriendshipsServiceError::Forbidden("Forbidden".to_owned())
         );
 
         let err = CommonError::Unauthorized;

@@ -6,8 +6,8 @@ use tracing_actix_web::TracingLogger;
 
 use crate::components::app::AppComponents;
 use crate::components::configuration::Config;
+use crate::components::metrics::initialize_metrics;
 use crate::components::tracing::init_telemetry;
-use crate::metrics::initialize_metrics;
 
 use super::middlewares::check_auth::CheckAuthToken;
 use super::middlewares::metrics_token::CheckMetricsToken;

@@ -1,6 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use dcl_rpc::{service_module_definition::ProcedureContext, stream_protocol::Generator};
+use dcl_rpc::{
+    rpc_protocol::RemoteErrorResponse,
+    {service_module_definition::ProcedureContext, stream_protocol::Generator},
+};
 use futures_util::StreamExt;
 
 use crate::{
@@ -12,7 +15,7 @@ use crate::{
         UpdateFriendshipResponse, User, Users,
     },
     models::address::Address,
-    ws::app::{SocialContext, SocialTransportContext},
+    ws::app::{record_error_response_code, SocialContext, SocialTransportContext},
 };
 
 use super::{
@@ -42,7 +45,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.server_context.synapse.clone(),
             context.server_context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code());
+            err
+        })?;
 
         let social_id = user_id.social_id.clone();
         log::info!("Getting all friends for user: {}", social_id);
@@ -57,12 +64,18 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                     Ok(it) => it,
                     Err(err) => {
                         log::error!("Get friends > Get user friends stream > Error: {err}.");
+                        record_error_response_code(
+                            FriendshipsServiceError::InternalServerError.error_code(),
+                        );
                         return Err(FriendshipsServiceError::InternalServerError);
                     }
                 }
             }
             None => {
                 log::error!("Get friends > Db repositories > `repos` is None.");
+                record_error_response_code(
+                    FriendshipsServiceError::InternalServerError.error_code(),
+                );
                 return Err(FriendshipsServiceError::InternalServerError);
             }
         };
@@ -119,7 +132,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.server_context.synapse.clone(),
             context.server_context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code());
+            err
+        })?;
 
         let social_id = user_id.social_id.clone();
         log::info!("Getting requests events for user: {}", social_id);
@@ -142,12 +159,18 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         log::error!(
                             "Get request events > Get user pending request events > Error: {err}."
                         );
+                        record_error_response_code(
+                            FriendshipsServiceError::InternalServerError.error_code(),
+                        );
                         Err(FriendshipsServiceError::InternalServerError)
                     }
                 }
             }
             None => {
                 log::error!("Get request events > Db repositories > `repos` is None.");
+                record_error_response_code(
+                    FriendshipsServiceError::InternalServerError.error_code(),
+                );
                 return Err(FriendshipsServiceError::InternalServerError);
             }
         }
@@ -168,7 +191,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.server_context.synapse.clone(),
             context.server_context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code());
+            err
+        })?;
 
         // Handle friendship event update
         let friendship_update_response = handle_friendship_update(
@@ -176,11 +203,19 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.server_context.clone(),
             user_id.clone().social_id,
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code());
+            err
+        })?;
 
         // Convert event response to update response
         let update_response =
-            event_response_as_update_response(request.clone(), friendship_update_response)?;
+            event_response_as_update_response(request.clone(), friendship_update_response)
+                .map_err(|err| {
+                    record_error_response_code(err.error_code());
+                    err
+                })?;
 
         // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
         let created_at = SystemTime::now()
@@ -222,7 +257,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             context.server_context.synapse.clone(),
             context.server_context.users_cache.clone(),
         )
-        .await?;
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code());
+            err
+        })?;
 
         let (friendship_updates_generator, friendship_updates_yielder) = Generator::create();
 

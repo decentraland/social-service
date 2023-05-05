@@ -1,7 +1,6 @@
 pub mod api;
 pub mod components;
 pub mod entities;
-mod metrics;
 pub mod models;
 pub mod ws;
 pub mod friendships {
