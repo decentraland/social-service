@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use futures_util::{Stream, StreamExt};
-use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
+use sqlx::{types::Uuid, Error, FromRow, Postgres, Row, Transaction};
 use std::{fmt, pin::Pin, sync::Arc};
 
 use super::queries::MUTUALS_FRIENDS_QUERY;
@@ -12,7 +12,7 @@ use crate::{
 
 use super::utils::get_transaction_result_from_executor;
 
-#[derive(Default)]
+#[derive(Default, FromRow)]
 pub struct Friendship {
     pub id: Uuid,
     pub address_1: String,
@@ -175,13 +175,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
 
         match result {
             Ok(row) => {
-                let friendship = Friendship {
-                    id: row.try_get("id").unwrap(),
-                    address_1: row.try_get("address_1").unwrap(),
-                    address_2: row.try_get("address_2").unwrap(),
-                    is_active: row.try_get("is_active").unwrap(),
-                    synapse_room_id: row.try_get("synapse_room_id").unwrap(),
-                };
+                let friendship = Friendship::from_row(&row).expect("to be a friendship");
                 (Ok(Some(friendship)), transaction_to_return)
             }
             Err(err) => match err {
@@ -227,13 +221,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 let response = Ok(rows
                     .iter()
                     .map(|row| -> Friendship {
-                        Friendship {
-                            id: row.try_get("id").unwrap(),
-                            address_1: row.try_get("address_1").unwrap(),
-                            address_2: row.try_get("address_2").unwrap(),
-                            is_active: row.try_get("is_active").unwrap(),
-                            synapse_room_id: row.try_get("synapse_room_id").unwrap(),
-                        }
+                        Friendship::from_row(row).expect("to be a friendship")
                     })
                     .collect::<Vec<Friendship>>());
                 (response, transaction_to_return)
@@ -270,13 +258,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let friends_stream = response.filter_map(|row| async move {
             match row {
                 Ok(row) => {
-                    let friendship = Friendship {
-                        id: row.try_get("id").unwrap(),
-                        address_1: row.try_get("address_1").unwrap(),
-                        address_2: row.try_get("address_2").unwrap(),
-                        is_active: row.try_get("is_active").unwrap(),
-                        synapse_room_id: row.try_get("synapse_room_id").unwrap(),
-                    };
+                    let friendship = Friendship::from_row(&row).expect("to be a friendship");
                     Some(friendship)
                 }
                 Err(err) => {
