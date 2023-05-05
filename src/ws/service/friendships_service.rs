@@ -42,94 +42,112 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<UsersResponse>, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
-        let user_id = get_user_id_from_request(
+        let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
             context.server_context.users_cache.clone(),
         )
-        .await
-        .map_err(|err| {
-            record_error_response_code(err.error_code());
-            err
-        })?;
+        .await;
 
-        let social_id = user_id.social_id.clone();
-        log::info!("Getting all friends for user: {}", social_id);
-        // Look for users friends
-        let mut friendship = match context.server_context.db.db_repos.clone() {
-            Some(repos) => {
-                let friendship = repos
-                    .friendships
-                    .get_user_friends_stream(&user_id.social_id, true)
-                    .await;
-                match friendship {
-                    Ok(it) => it,
-                    Err(err) => {
-                        log::error!("Get friends > Get user friends stream > Error: {err}.");
+        match request_user_id {
+            Err(err) => {
+                let error_code = err.error_code();
+                // Register failure in metrics
+                record_error_response_code(error_code);
+
+                let (generator, generator_yielder) = Generator::create();
+                tokio::spawn(async move {
+                    generator_yielder
+                        .r#yield(UsersResponse {
+                            response: Some(users_response::Response::Error(error_code as i32)),
+                        })
+                        .await
+                        .unwrap();
+                });
+                return Ok(generator);
+            }
+            Ok(user_id) => {
+                let social_id = user_id.social_id.clone();
+                log::info!("Getting all friends for user: {}", social_id);
+                // Look for users friends
+                let mut friendship = match context.server_context.db.db_repos.clone() {
+                    Some(repos) => {
+                        let friendship = repos
+                            .friendships
+                            .get_user_friends_stream(&user_id.social_id, true)
+                            .await;
+                        match friendship {
+                            Ok(it) => it,
+                            Err(err) => {
+                                log::error!(
+                                    "Get friends > Get user friends stream > Error: {err}."
+                                );
+                                record_error_response_code(
+                                    FriendshipsServiceError::InternalServerError.error_code(),
+                                );
+                                return Err(FriendshipsServiceError::InternalServerError);
+                            }
+                        }
+                    }
+                    None => {
+                        log::error!("Get friends > Db repositories > `repos` is None.");
                         record_error_response_code(
                             FriendshipsServiceError::InternalServerError.error_code(),
                         );
                         return Err(FriendshipsServiceError::InternalServerError);
                     }
-                }
-            }
-            None => {
-                log::error!("Get friends > Db repositories > `repos` is None.");
-                record_error_response_code(
-                    FriendshipsServiceError::InternalServerError.error_code(),
-                );
-                return Err(FriendshipsServiceError::InternalServerError);
-            }
-        };
+                };
 
-        let (generator, generator_yielder) = Generator::create();
+                let (generator, generator_yielder) = Generator::create();
 
-        tokio::spawn(async move {
-            let mut users = Users::default();
-            // Map Frienships to Users
-            loop {
-                let friendship = friendship.next().await;
-                match friendship {
-                    Some(friendship) => {
-                        let user: User = {
-                            let address1: String = friendship.address_1;
-                            let address2: String = friendship.address_2;
-                            match address1.eq_ignore_ascii_case(&user_id.social_id) {
-                                true => User { address: address2 },
-                                false => User { address: address1 },
+                tokio::spawn(async move {
+                    let mut users = Users::default();
+                    // Map Frienships to Users
+                    loop {
+                        let friendship = friendship.next().await;
+                        match friendship {
+                            Some(friendship) => {
+                                let user: User = {
+                                    let address1: String = friendship.address_1;
+                                    let address2: String = friendship.address_2;
+                                    match address1.eq_ignore_ascii_case(&user_id.social_id) {
+                                        true => User { address: address2 },
+                                        false => User { address: address1 },
+                                    }
+                                };
+
+                                let users_len = users.users.len();
+
+                                users.users.push(user);
+
+                                // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
+                                if users_len == 5 {
+                                    generator_yielder
+                                        .r#yield(UsersResponse {
+                                            response: Some(users_response::Response::Users(users)),
+                                        })
+                                        .await
+                                        .unwrap();
+                                    users = Users::default();
+                                }
                             }
-                        };
-
-                        let users_len = users.users.len();
-
-                        users.users.push(user);
-
-                        // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
-                        if users_len == 5 {
-                            generator_yielder
-                                .r#yield(UsersResponse {
-                                    response: Some(users_response::Response::Users(users)),
-                                })
-                                .await
-                                .unwrap();
-                            users = Users::default();
+                            None => {
+                                generator_yielder
+                                    .r#yield(UsersResponse {
+                                        response: Some(users_response::Response::Users(users)),
+                                    })
+                                    .await
+                                    .unwrap();
+                                break;
+                            }
                         }
                     }
-                    None => {
-                        generator_yielder
-                            .r#yield(UsersResponse {
-                                response: Some(users_response::Response::Users(users)),
-                            })
-                            .await
-                            .unwrap();
-                        break;
-                    }
-                }
-            }
-        });
+                });
 
-        log::info!("Returning generator for all friends for user {}", social_id);
-        Ok(generator)
+                log::info!("Returning generator for all friends for user {}", social_id);
+                return Ok(generator);
+            }
+        }
     }
 
     #[tracing::instrument(name = "RPC SERVER > Get Request Events", skip(request, context))]
