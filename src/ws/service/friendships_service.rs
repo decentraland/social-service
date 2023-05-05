@@ -1,9 +1,9 @@
-use std::{
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use dcl_rpc::{rpc_protocol::RemoteErrorResponse, stream_protocol::Generator};
+use dcl_rpc::{
+    rpc_protocol::RemoteErrorResponse,
+    {service_module_definition::ProcedureContext, stream_protocol::Generator},
+};
 use futures_util::StreamExt;
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
         UpdateFriendshipResponse, User, Users,
     },
     models::address::Address,
-    ws::app::{record_error_response_code, SocialContext},
+    ws::app::{record_error_response_code, SocialContext, SocialTransportContext},
 };
 
 use super::{
@@ -37,13 +37,13 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
     async fn get_friends(
         &self,
         request: Payload,
-        context: Arc<SocialContext>,
+        context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<Users>, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let user_id = get_user_id_from_request(
             &request,
-            context.synapse.clone(),
-            context.users_cache.clone(),
+            context.server_context.synapse.clone(),
+            context.server_context.users_cache.clone(),
         )
         .await
         .map_err(|err| {
@@ -54,7 +54,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         let social_id = user_id.social_id.clone();
         log::info!("Getting all friends for user: {}", social_id);
         // Look for users friends
-        let mut friendship = match context.db.db_repos.clone() {
+        let mut friendship = match context.server_context.db.db_repos.clone() {
             Some(repos) => {
                 let friendship = repos
                     .friendships
@@ -124,13 +124,13 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
     async fn get_request_events(
         &self,
         request: Payload,
-        context: Arc<SocialContext>,
+        context: ProcedureContext<SocialContext>,
     ) -> Result<RequestEvents, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let user_id = get_user_id_from_request(
             &request,
-            context.synapse.clone(),
-            context.users_cache.clone(),
+            context.server_context.synapse.clone(),
+            context.server_context.users_cache.clone(),
         )
         .await
         .map_err(|err| {
@@ -141,7 +141,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         let social_id = user_id.social_id.clone();
         log::info!("Getting requests events for user: {}", social_id);
         // Look for users requests
-        match context.db.db_repos.clone() {
+        match context.server_context.db.db_repos.clone() {
             Some(repos) => {
                 let requests = repos
                     .friendship_history
@@ -180,7 +180,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
     async fn update_friendship_event(
         &self,
         request: UpdateFriendshipPayload,
-        context: Arc<SocialContext>,
+        context: ProcedureContext<SocialContext>,
     ) -> Result<UpdateFriendshipResponse, FriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let auth_token = request.clone().auth_token.take().ok_or_else(|| {
@@ -188,8 +188,8 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         })?;
         let user_id = get_user_id_from_request(
             &auth_token,
-            context.synapse.clone(),
-            context.users_cache.clone(),
+            context.server_context.synapse.clone(),
+            context.server_context.users_cache.clone(),
         )
         .await
         .map_err(|err| {
@@ -198,13 +198,16 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         })?;
 
         // Handle friendship event update
-        let friendship_update_response =
-            handle_friendship_update(request.clone(), context.clone(), user_id.clone().social_id)
-                .await
-                .map_err(|err| {
-                    record_error_response_code(err.error_code());
-                    err
-                })?;
+        let friendship_update_response = handle_friendship_update(
+            request.clone(),
+            context.server_context.clone(),
+            user_id.clone().social_id,
+        )
+        .await
+        .map_err(|err| {
+            record_error_response_code(err.error_code());
+            err
+        })?;
 
         // Convert event response to update response
         let update_response =
@@ -220,7 +223,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
             .unwrap()
             .as_secs() as i64;
 
-        let publisher = context.redis_publisher.clone();
+        let publisher = context.server_context.redis_publisher.clone();
         if let Some(event) = request.clone().event {
             tokio::spawn(async move {
                 if let Some(update_friendship_payload_as_event) = update_friendship_payload_as_event(
@@ -243,7 +246,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
     async fn subscribe_friendship_events_updates(
         &self,
         request: Payload,
-        context: Arc<SocialContext>,
+        context: ProcedureContext<SocialContext>,
     ) -> Result<
         ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
         FriendshipsServiceError,
@@ -251,8 +254,8 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         // Get user id with the given Authentication Token.
         let user_id = get_user_id_from_request(
             &request,
-            context.synapse.clone(),
-            context.users_cache.clone(),
+            context.server_context.synapse.clone(),
+            context.server_context.users_cache.clone(),
         )
         .await
         .map_err(|err| {
@@ -262,13 +265,30 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
         let (friendship_updates_generator, friendship_updates_yielder) = Generator::create();
 
-        // Attach generator to the context by user_id
-        context.friendships_events_generators.write().await.insert(
-            Address(user_id.social_id),
-            friendship_updates_yielder.clone(),
-        );
+        // Attach transport_id to the context by transport
+        context
+            .server_context
+            .transport_context
+            .write()
+            .await
+            .insert(
+                context.transport_id,
+                SocialTransportContext {
+                    address: Address(user_id.social_id.to_string()),
+                },
+            );
 
-        // TODO: Remove generator from map when user has disconnected
+        // Attach generator to the context by user_id
+        context
+            .server_context
+            .friendships_events_generators
+            .write()
+            .await
+            .insert(
+                Address(user_id.social_id),
+                friendship_updates_yielder.clone(),
+            );
+
         Ok(friendship_updates_generator)
     }
 }
