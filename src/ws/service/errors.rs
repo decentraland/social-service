@@ -18,6 +18,7 @@ pub fn as_service_error(code: DomainErrorCode, message: String) -> FriendshipSer
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::{as_service_error, DomainErrorCode};
 

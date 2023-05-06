@@ -67,16 +67,13 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         match request_user_id {
             Err(err) => {
                 // Register failure in metrics
-                record_error_response_code(DomainErrorCode::Unauthorized as u32);
+                record_error_response_code(err.code as u32);
 
                 let (generator, generator_yielder) = Generator::create();
                 tokio::spawn(async move {
                     generator_yielder
                         .r#yield(UsersResponse {
-                            response: Some(users_response::Response::Error(as_service_error(
-                                DomainErrorCode::Unauthorized,
-                                "Invalid access token".to_string(),
-                            ))),
+                            response: Some(users_response::Response::Error(err)),
                         })
                         .await
                         .unwrap();
@@ -213,13 +210,10 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         match request_user_id {
             Err(err) => {
                 // Register failure in metrics
-                record_error_response_code(DomainErrorCode::Unauthorized as u32);
+                record_error_response_code(err.code as u32);
 
                 return Ok(RequestEventsResponse {
-                    response: Some(request_events_response::Response::Error(as_service_error(
-                        DomainErrorCode::Unauthorized,
-                        "Invalid access token".to_string(),
-                    ))),
+                    response: Some(request_events_response::Response::Error(err)),
                 });
             }
             Ok(user_id) => {
@@ -311,15 +305,10 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 match request_user_id {
                     Err(err) => {
                         // Register failure in metrics
-                        record_error_response_code(DomainErrorCode::Unauthorized as u32);
+                        record_error_response_code(err.code as u32);
 
                         return Ok(UpdateFriendshipResponse {
-                            response: Some(update_friendship_response::Response::Error(
-                                as_service_error(
-                                    DomainErrorCode::Unauthorized,
-                                    "Invalid access token".to_string(),
-                                ),
-                            )),
+                            response: Some(update_friendship_response::Response::Error(err)),
                         });
                     }
                     Ok(user_id) => {
@@ -419,19 +408,14 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         match request_user_id {
             Err(err) => {
                 // Register failure in metrics
-                record_error_response_code(DomainErrorCode::Unauthorized as u32);
+                record_error_response_code(err.code as u32);
 
                 let (generator, generator_yielder) = Generator::create();
                 tokio::spawn(async move {
                     generator_yielder
                         .r#yield(SubscribeFriendshipEventsUpdatesResponse {
                             response: Some(
-                                subscribe_friendship_events_updates_response::Response::Error(
-                                    as_service_error(
-                                        DomainErrorCode::Unauthorized,
-                                        "Invalid access token".to_string(),
-                                    ),
-                                ),
+                                subscribe_friendship_events_updates_response::Response::Error(err),
                             ),
                         })
                         .await
