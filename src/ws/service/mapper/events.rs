@@ -6,12 +6,13 @@ use crate::{
     friendships::{
         friendship_event_payload, friendship_event_response, request_events_response,
         update_friendship_response, AcceptResponse, CancelResponse, DeleteResponse,
-        FriendshipEventResponse, RejectResponse, RequestEvents, RequestEventsResponse,
-        RequestResponse, Requests, UpdateFriendshipPayload, UpdateFriendshipResponse, User,
+        FriendshipEventResponse, FriendshipServiceError, RejectResponse, RequestEvents,
+        RequestEventsResponse, RequestResponse, Requests, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User,
     },
     models::friendship_event::FriendshipEvent,
     ws::service::{
-        errors::FriendshipsServiceError,
+        errors::{as_service_error, DomainErrorCode},
         types::{EventPayload, EventResponse},
     },
 };
@@ -79,7 +80,7 @@ pub fn friendship_requests_as_request_events_response(
 /// that is, the room event, the other user who is part of the friendship event, and the message body from the request event.
 pub fn update_request_as_event_payload(
     request: UpdateFriendshipPayload,
-) -> Result<EventPayload, FriendshipsServiceError> {
+) -> Result<EventPayload, FriendshipServiceError> {
     let event_payload = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(request)) => EventPayload {
@@ -87,7 +88,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: request.message,
                 second_user: request
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
+                    .ok_or(as_service_error(
+                        DomainErrorCode::BadRequest,
                         "`user address` is missing".to_string(),
                     ))?
                     .address,
@@ -97,7 +99,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: accept
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
+                    .ok_or(as_service_error(
+                        DomainErrorCode::BadRequest,
                         "`user address` is missing".to_string(),
                     ))?
                     .address,
@@ -107,7 +110,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: reject
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
+                    .ok_or(as_service_error(
+                        DomainErrorCode::BadRequest,
                         "`user address` is missing".to_string(),
                     ))?
                     .address,
@@ -117,7 +121,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: cancel
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
+                    .ok_or(as_service_error(
+                        DomainErrorCode::BadRequest,
                         "`user address` is missing".to_string(),
                     ))?
                     .address,
@@ -127,19 +132,22 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: delete
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
+                    .ok_or(as_service_error(
+                        DomainErrorCode::BadRequest,
                         "`user address` is missing".to_string(),
                     ))?
                     .address,
             },
             None => {
-                return Err(FriendshipsServiceError::BadRequest(
+                return Err(as_service_error(
+                    DomainErrorCode::BadRequest,
                     "`friendship_event_payload::body` is missing".to_string(),
                 ))
             }
         }
     } else {
-        return Err(FriendshipsServiceError::BadRequest(
+        return Err(as_service_error(
+            DomainErrorCode::BadRequest,
             "`event` is missing".to_string(),
         ));
     };
@@ -150,7 +158,7 @@ pub fn update_request_as_event_payload(
 pub fn event_response_as_update_response(
     request: UpdateFriendshipPayload,
     result: EventResponse,
-) -> Result<UpdateFriendshipResponse, FriendshipsServiceError> {
+) -> Result<UpdateFriendshipResponse, FriendshipServiceError> {
     let update_response = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(payload)) => {
@@ -228,21 +236,35 @@ pub fn event_response_as_update_response(
                     response: Some(update_friendship_response::Response::Event(event)),
                 }
             }
-            None => return Err(FriendshipsServiceError::InternalServerError),
+            None => {
+                return Err(as_service_error(
+                    DomainErrorCode::InternalServerError,
+                    "Unexpected error".to_string(),
+                ))
+            }
         }
     } else {
-        return Err(FriendshipsServiceError::InternalServerError);
+        return Err(as_service_error(
+            DomainErrorCode::InternalServerError,
+            "Unexpected error".to_string(),
+        ));
     };
 
     Ok(update_response)
 }
 
-pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipsServiceError {
+pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipServiceError {
     match err {
-        CommonError::Forbidden(error_message) => FriendshipsServiceError::Forbidden(error_message),
-        CommonError::Unauthorized => FriendshipsServiceError::Unauthorized("".to_owned()),
-        CommonError::TooManyRequests => FriendshipsServiceError::TooManyRequests("".to_owned()),
-        _ => FriendshipsServiceError::InternalServerError,
+        CommonError::Forbidden(error_message) => {
+            as_service_error(DomainErrorCode::Forbidden, error_message)
+        }
+        CommonError::Unauthorized => {
+            as_service_error(DomainErrorCode::Unauthorized, "".to_string())
+        }
+        CommonError::TooManyRequests => {
+            as_service_error(DomainErrorCode::TooManyRequests, "".to_string())
+        }
+        _ => as_service_error(DomainErrorCode::InternalServerError, "".to_string()),
     }
 }
 
@@ -250,7 +272,8 @@ pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipsSer
 mod tests {
     use super::map_common_error_to_friendships_error;
     use crate::{
-        api::routes::v1::error::CommonError, ws::service::errors::FriendshipsServiceError,
+        api::routes::v1::error::CommonError,
+        ws::service::errors::{as_service_error, DomainErrorCode},
     };
 
     #[test]
@@ -258,25 +281,25 @@ mod tests {
         let err = CommonError::Forbidden("Forbidden".to_owned());
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::Forbidden("Forbidden".to_owned())
+            as_service_error(DomainErrorCode::Forbidden, "Forbidden".to_owned())
         );
 
         let err = CommonError::Unauthorized;
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::Unauthorized("".to_owned())
+            as_service_error(DomainErrorCode::Unauthorized, "".to_owned())
         );
 
         let err = CommonError::TooManyRequests;
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::TooManyRequests("".to_owned())
+            as_service_error(DomainErrorCode::TooManyRequests, "".to_owned())
         );
 
         let err = CommonError::Unknown;
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::InternalServerError
+            as_service_error(DomainErrorCode::InternalServerError, "".to_owned())
         );
     }
 }

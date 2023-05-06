@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use crate::{
     components::database::DatabaseComponentImplementation,
-    friendships::UpdateFriendshipPayload,
+    friendships::{FriendshipServiceError, UpdateFriendshipPayload},
     ws::{
         app::SocialContext,
         service::{
             database_handler::{get_friendship, get_last_history, update_friendship_status},
-            errors::FriendshipsServiceError,
+            errors::{as_service_error, DomainErrorCode},
             types::{EventResponse, FriendshipPortsWs, RoomInfoWs},
         },
     },
@@ -28,7 +28,7 @@ pub async fn handle_friendship_update(
     request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,
     acting_user: String,
-) -> Result<EventResponse, FriendshipsServiceError> {
+) -> Result<EventResponse, FriendshipServiceError> {
     let event_payload = update_request_as_event_payload(request.clone())?;
     let new_event = event_payload.friendship_event;
     let second_user = event_payload.second_user;
@@ -38,18 +38,24 @@ pub async fn handle_friendship_update(
         .as_ref()
         .ok_or_else(|| {
             log::error!("Handle friendship update > `auth_token` is missing.");
-            FriendshipsServiceError::Unauthorized("`auth_token` is missing".to_owned())
+            as_service_error(
+                DomainErrorCode::Unauthorized,
+                "`auth_token` is missing".to_owned(),
+            )
         })?
         .synapse_token
         .as_ref()
         .ok_or_else(|| {
             log::error!("Handle friendship update > `synapse_token` is missing.");
-            FriendshipsServiceError::Unauthorized("`synapse_token` is missing".to_owned())
+            as_service_error(
+                DomainErrorCode::Unauthorized,
+                "`synapse_token` is missing".to_owned(),
+            )
         })?;
 
     let db_repos = context.db.clone().db_repos.ok_or_else(|| {
         log::error!("Handle friendship update > Db repositories > `repos` is None.");
-        FriendshipsServiceError::InternalServerError
+        as_service_error(DomainErrorCode::InternalServerError, "".to_owned())
     })?;
 
     // Get the friendship info
@@ -96,7 +102,10 @@ pub async fn handle_friendship_update(
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Handle friendship update > Couldn't start transaction to store friendship update {error}");
-            return Err(FriendshipsServiceError::InternalServerError);
+            return Err(as_service_error(
+                DomainErrorCode::InternalServerError,
+                "".to_owned(),
+            ));
         }
     };
 
@@ -150,7 +159,10 @@ pub async fn handle_friendship_update(
                 }),
                 Err(err) => {
                     log::error!("Handle friendship update > Couldn't end transaction to store friendship update {err}");
-                    Err(FriendshipsServiceError::InternalServerError)
+                    Err(as_service_error(
+                        DomainErrorCode::InternalServerError,
+                        "".to_owned(),
+                    ))
                 }
             }
         }
