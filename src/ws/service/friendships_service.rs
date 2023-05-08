@@ -59,7 +59,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
-        // Get user id with the given Authentication Token.
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
@@ -170,7 +169,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<RequestEventsResponse, RPCFriendshipsServiceError> {
-        // Get user id with the given Authentication Token.
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
@@ -180,7 +178,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                // Register failure in metrics
                 record_error_response_code(err.code as u32);
 
                 return Ok(RequestEventsResponse {
@@ -190,39 +187,28 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Ok(user_id) => {
                 let social_id = user_id.social_id.clone();
                 log::info!("Getting requests events for user: {}", social_id);
-                // Look for users requests
-                match context.server_context.db.db_repos.clone() {
-                    Some(repos) => {
-                        let requests = repos
-                            .friendship_history
-                            .get_user_pending_request_events(&user_id.social_id)
-                            .await;
-                        match requests {
-                            Ok(requests) => {
-                                log::info!("Returning requests events for user {}", social_id);
-                                Ok(friendship_requests_as_request_events_response(
-                                    requests,
-                                    user_id.social_id,
-                                ))
-                            }
-                            Err(err) => {
-                                log::error!(
-                                    "Get request events > Get user pending request events > Error: {err}."
-                                );
-                                record_error_response_code(
-                                    DomainErrorCode::InternalServerError as u32,
-                                );
 
-                                Ok(RequestEventsResponse {
-                                    response: Some(request_events_response::Response::Error(
-                                        as_service_error(DomainErrorCode::InternalServerError, ""),
-                                    )),
-                                })
-                            }
-                        }
-                    }
-                    None => {
-                        log::error!("Get request events > Db repositories > `repos` is None.");
+                let Some(repos) = context.server_context.db.db_repos.clone() else {
+                    log::error!("Get request events > Db repositories > `repos` is None.");
+                    record_error_response_code(DomainErrorCode::InternalServerError as u32);
+
+                    return Ok(RequestEventsResponse {
+                        response: Some(request_events_response::Response::Error(
+                            as_service_error(DomainErrorCode::InternalServerError, ""),
+                        )),
+                    });
+                };
+
+                let requests = repos
+                    .friendship_history
+                    .get_user_pending_request_events(&user_id.social_id)
+                    .await;
+
+                match requests {
+                    Err(err) => {
+                        log::error!(
+                            "Get request events > Get user pending request events > Error: {err}."
+                        );
                         record_error_response_code(DomainErrorCode::InternalServerError as u32);
 
                         Ok(RequestEventsResponse {
@@ -230,6 +216,13 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                 as_service_error(DomainErrorCode::InternalServerError, ""),
                             )),
                         })
+                    }
+                    Ok(requests) => {
+                        log::info!("Returning requests events for user {}", social_id);
+                        Ok(friendship_requests_as_request_events_response(
+                            requests,
+                            user_id.social_id,
+                        ))
                     }
                 }
             }
@@ -242,52 +235,58 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: UpdateFriendshipPayload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
-        // Get user id with the given Authentication Token.
-        let auth_token = request.clone().auth_token.take();
-        match auth_token {
-            None => {
-                // Register failure in metrics
-                record_error_response_code(DomainErrorCode::Unauthorized as u32);
+        let Some(auth_token) = request.clone().auth_token.take() else {
+            record_error_response_code(DomainErrorCode::Unauthorized as u32);
+
+            return Ok(UpdateFriendshipResponse {
+                response: Some(update_friendship_response::Response::Error(
+                    as_service_error(
+                        DomainErrorCode::Unauthorized,
+                        "`auth_token` was not provided",
+                    ),
+                )),
+            });
+        };
+
+        let request_user_id = get_user_id_from_request(
+            &auth_token,
+            context.server_context.synapse.clone(),
+            context.server_context.users_cache.clone(),
+        )
+        .await;
+
+        match request_user_id {
+            Err(err) => {
+                record_error_response_code(err.code as u32);
 
                 return Ok(UpdateFriendshipResponse {
-                    response: Some(update_friendship_response::Response::Error(
-                        as_service_error(
-                            DomainErrorCode::Unauthorized,
-                            "`auth_token` was not provided",
-                        ),
-                    )),
+                    response: Some(update_friendship_response::Response::Error(err)),
                 });
             }
-            Some(auth_token) => {
-                // Get user id with the given Authentication Token.
-                let request_user_id = get_user_id_from_request(
-                    &auth_token,
-                    context.server_context.synapse.clone(),
-                    context.server_context.users_cache.clone(),
+            Ok(user_id) => {
+                let friendship_update_response = handle_friendship_update(
+                    request.clone(),
+                    context.server_context.clone(),
+                    user_id.clone().social_id,
                 )
                 .await;
 
-                match request_user_id {
+                match friendship_update_response {
                     Err(err) => {
-                        // Register failure in metrics
                         record_error_response_code(err.code as u32);
 
                         return Ok(UpdateFriendshipResponse {
                             response: Some(update_friendship_response::Response::Error(err)),
                         });
                     }
-                    Ok(user_id) => {
-                        // Handle friendship event update
-                        let friendship_update_response = handle_friendship_update(
+                    Ok(friendship_update_response) => {
+                        let update_response = event_response_as_update_response(
                             request.clone(),
-                            context.server_context.clone(),
-                            user_id.clone().social_id,
-                        )
-                        .await;
+                            friendship_update_response,
+                        );
 
-                        match friendship_update_response {
+                        match update_response {
                             Err(err) => {
-                                // Register failure in metrics
                                 record_error_response_code(err.code as u32);
 
                                 return Ok(UpdateFriendshipResponse {
@@ -296,52 +295,31 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                     )),
                                 });
                             }
-                            Ok(friendship_update_response) => {
-                                // Convert event response to update response
-                                let update_response = event_response_as_update_response(
-                                    request.clone(),
-                                    friendship_update_response,
-                                );
+                            Ok(update_response) => {
+                                // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
+                                let created_at = SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs()
+                                    as i64;
 
-                                match update_response {
-                                    Err(err) => {
-                                        // Register failure in metrics
-                                        record_error_response_code(err.code as u32);
-
-                                        return Ok(UpdateFriendshipResponse {
-                                            response: Some(
-                                                update_friendship_response::Response::Error(err),
-                                            ),
-                                        });
-                                    }
-                                    Ok(update_response) => {
-                                        // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
-                                        let created_at = SystemTime::now()
-                                            .duration_since(UNIX_EPOCH)
-                                            .unwrap()
-                                            .as_secs()
-                                            as i64;
-
-                                        let publisher =
-                                            context.server_context.redis_publisher.clone();
-                                        if let Some(event) = request.clone().event {
-                                            tokio::spawn(async move {
-                                                if let Some(update_friendship_payload_as_event) =
-                                                    update_friendship_payload_as_event(
-                                                        event,
-                                                        user_id.social_id.as_str(),
-                                                        created_at,
-                                                    )
-                                                {
-                                                    publisher
-                                                        .publish(update_friendship_payload_as_event)
-                                                        .await;
-                                                }
-                                            });
-                                        };
-                                        Ok(update_response)
-                                    }
-                                }
+                                let publisher = context.server_context.redis_publisher.clone();
+                                if let Some(event) = request.clone().event {
+                                    tokio::spawn(async move {
+                                        if let Some(update_friendship_payload_as_event) =
+                                            update_friendship_payload_as_event(
+                                                event,
+                                                user_id.social_id.as_str(),
+                                                created_at,
+                                            )
+                                        {
+                                            publisher
+                                                .publish(update_friendship_payload_as_event)
+                                                .await;
+                                        }
+                                    });
+                                };
+                                Ok(update_response)
                             }
                         }
                     }
@@ -362,7 +340,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
         RPCFriendshipsServiceError,
     > {
-        // Get user id with the given Authentication Token.
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
@@ -370,12 +347,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         )
         .await;
 
+        let (friendships_generator, friendships_yielder) = Generator::create();
+
         match request_user_id {
             Err(err) => {
-                // Register failure in metrics
                 record_error_response_code(err.code as u32);
 
-                let (friendships_generator, friendships_yielder) = Generator::create();
                 tokio::spawn(async move {
                     friendships_yielder
                         .r#yield(SubscribeFriendshipEventsUpdatesResponse {
@@ -386,12 +363,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         .await
                         .unwrap();
                 });
-                return Ok(friendships_generator);
             }
             Ok(user_id) => {
-                let (friendship_updates_generator, friendship_updates_yielder) =
-                    Generator::create();
-
                 // Attach transport_id to the context by transport
                 context
                     .server_context
@@ -411,14 +384,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     .friendships_events_generators
                     .write()
                     .await
-                    .insert(
-                        Address(user_id.social_id),
-                        friendship_updates_yielder.clone(),
-                    );
-
-                Ok(friendship_updates_generator)
+                    .insert(Address(user_id.social_id), friendships_yielder.clone());
             }
         }
+        Ok(friendships_generator)
     }
 }
 
