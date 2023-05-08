@@ -102,8 +102,8 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
                         users.users.push(user);
 
-                        // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
-                        if users_len == 5 {
+                        let stream_lenght = context.server_context.stream_lenght;
+                        if users_len == stream_lenght {
                             generator_yielder.r#yield(users).await.unwrap();
                             users = Users::default();
                         }
