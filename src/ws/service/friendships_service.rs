@@ -180,9 +180,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Err(err) => {
                 record_error_response_code(err.code as u32);
 
-                return Ok(RequestEventsResponse {
-                    response: Some(request_events_response::Response::Error(err)),
-                });
+                return Ok(RequestEventsResponse::from_response(
+                    request_events_response::Response::Error(err),
+                ));
             }
             Ok(user_id) => {
                 let social_id = user_id.social_id.clone();
@@ -192,11 +192,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     log::error!("Get request events > Db repositories > `repos` is None.");
                     record_error_response_code(DomainErrorCode::InternalServerError as u32);
 
-                    return Ok(RequestEventsResponse {
-                        response: Some(request_events_response::Response::Error(
+                    return Ok(RequestEventsResponse::from_response(
+                        request_events_response::Response::Error(
                             as_service_error(DomainErrorCode::InternalServerError, ""),
                         )),
-                    });
+                    );
                 };
 
                 let requests = repos
@@ -211,11 +211,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         );
                         record_error_response_code(DomainErrorCode::InternalServerError as u32);
 
-                        Ok(RequestEventsResponse {
-                            response: Some(request_events_response::Response::Error(
-                                as_service_error(DomainErrorCode::InternalServerError, ""),
+                        Ok(RequestEventsResponse::from_response(
+                            request_events_response::Response::Error(as_service_error(
+                                DomainErrorCode::InternalServerError,
+                                "",
                             )),
-                        })
+                        ))
                     }
                     Ok(requests) => {
                         log::info!("Returning requests events for user {}", social_id);
@@ -238,14 +239,14 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         let Some(auth_token) = request.clone().auth_token.take() else {
             record_error_response_code(DomainErrorCode::Unauthorized as u32);
 
-            return Ok(UpdateFriendshipResponse {
-                response: Some(update_friendship_response::Response::Error(
+            return Ok(UpdateFriendshipResponse::from_response(
+                update_friendship_response::Response::Error(
                     as_service_error(
                         DomainErrorCode::Unauthorized,
                         "`auth_token` was not provided",
-                    ),
-                )),
-            });
+                    )
+                )
+            ));
         };
 
         let request_user_id = get_user_id_from_request(
@@ -259,9 +260,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Err(err) => {
                 record_error_response_code(err.code as u32);
 
-                return Ok(UpdateFriendshipResponse {
-                    response: Some(update_friendship_response::Response::Error(err)),
-                });
+                return Ok(UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Error(err),
+                ));
             }
             Ok(user_id) => {
                 let friendship_update_response = handle_friendship_update(
@@ -275,9 +276,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     Err(err) => {
                         record_error_response_code(err.code as u32);
 
-                        return Ok(UpdateFriendshipResponse {
-                            response: Some(update_friendship_response::Response::Error(err)),
-                        });
+                        return Ok(UpdateFriendshipResponse::from_response(
+                            update_friendship_response::Response::Error(err),
+                        ));
                     }
                     Ok(friendship_update_response) => {
                         let update_response = event_response_as_update_response(
@@ -289,11 +290,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             Err(err) => {
                                 record_error_response_code(err.code as u32);
 
-                                return Ok(UpdateFriendshipResponse {
-                                    response: Some(update_friendship_response::Response::Error(
-                                        err,
-                                    )),
-                                });
+                                return Ok(UpdateFriendshipResponse::from_response(
+                                    update_friendship_response::Response::Error(err),
+                                ));
                             }
                             Ok(update_response) => {
                                 // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
@@ -355,11 +354,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                 tokio::spawn(async move {
                     friendships_yielder
-                        .r#yield(SubscribeFriendshipEventsUpdatesResponse {
-                            response: Some(
-                                subscribe_friendship_events_updates_response::Response::Error(err),
-                            ),
-                        })
+                        .r#yield(SubscribeFriendshipEventsUpdatesResponse::from_response(
+                            subscribe_friendship_events_updates_response::Response::Error(err),
+                        ))
                         .await
                         .unwrap();
                 });
@@ -397,13 +394,5 @@ fn build_user(friendship: Friendship, user_id: UserId) -> User {
     match address1.eq_ignore_ascii_case(&user_id.social_id) {
         true => User { address: address2 },
         false => User { address: address1 },
-    }
-}
-
-impl UsersResponse {
-    fn from_response(response: users_response::Response) -> Self {
-        Self {
-            response: Some(response),
-        }
     }
 }

@@ -5,10 +5,11 @@ use crate::{
     entities::friendship_history::FriendshipRequestEvent,
     friendships::{
         friendship_event_payload, friendship_event_response, request_events_response,
-        update_friendship_response, AcceptResponse, CancelResponse, DeleteResponse,
-        FriendshipEventResponse, FriendshipServiceError, RejectResponse, RequestEvents,
-        RequestEventsResponse, RequestResponse, Requests, UpdateFriendshipPayload,
-        UpdateFriendshipResponse, User,
+        subscribe_friendship_events_updates_response, update_friendship_response, users_response,
+        AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse,
+        FriendshipServiceError, RejectResponse, RequestEvents, RequestEventsResponse,
+        RequestResponse, Requests, SubscribeFriendshipEventsUpdatesResponse,
+        UpdateFriendshipPayload, UpdateFriendshipResponse, User, UsersResponse,
     },
     models::friendship_event::FriendshipEvent,
     ws::service::{
@@ -16,6 +17,38 @@ use crate::{
         types::{EventPayload, EventResponse},
     },
 };
+
+impl UsersResponse {
+    pub fn from_response(response: users_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
+    }
+}
+
+impl RequestEventsResponse {
+    pub fn from_response(response: request_events_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
+    }
+}
+
+impl UpdateFriendshipResponse {
+    pub fn from_response(response: update_friendship_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
+    }
+}
+
+impl SubscribeFriendshipEventsUpdatesResponse {
+    pub fn from_response(response: subscribe_friendship_events_updates_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
+    }
+}
 
 /// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.
 ///
@@ -62,18 +95,16 @@ pub fn friendship_requests_as_request_events_response(
     }
 
     // Return a RequestEvents struct containing the incoming and outgoing request lists
-    RequestEventsResponse {
-        response: Some(request_events_response::Response::Events(RequestEvents {
-            outgoing: Some(Requests {
-                total: outgoing_requests.len() as i64,
-                items: outgoing_requests,
-            }),
-            incoming: Some(Requests {
-                total: incoming_requests.len() as i64,
-                items: incoming_requests,
-            }),
-        })),
-    }
+    RequestEventsResponse::from_response(request_events_response::Response::Events(RequestEvents {
+        outgoing: Some(Requests {
+            total: outgoing_requests.len() as i64,
+            items: outgoing_requests,
+        }),
+        incoming: Some(Requests {
+            total: incoming_requests.len() as i64,
+            items: incoming_requests,
+        }),
+    }))
 }
 
 /// Extracts the information from a friendship update payload,
@@ -176,9 +207,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Request(request_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse {
-                    response: Some(update_friendship_response::Response::Event(event)),
-                }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Accept(_)) => {
                 let accept_response = AcceptResponse {
@@ -190,9 +221,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Accept(accept_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse {
-                    response: Some(update_friendship_response::Response::Event(event)),
-                }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Reject(_)) => {
                 let reject_response = RejectResponse {
@@ -204,9 +235,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Reject(reject_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse {
-                    response: Some(update_friendship_response::Response::Event(event)),
-                }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Cancel(_)) => {
                 let cancel_response = CancelResponse {
@@ -218,9 +249,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Cancel(cancel_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse {
-                    response: Some(update_friendship_response::Response::Event(event)),
-                }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Delete(_)) => {
                 let delete_response = DeleteResponse {
@@ -232,9 +263,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Delete(delete_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse {
-                    response: Some(update_friendship_response::Response::Event(event)),
-                }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             None => {
                 return Err(as_service_error(
