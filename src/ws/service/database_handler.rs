@@ -1,6 +1,6 @@
 // Responsible for managing friendship relationships between two users,
 // The errors of this file are coupled with the `ws` scope.
-use sqlx::{Error, Postgres, Transaction};
+use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -31,18 +31,12 @@ pub async fn get_friendship(
         .get_friendship((address_1, address_2), None)
         .await;
 
-    friendship_result.map_err(|err| match err {
-        Error::RowNotFound => as_service_error(
-            DomainErrorCode::NotFound,
-            "Friendship not found".to_string(),
-        ),
-        _ => {
-            log::error!("Database handler > Get friendship > Error {err}");
-            as_service_error(
-                DomainErrorCode::InternalServerError,
-                "There was an error retrieving friendship".to_string(),
-            )
-        }
+    friendship_result.map_err(|err| {
+        log::error!("Database handler > Get friendship > Error {err}");
+        as_service_error(
+            DomainErrorCode::InternalServerError,
+            "There was an error retrieving friendship".to_string(),
+        )
     })
 }
 
@@ -67,18 +61,12 @@ pub async fn get_last_history(
         .get_last_history_for_friendship(friendship.id, None)
         .await;
 
-    friendship_history_result.map_err(|err| match err {
-        Error::RowNotFound => as_service_error(
-            DomainErrorCode::NotFound,
-            "Friendship not found".to_string(),
-        ),
-        _ => {
-            log::error!("Database handler > Get last history > Error {err}");
-            as_service_error(
-                DomainErrorCode::InternalServerError,
-                "There was an error retrieving friendship".to_string(),
-            )
-        }
+    friendship_history_result.map_err(|err| {
+        log::error!("Database handler > Get last history > Error {err}");
+        as_service_error(
+            DomainErrorCode::InternalServerError,
+            "There was an error retrieving friendship".to_string(),
+        )
     })
 }
 

@@ -69,16 +69,16 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 // Register failure in metrics
                 record_error_response_code(err.code as u32);
 
-                let (generator, generator_yielder) = Generator::create();
+                let (friendships_generator, friendships_yielder) = Generator::create();
                 tokio::spawn(async move {
-                    generator_yielder
+                    friendships_yielder
                         .r#yield(UsersResponse {
                             response: Some(users_response::Response::Error(err)),
                         })
                         .await
                         .unwrap();
                 });
-                return Ok(generator);
+                return Ok(friendships_generator);
             }
             Ok(user_id) => {
                 let social_id = user_id.social_id.clone();
@@ -99,15 +99,16 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                 record_error_response_code(
                                     DomainErrorCode::InternalServerError as u32,
                                 );
-                                let (generator, generator_yielder) = Generator::create();
+                                let (friendships_generator, friendships_yielder) =
+                                    Generator::create();
                                 tokio::spawn(async move {
-                                    generator_yielder
+                                    friendships_yielder
                                         .r#yield(UsersResponse {
                                             response: Some(
                                                 users_response::Response::Error(
                                                     as_service_error(
                                                         DomainErrorCode::InternalServerError,
-                                                        "An error happened while sending the response to the stream".to_string()
+                                                        "An error occurred while sending the response to the stream".to_string()
                                                     )
                                                 )
                                             ),
@@ -115,21 +116,21 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                         .await
                                         .unwrap();
                                 });
-                                return Ok(generator);
+                                return Ok(friendships_generator);
                             }
                         }
                     }
                     None => {
                         log::error!("Get friends > Db repositories > `repos` is None.");
                         record_error_response_code(DomainErrorCode::InternalServerError as u32);
-                        let (generator, generator_yielder) = Generator::create();
+                        let (friendships_generator, friendships_yielder) = Generator::create();
                         tokio::spawn(async move {
-                            generator_yielder
+                            friendships_yielder
                                 .r#yield(UsersResponse {
                                     response: Some(users_response::Response::Error(
                                         as_service_error(
                                             DomainErrorCode::InternalServerError,
-                                            "An error happened while getting the friendships"
+                                            "An error occurred while getting the friendships"
                                                 .to_string(),
                                         ),
                                     )),
@@ -137,11 +138,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                 .await
                                 .unwrap();
                         });
-                        return Ok(generator);
+                        return Ok(friendships_generator);
                     }
                 };
 
-                let (generator, generator_yielder) = Generator::create();
+                let (friendships_generator, friendships_yielder) = Generator::create();
 
                 tokio::spawn(async move {
                     let mut users = Users::default();
@@ -165,7 +166,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
                                 // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
                                 if users_len == 5 {
-                                    generator_yielder
+                                    friendships_yielder
                                         .r#yield(UsersResponse {
                                             response: Some(users_response::Response::Users(users)),
                                         })
@@ -175,7 +176,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                 }
                             }
                             None => {
-                                generator_yielder
+                                friendships_yielder
                                     .r#yield(UsersResponse {
                                         response: Some(users_response::Response::Users(users)),
                                     })
@@ -188,7 +189,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 });
 
                 log::info!("Returning generator for all friends for user {}", social_id);
-                return Ok(generator);
+                return Ok(friendships_generator);
             }
         }
     }
@@ -410,9 +411,9 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 // Register failure in metrics
                 record_error_response_code(err.code as u32);
 
-                let (generator, generator_yielder) = Generator::create();
+                let (friendships_generator, friendships_yielder) = Generator::create();
                 tokio::spawn(async move {
-                    generator_yielder
+                    friendships_yielder
                         .r#yield(SubscribeFriendshipEventsUpdatesResponse {
                             response: Some(
                                 subscribe_friendship_events_updates_response::Response::Error(err),
@@ -421,7 +422,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         .await
                         .unwrap();
                 });
-                return Ok(generator);
+                return Ok(friendships_generator);
             }
             Ok(user_id) => {
                 let (friendship_updates_generator, friendship_updates_yielder) =

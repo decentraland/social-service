@@ -1,5 +1,6 @@
 use crate::friendships::FriendshipServiceError;
 
+#[derive(Debug)]
 #[repr(i32)]
 pub enum DomainErrorCode {
     Unknown = 0,
@@ -12,6 +13,7 @@ pub enum DomainErrorCode {
 }
 
 pub fn as_service_error(code: DomainErrorCode, message: String) -> FriendshipServiceError {
+    let message = format!("{:?}: {}", code, message);
     FriendshipServiceError {
         code: code as i32,
         message,
@@ -28,6 +30,6 @@ mod test {
             as_service_error(DomainErrorCode::NotFound, "user not found".to_string());
 
         assert_eq!(service_error.code, 404);
-        assert_eq!(service_error.message, "user not found");
+        assert_eq!(service_error.message, "NotFound: user not found");
     }
 }
