@@ -36,9 +36,9 @@ use super::{
 #[derive(Debug)]
 pub struct MyFriendshipsService {}
 
-pub enum FriendshipsServiceError {}
+pub enum RPCFriendshipsServiceError {}
 
-impl RemoteErrorResponse for FriendshipsServiceError {
+impl RemoteErrorResponse for RPCFriendshipsServiceError {
     fn error_code(&self) -> u32 {
         todo!()
     }
@@ -49,13 +49,13 @@ impl RemoteErrorResponse for FriendshipsServiceError {
 }
 
 #[async_trait::async_trait]
-impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFriendshipsService {
+impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyFriendshipsService {
     #[tracing::instrument(name = "RPC SERVER > Get Friends Generator", skip(request, context))]
     async fn get_friends(
         &self,
         request: Payload,
         context: ProcedureContext<SocialContext>,
-    ) -> Result<ServerStreamResponse<UsersResponse>, FriendshipsServiceError> {
+    ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let request_user_id = get_user_id_from_request(
             &request,
@@ -66,14 +66,34 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
         let (friendships_generator, friendships_yielder) = Generator::create();
 
+        let Some(repos) = context.server_context.db.db_repos.clone() else {
+            log::error!("Get friends > Db repositories > `repos` is None.");
+            record_error_response_code(DomainErrorCode::InternalServerError as u32);
+            tokio::spawn(async move {
+                let result = friendships_yielder
+                .r#yield(UsersResponse::from_response(users_response::Response::Error(
+                        as_service_error(
+                            DomainErrorCode::InternalServerError,
+                            "An error occurred while getting the friendships",
+                        )
+                )))
+                .await;
+            
+                if let Err(err) = result {
+                    log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
+                };
+            });
+            return Ok(friendships_generator);
+        };
+
         match request_user_id {
             Err(err) => {
                 record_error_response_code(err.code as u32);
                 tokio::spawn(async move {
                     let result = friendships_yielder
-                        .r#yield(UsersResponse {
-                            response: Some(users_response::Response::Error(err)),
-                        })
+                        .r#yield(UsersResponse::from_response(
+                            users_response::Response::Error(err),
+                        ))
                         .await;
                     if let Err(err) = result {
                         log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
@@ -84,102 +104,62 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 let social_id = user_id.social_id.clone();
                 log::info!("Getting all friends for user: {}", social_id);
 
-                match context.server_context.db.db_repos.clone() {
-                    None => {
-                        log::error!("Get friends > Db repositories > `repos` is None.");
-                        record_error_response_code(DomainErrorCode::InternalServerError as u32);
+                let Ok(mut friendship) = repos
+                    .friendships
+                    .get_user_friends_stream(&user_id.social_id, true)
+                    .await else {
+                        log::error!(
+                            "Get friends > Get user friends stream > Error: There was an error accessing to the friendships repository."
+                        );
+                        record_error_response_code(
+                            DomainErrorCode::InternalServerError as u32,
+                        );
                         tokio::spawn(async move {
+                            let error = as_service_error(DomainErrorCode::InternalServerError, "An error occurred while sending the response to the stream");
+                            
                             let result = friendships_yielder
-                                .r#yield(UsersResponse {
-                                    response: Some(users_response::Response::Error(
-                                        as_service_error(
-                                            DomainErrorCode::InternalServerError,
-                                            &"An error occurred while getting the friendships"
-                                                .to_owned(),
-                                        ),
-                                    )),
-                                })
+                                .r#yield(
+                                    UsersResponse::from_response(users_response::Response::Error(error)))
                                 .await;
                             if let Err(err) = result {
                                 log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
                             };
                         });
-                    }
-                    Some(repos) => {
-                        let friendship = repos
-                            .friendships
-                            .get_user_friends_stream(&user_id.social_id, true)
-                            .await;
-                        match friendship {
-                            Err(err) => {
-                                log::error!(
-                                    "Get friends > Get user friends stream > Error: {err}."
-                                );
-                                record_error_response_code(
-                                    DomainErrorCode::InternalServerError as u32,
-                                );
-                                tokio::spawn(async move {
-                                    let result = friendships_yielder
-                                        .r#yield(
-                                            UsersResponse { response: Some(users_response::Response::Error(
-                                                    as_service_error(DomainErrorCode::InternalServerError, &"An error occurred while sending the response to the stream".to_owned())))
-                                        })
-                                        .await;
-                                    if let Err(err) = result {
-                                        log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
-                                    };
-                                });
-                            }
-                            Ok(mut friendship) => {
-                                tokio::spawn(async move {
-                                    let mut users = Users::default();
-                                    loop {
-                                        match friendship.next().await {
-                                            Some(friendship) => {
-                                                users
-                                                    .users
-                                                    .push(build_user(friendship, user_id.clone()));
+                        
+                        return Ok(friendships_generator);
+                    };
 
-                                                // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
-                                                if users.users.len() == 5 {
-                                                    let result = friendships_yielder
-                                                        .r#yield(UsersResponse {
-                                                            response: Some(
-                                                                users_response::Response::Users(
-                                                                    users,
-                                                                ),
-                                                            ),
-                                                        })
-                                                        .await;
-                                                    if let Err(err) = result {
-                                                        log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
-                                                        // TODO: If there was an error yielding the correct response, does it make sense to try to yield the error one?
-                                                        break;
-                                                    };
-                                                    users = Users::default();
-                                                }
-                                            }
-                                            None => {
-                                                let result = friendships_yielder
-                                                    .r#yield(UsersResponse {
-                                                        response: Some(
-                                                            users_response::Response::Users(users),
-                                                        ),
-                                                    })
-                                                    .await;
-                                                if let Err(err) = result {
-                                                    log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
-                                                    // TODO: If there was an error yielding the correct response, does it make sense to try to yield the error one?
-                                                };
-                                                break;
-                                            }
-                                        }
-                                    }
-                                });
-                            }
+                tokio::spawn(async move {
+                    let mut users = Users::default();
+
+                    while let Some(friendship) = friendship.next().await {
+                        users.users.push(build_user(friendship, user_id.clone()));
+
+                        if users.users.len() == 5 {
+                            // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
+                            let result = friendships_yielder
+                                .r#yield(UsersResponse::from_response(
+                                    users_response::Response::Users(users.clone()),
+                                ))
+                                .await;
+                            if let Err(err) = result {
+                                log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
+                                // TODO: If there was an error yielding the correct response, does it make sense to try to yield the error one?
+                                break;
+                            };
+                            users = Users::default();
                         }
                     }
-                };
+                    let result = friendships_yielder
+                        .r#yield(UsersResponse::from_response(
+                            users_response::Response::Users(users),
+                        ))
+                        .await;
+                    if let Err(err) = result {
+                        log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
+                        // TODO: If there was an error yielding the correct response, does it make sense to try to yield the error one?
+                    };
+                });
                 log::info!("Returning generator for all friends for user {}", social_id);
             }
         }
@@ -191,7 +171,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         &self,
         request: Payload,
         context: ProcedureContext<SocialContext>,
-    ) -> Result<RequestEventsResponse, FriendshipsServiceError> {
+    ) -> Result<RequestEventsResponse, RPCFriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let request_user_id = get_user_id_from_request(
             &request,
@@ -237,10 +217,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
                                 Ok(RequestEventsResponse {
                                     response: Some(request_events_response::Response::Error(
-                                        as_service_error(
-                                            DomainErrorCode::InternalServerError,
-                                            &"".to_owned(),
-                                        ),
+                                        as_service_error(DomainErrorCode::InternalServerError, ""),
                                     )),
                                 })
                             }
@@ -252,10 +229,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
                         Ok(RequestEventsResponse {
                             response: Some(request_events_response::Response::Error(
-                                as_service_error(
-                                    DomainErrorCode::InternalServerError,
-                                    &"".to_owned(),
-                                ),
+                                as_service_error(DomainErrorCode::InternalServerError, ""),
                             )),
                         })
                     }
@@ -269,7 +243,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         &self,
         request: UpdateFriendshipPayload,
         context: ProcedureContext<SocialContext>,
-    ) -> Result<UpdateFriendshipResponse, FriendshipsServiceError> {
+    ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
         // Get user id with the given Authentication Token.
         let auth_token = request.clone().auth_token.take();
         match auth_token {
@@ -281,7 +255,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                     response: Some(update_friendship_response::Response::Error(
                         as_service_error(
                             DomainErrorCode::Unauthorized,
-                            &"`auth_token` was not provided".to_owned(),
+                            "`auth_token` was not provided",
                         ),
                     )),
                 });
@@ -388,7 +362,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         context: ProcedureContext<SocialContext>,
     ) -> Result<
         ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
-        FriendshipsServiceError,
+        RPCFriendshipsServiceError,
     > {
         // Get user id with the given Authentication Token.
         let request_user_id = get_user_id_from_request(
@@ -456,5 +430,13 @@ fn build_user(friendship: Friendship, user_id: UserId) -> User {
     match address1.eq_ignore_ascii_case(&user_id.social_id) {
         true => User { address: address2 },
         false => User { address: address1 },
+    }
+}
+
+impl UsersResponse {
+    fn from_response(response: users_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
     }
 }
