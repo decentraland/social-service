@@ -38,24 +38,18 @@ pub async fn handle_friendship_update(
         .as_ref()
         .ok_or_else(|| {
             log::error!("Handle friendship update > `auth_token` is missing.");
-            as_service_error(
-                DomainErrorCode::Unauthorized,
-                &"`auth_token` is missing".to_owned(),
-            )
+            as_service_error(DomainErrorCode::Unauthorized, "`auth_token` is missing")
         })?
         .synapse_token
         .as_ref()
         .ok_or_else(|| {
             log::error!("Handle friendship update > `synapse_token` is missing.");
-            as_service_error(
-                DomainErrorCode::Unauthorized,
-                &"`synapse_token` is missing".to_owned(),
-            )
+            as_service_error(DomainErrorCode::Unauthorized, "`synapse_token` is missing")
         })?;
 
     let db_repos = context.db.clone().db_repos.ok_or_else(|| {
         log::error!("Handle friendship update > Db repositories > `repos` is None.");
-        as_service_error(DomainErrorCode::InternalServerError, &"".to_owned())
+        as_service_error(DomainErrorCode::InternalServerError, "")
     })?;
 
     // Get the friendship info
@@ -102,10 +96,7 @@ pub async fn handle_friendship_update(
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Handle friendship update > Couldn't start transaction to store friendship update {error}");
-            return Err(as_service_error(
-                DomainErrorCode::InternalServerError,
-                &"".to_owned(),
-            ));
+            return Err(as_service_error(DomainErrorCode::InternalServerError, ""));
         }
     };
 
@@ -159,10 +150,7 @@ pub async fn handle_friendship_update(
                 }),
                 Err(err) => {
                     log::error!("Handle friendship update > Couldn't end transaction to store friendship update {err}");
-                    Err(as_service_error(
-                        DomainErrorCode::InternalServerError,
-                        &"".to_owned(),
-                    ))
+                    Err(as_service_error(DomainErrorCode::InternalServerError, ""))
                 }
             }
         }

@@ -90,7 +90,7 @@ pub fn update_request_as_event_payload(
                     .user
                     .ok_or(as_service_error(
                         DomainErrorCode::BadRequest,
-                        &"`user address` is missing".to_owned(),
+                        "`user address` is missing",
                     ))?
                     .address,
             },
@@ -101,7 +101,7 @@ pub fn update_request_as_event_payload(
                     .user
                     .ok_or(as_service_error(
                         DomainErrorCode::BadRequest,
-                        &"`user address` is missing".to_owned(),
+                        "`user address` is missing",
                     ))?
                     .address,
             },
@@ -112,7 +112,7 @@ pub fn update_request_as_event_payload(
                     .user
                     .ok_or(as_service_error(
                         DomainErrorCode::BadRequest,
-                        &"`user address` is missing".to_owned(),
+                        "`user address` is missing",
                     ))?
                     .address,
             },
@@ -123,7 +123,7 @@ pub fn update_request_as_event_payload(
                     .user
                     .ok_or(as_service_error(
                         DomainErrorCode::BadRequest,
-                        &"`user address` is missing".to_owned(),
+                        "`user address` is missing",
                     ))?
                     .address,
             },
@@ -134,21 +134,21 @@ pub fn update_request_as_event_payload(
                     .user
                     .ok_or(as_service_error(
                         DomainErrorCode::BadRequest,
-                        &"`user address` is missing".to_owned(),
+                        "`user address` is missing",
                     ))?
                     .address,
             },
             None => {
                 return Err(as_service_error(
                     DomainErrorCode::BadRequest,
-                    &"`friendship_event_payload::body` is missing".to_owned(),
+                    "`friendship_event_payload::body` is missing",
                 ))
             }
         }
     } else {
         return Err(as_service_error(
             DomainErrorCode::BadRequest,
-            &"`event` is missing".to_owned(),
+            "`event` is missing",
         ));
     };
 
@@ -239,14 +239,14 @@ pub fn event_response_as_update_response(
             None => {
                 return Err(as_service_error(
                     DomainErrorCode::InternalServerError,
-                    &"Unexpected error".to_owned(),
+                    "Unexpected error",
                 ))
             }
         }
     } else {
         return Err(as_service_error(
             DomainErrorCode::InternalServerError,
-            &"Unexpected error".to_owned(),
+            "Unexpected error",
         ));
     };
 
@@ -258,13 +258,9 @@ pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipServ
         CommonError::Forbidden(error_message) => {
             as_service_error(DomainErrorCode::Forbidden, &error_message)
         }
-        CommonError::Unauthorized => {
-            as_service_error(DomainErrorCode::Unauthorized, &"".to_owned())
-        }
-        CommonError::TooManyRequests => {
-            as_service_error(DomainErrorCode::TooManyRequests, &"".to_owned())
-        }
-        _ => as_service_error(DomainErrorCode::InternalServerError, &"".to_owned()),
+        CommonError::Unauthorized => as_service_error(DomainErrorCode::Unauthorized, ""),
+        CommonError::TooManyRequests => as_service_error(DomainErrorCode::TooManyRequests, ""),
+        _ => as_service_error(DomainErrorCode::InternalServerError, ""),
     }
 }
 
@@ -281,25 +277,25 @@ mod tests {
         let err = CommonError::Forbidden("Forbidden".to_owned());
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::Forbidden, &"Forbidden".to_owned())
+            as_service_error(DomainErrorCode::Forbidden, "Forbidden")
         );
 
         let err = CommonError::Unauthorized;
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::Unauthorized, &"".to_owned())
+            as_service_error(DomainErrorCode::Unauthorized, "")
         );
 
         let err = CommonError::TooManyRequests;
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::TooManyRequests, &"".to_owned())
+            as_service_error(DomainErrorCode::TooManyRequests, "")
         );
 
         let err = CommonError::Unknown;
         assert_eq!(
             map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::InternalServerError, &"".to_owned())
+            as_service_error(DomainErrorCode::InternalServerError, "")
         );
     }
 }

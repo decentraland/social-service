@@ -74,7 +74,7 @@ pub async fn get_user_id_from_request(
             log::error!("Get user id from request > `synapse_token` is None.");
             Err(as_service_error(
                 DomainErrorCode::Unauthorized,
-                &"`synapse_token` was not provided".to_owned(),
+                "`synapse_token` was not provided",
             ))
         }
     }
@@ -236,7 +236,7 @@ pub async fn get_or_create_synapse_room_id(
                 log::error!("Get or create synapse room > Friendship does not exists and the event is different than Request");
                 Err(as_service_error(
                     DomainErrorCode::BadRequest,
-                    &"Invalid frienship event update".to_owned(),
+                    "Invalid frienship event update",
                 ))
             }
         }

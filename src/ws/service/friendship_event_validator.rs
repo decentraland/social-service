@@ -20,7 +20,7 @@ pub fn validate_new_event(
         );
         return Err(as_service_error(
             DomainErrorCode::BadRequest,
-            &"Invalid friendship event update".to_owned(),
+            "Invalid friendship event update",
         ));
     };
     Ok(())

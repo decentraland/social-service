@@ -25,8 +25,7 @@ mod test {
 
     #[test]
     fn test_error_code() {
-        let service_error =
-            as_service_error(DomainErrorCode::NotFound, &"user not found".to_string());
+        let service_error = as_service_error(DomainErrorCode::NotFound, "user not found");
 
         assert_eq!(service_error.code, 404);
         assert_eq!(service_error.message, "NotFound: user not found");

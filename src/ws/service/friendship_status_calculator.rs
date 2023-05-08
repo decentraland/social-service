@@ -31,7 +31,7 @@ pub fn get_new_friendship_status(
             );
             Err(as_service_error(
                 DomainErrorCode::BadRequest,
-                &"Invalid friendship event update".to_owned(),
+                "Invalid friendship event update",
             ))
         }
         FriendshipEvent::REJECT => {
@@ -47,7 +47,7 @@ pub fn get_new_friendship_status(
             );
             Err(as_service_error(
                 DomainErrorCode::BadRequest,
-                &"Invalid friendship event update".to_owned(),
+                "Invalid friendship event update",
             ))
         }
         FriendshipEvent::DELETE => Ok(FriendshipStatus::NotFriends),
@@ -73,7 +73,7 @@ fn calculate_new_friendship_status(
                 );
                 Err(as_service_error(
                     DomainErrorCode::BadRequest,
-                    &"Invalid friendship event update".to_owned(),
+                    "Invalid friendship event update",
                 ))
             }
         };
@@ -92,7 +92,7 @@ fn calculate_new_friendship_status(
                 );
                 return Err(as_service_error(
                     DomainErrorCode::BadRequest,
-                    &"Invalid friendship event update".to_owned(),
+                    "Invalid friendship event update",
                 ));
             }
 
@@ -107,7 +107,7 @@ fn calculate_new_friendship_status(
                     );
                     Err(as_service_error(
                         DomainErrorCode::BadRequest,
-                        &"Invalid friendship event update".to_owned(),
+                        "Invalid friendship event update",
                     ))
                 }
             }
@@ -121,7 +121,7 @@ fn calculate_new_friendship_status(
             );
             Err(as_service_error(
                 DomainErrorCode::BadRequest,
-                &"Invalid friendship event update".to_owned(),
+                "Invalid friendship event update",
             ))
         }
         _ => match room_event {
@@ -135,7 +135,7 @@ fn calculate_new_friendship_status(
                 );
                 Err(as_service_error(
                     DomainErrorCode::BadRequest,
-                    &"Invalid friendship event update".to_owned(),
+                    "Invalid friendship event update",
                 ))
             }
         },
