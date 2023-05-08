@@ -7,8 +7,8 @@ use dcl_rpc::{
 use futures_util::StreamExt;
 
 use crate::{
-    components::notifications::ChannelPublisher,
-    entities::friendships::FriendshipRepositoryImplementation,
+    components::{notifications::ChannelPublisher, users_cache::UserId},
+    entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     friendships::{
         request_events_response, subscribe_friendship_events_updates_response,
         update_friendship_response, users_response, FriendshipsServiceServer, Payload,
@@ -64,12 +64,11 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
         )
         .await;
 
+        let (friendships_generator, friendships_yielder) = Generator::create();
+
         match request_user_id {
             Err(err) => {
-                // Register failure in metrics
                 record_error_response_code(err.code as u32);
-
-                let (friendships_generator, friendships_yielder) = Generator::create();
                 tokio::spawn(async move {
                     friendships_yielder
                         .r#yield(UsersResponse {
@@ -78,52 +77,15 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                         .await
                         .unwrap();
                 });
-                return Ok(friendships_generator);
             }
             Ok(user_id) => {
                 let social_id = user_id.social_id.clone();
                 log::info!("Getting all friends for user: {}", social_id);
-                // Look for users friends
-                let mut friendship = match context.server_context.db.db_repos.clone() {
-                    Some(repos) => {
-                        let friendship = repos
-                            .friendships
-                            .get_user_friends_stream(&user_id.social_id, true)
-                            .await;
-                        match friendship {
-                            Ok(it) => it,
-                            Err(err) => {
-                                log::error!(
-                                    "Get friends > Get user friends stream > Error: {err}."
-                                );
-                                record_error_response_code(
-                                    DomainErrorCode::InternalServerError as u32,
-                                );
-                                let (friendships_generator, friendships_yielder) =
-                                    Generator::create();
-                                tokio::spawn(async move {
-                                    friendships_yielder
-                                        .r#yield(UsersResponse {
-                                            response: Some(
-                                                users_response::Response::Error(
-                                                    as_service_error(
-                                                        DomainErrorCode::InternalServerError,
-                                                        "An error occurred while sending the response to the stream".to_string()
-                                                    )
-                                                )
-                                            ),
-                                        })
-                                        .await
-                                        .unwrap();
-                                });
-                                return Ok(friendships_generator);
-                            }
-                        }
-                    }
+
+                match context.server_context.db.db_repos.clone() {
                     None => {
                         log::error!("Get friends > Db repositories > `repos` is None.");
                         record_error_response_code(DomainErrorCode::InternalServerError as u32);
-                        let (friendships_generator, friendships_yielder) = Generator::create();
                         tokio::spawn(async move {
                             friendships_yielder
                                 .r#yield(UsersResponse {
@@ -138,60 +100,77 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                 .await
                                 .unwrap();
                         });
-                        return Ok(friendships_generator);
                     }
-                };
-
-                let (friendships_generator, friendships_yielder) = Generator::create();
-
-                tokio::spawn(async move {
-                    let mut users = Users::default();
-                    // Map Frienships to Users
-                    loop {
-                        let friendship = friendship.next().await;
+                    Some(repos) => {
+                        let friendship = repos
+                            .friendships
+                            .get_user_friends_stream(&user_id.social_id, true)
+                            .await;
                         match friendship {
-                            Some(friendship) => {
-                                let user: User = {
-                                    let address1: String = friendship.address_1;
-                                    let address2: String = friendship.address_2;
-                                    match address1.eq_ignore_ascii_case(&user_id.social_id) {
-                                        true => User { address: address2 },
-                                        false => User { address: address1 },
-                                    }
-                                };
-
-                                let users_len = users.users.len();
-
-                                users.users.push(user);
-
-                                // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
-                                if users_len == 5 {
+                            Err(err) => {
+                                log::error!(
+                                    "Get friends > Get user friends stream > Error: {err}."
+                                );
+                                record_error_response_code(
+                                    DomainErrorCode::InternalServerError as u32,
+                                );
+                                tokio::spawn(async move {
                                     friendships_yielder
-                                        .r#yield(UsersResponse {
-                                            response: Some(users_response::Response::Users(users)),
+                                        .r#yield(
+                                            UsersResponse { response: Some(users_response::Response::Error(
+                                                    as_service_error(DomainErrorCode::InternalServerError, "An error occurred while sending the response to the stream".to_string())))
                                         })
-                                        .await
-                                        .unwrap();
-                                    users = Users::default();
-                                }
+                                        .await.unwrap();
+                                });
                             }
-                            None => {
-                                friendships_yielder
-                                    .r#yield(UsersResponse {
-                                        response: Some(users_response::Response::Users(users)),
-                                    })
-                                    .await
-                                    .unwrap();
-                                break;
+                            Ok(mut friendship) => {
+                                tokio::spawn(async move {
+                                    let mut users = Users::default();
+                                    loop {
+                                        let friendship = friendship.next().await;
+                                        match friendship {
+                                            Some(friendship) => {
+                                                users
+                                                    .users
+                                                    .push(build_user(friendship, user_id.clone()));
+
+                                                if users.users.len() == 5 {
+                                                    // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
+                                                    friendships_yielder
+                                                        .r#yield(UsersResponse {
+                                                            response: Some(
+                                                                users_response::Response::Users(
+                                                                    users,
+                                                                ),
+                                                            ),
+                                                        })
+                                                        .await
+                                                        .unwrap();
+                                                    users = Users::default();
+                                                }
+                                            }
+                                            None => {
+                                                friendships_yielder
+                                                    .r#yield(UsersResponse {
+                                                        response: Some(
+                                                            users_response::Response::Users(users),
+                                                        ),
+                                                    })
+                                                    .await
+                                                    .unwrap();
+                                                break;
+                                            }
+                                        }
+                                    }
+                                });
                             }
                         }
                     }
-                });
-
+                };
                 log::info!("Returning generator for all friends for user {}", social_id);
-                return Ok(friendships_generator);
             }
         }
+        Ok(friendships_generator)
     }
 
     #[tracing::instrument(name = "RPC SERVER > Get Request Events", skip(request, context))]
@@ -455,5 +434,14 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                 Ok(friendship_updates_generator)
             }
         }
+    }
+}
+
+fn build_user(friendship: Friendship, user_id: UserId) -> User {
+    let address1: String = friendship.address_1;
+    let address2: String = friendship.address_2;
+    match address1.eq_ignore_ascii_case(&user_id.social_id) {
+        true => User { address: address2 },
+        false => User { address: address1 },
     }
 }
