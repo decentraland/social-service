@@ -55,7 +55,7 @@ pub struct Config {
     pub wkc_metrics_bearer_token: String,
     pub redis: RedisConfig,
     pub cache_hashing_key: String,
-    pub stream_lenght: usize,
+    pub stream_length: usize,
 }
 
 const SYNAPSE_URL_ENV: &str = "SYNAPSE_URL";
@@ -70,7 +70,7 @@ const REDIS_HOST: &str = "REDIS_HOST";
 
 const CACHE_HASHING_KEY: &str = "CACHE_HASHING_KEY";
 
-const STREAM_LENGHT: &str = "STREAM_LENGHT";
+const STREAM_LENGTH: &str = "STREAM_LENGTH";
 
 impl Config {
     pub fn new() -> Result<Self, ConfigError> {
@@ -87,7 +87,7 @@ impl Config {
                     .with_list_parse_key(DB_PWD)
                     .with_list_parse_key(DB_NAME)
                     .with_list_parse_key(REDIS_HOST)
-                    .with_list_parse_key(STREAM_LENGHT)
+                    .with_list_parse_key(STREAM_LENGTH)
                     .try_parsing(true)
                     .separator("_"),
             )
@@ -109,7 +109,7 @@ impl Config {
             .set_default("db.name", "social_service")? // docker-compose -> local env
             .set_default("redis.host", "0.0.0.0")? // docker-compose -> local env
             .set_default("cache_hashing_key", "test_key")? // docker-compose -> local env
-            .set_default("stream_lenght", 5)?
+            .set_default("stream_length", 5)?
             .build()?;
 
         config.try_deserialize()

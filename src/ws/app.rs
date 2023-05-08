@@ -70,7 +70,7 @@ pub struct SocialContext {
     pub friendships_events_generators:
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
     pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
-    pub stream_lenght: usize,
+    pub stream_length: usize,
 }
 
 pub struct WsComponents {

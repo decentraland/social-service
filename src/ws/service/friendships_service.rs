@@ -102,8 +102,8 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
                         users.users.push(user);
 
-                        let stream_lenght = context.server_context.stream_lenght;
-                        if users_len == stream_lenght {
+                        let stream_length = context.server_context.stream_length;
+                        if users_len == stream_length {
                             generator_yielder.r#yield(users).await.unwrap();
                             users = Users::default();
                         }
