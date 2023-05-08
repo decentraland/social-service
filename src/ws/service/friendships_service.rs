@@ -36,15 +36,18 @@ use super::{
 #[derive(Debug)]
 pub struct MyFriendshipsService {}
 
-pub enum RPCFriendshipsServiceError {}
+pub struct RPCFriendshipsServiceError {
+    pub code: u32,
+    pub message: String,
+}
 
 impl RemoteErrorResponse for RPCFriendshipsServiceError {
     fn error_code(&self) -> u32 {
-        todo!()
+        self.code
     }
 
     fn error_message(&self) -> String {
-        todo!()
+        self.message.to_string()
     }
 }
 
@@ -141,7 +144,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                 .await;
                             if let Err(err) = result {
                                 log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
-                                // TODO: If there was an error yielding the correct response, does it make sense to try to yield the error one?
                                 break;
                             };
                             users = Users::default();
@@ -154,7 +156,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         .await;
                     if let Err(err) = result {
                         log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
-                        // TODO: If there was an error yielding the correct response, does it make sense to try to yield the error one?
                     };
                 });
                 log::info!("Returning generator for all friends for user {}", social_id);
