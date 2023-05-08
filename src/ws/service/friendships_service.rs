@@ -78,7 +78,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         )
                 )))
                 .await;
-            
                 if let Err(err) = result {
                     log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
                 };
@@ -116,7 +115,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         );
                         tokio::spawn(async move {
                             let error = as_service_error(DomainErrorCode::InternalServerError, "An error occurred while sending the response to the stream");
-                            
                             let result = friendships_yielder
                                 .r#yield(
                                     UsersResponse::from_response(users_response::Response::Error(error)))
@@ -125,7 +123,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                 log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
                             };
                         });
-                        
                         return Ok(friendships_generator);
                     };
 
