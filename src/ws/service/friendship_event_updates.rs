@@ -40,7 +40,7 @@ pub async fn handle_friendship_update(
             log::error!("Handle friendship update > `auth_token` is missing.");
             as_service_error(
                 DomainErrorCode::Unauthorized,
-                "`auth_token` is missing".to_owned(),
+                &"`auth_token` is missing".to_owned(),
             )
         })?
         .synapse_token
@@ -49,13 +49,13 @@ pub async fn handle_friendship_update(
             log::error!("Handle friendship update > `synapse_token` is missing.");
             as_service_error(
                 DomainErrorCode::Unauthorized,
-                "`synapse_token` is missing".to_owned(),
+                &"`synapse_token` is missing".to_owned(),
             )
         })?;
 
     let db_repos = context.db.clone().db_repos.ok_or_else(|| {
         log::error!("Handle friendship update > Db repositories > `repos` is None.");
-        as_service_error(DomainErrorCode::InternalServerError, "".to_owned())
+        as_service_error(DomainErrorCode::InternalServerError, &"".to_owned())
     })?;
 
     // Get the friendship info
@@ -104,7 +104,7 @@ pub async fn handle_friendship_update(
             log::error!("Handle friendship update > Couldn't start transaction to store friendship update {error}");
             return Err(as_service_error(
                 DomainErrorCode::InternalServerError,
-                "".to_owned(),
+                &"".to_owned(),
             ));
         }
     };
@@ -161,7 +161,7 @@ pub async fn handle_friendship_update(
                     log::error!("Handle friendship update > Couldn't end transaction to store friendship update {err}");
                     Err(as_service_error(
                         DomainErrorCode::InternalServerError,
-                        "".to_owned(),
+                        &"".to_owned(),
                     ))
                 }
             }

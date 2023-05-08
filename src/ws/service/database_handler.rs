@@ -35,7 +35,7 @@ pub async fn get_friendship(
         log::error!("Database handler > Get friendship > Error {err}");
         as_service_error(
             DomainErrorCode::InternalServerError,
-            "There was an error retrieving friendship".to_string(),
+            &"There was an error retrieving friendship".to_owned(),
         )
     })
 }
@@ -65,7 +65,7 @@ pub async fn get_last_history(
         log::error!("Database handler > Get last history > Error {err}");
         as_service_error(
             DomainErrorCode::InternalServerError,
-            "There was an error retrieving friendship".to_string(),
+            &"There was an error retrieving friendship".to_owned(),
         )
     })
 }
@@ -95,7 +95,7 @@ async fn store_friendship_update(
                     log::error!("Database handler > Store friendship update > Couldn't update friendship {err}");
                     Err(as_service_error(
                         DomainErrorCode::InternalServerError,
-                        "There was an error storing friendship update".to_string(),
+                        &"There was an error storing friendship update".to_owned(),
                     ))
                 }
             };
@@ -114,7 +114,7 @@ async fn store_friendship_update(
             (
                 friendship_id.map_err(|err| {
                     log::error!("Database handler > Store friendship update > Couldn't create new friendship {err}");
-                    as_service_error(DomainErrorCode::InternalServerError, "There was an error storing friendship update".to_string())
+                    as_service_error(DomainErrorCode::InternalServerError, &"There was an error storing friendship update".to_owned())
                 }),
                 transaction.unwrap(),
             )
@@ -165,7 +165,7 @@ pub async fn update_friendship_status<'a>(
             let _ = transaction.rollback().await;
             return Err(as_service_error(
                 DomainErrorCode::InternalServerError,
-                "There was an error storing friendship update".to_string(),
+                &"There was an error storing friendship update".to_owned(),
             ));
         }
     };
@@ -197,7 +197,7 @@ pub async fn update_friendship_status<'a>(
             let _ = transaction.rollback().await;
             Err(as_service_error(
                 DomainErrorCode::InternalServerError,
-                "There was an error storing friendship update".to_string(),
+                &"There was an error storing friendship update".to_owned(),
             ))
         }
     }

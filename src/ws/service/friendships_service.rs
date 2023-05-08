@@ -94,8 +94,8 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                     response: Some(users_response::Response::Error(
                                         as_service_error(
                                             DomainErrorCode::InternalServerError,
-                                            "An error occurred while getting the friendships"
-                                                .to_string(),
+                                            &"An error occurred while getting the friendships"
+                                                .to_owned(),
                                         ),
                                     )),
                                 })
@@ -122,7 +122,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                     let result = friendships_yielder
                                         .r#yield(
                                             UsersResponse { response: Some(users_response::Response::Error(
-                                                    as_service_error(DomainErrorCode::InternalServerError, "An error occurred while sending the response to the stream".to_string())))
+                                                    as_service_error(DomainErrorCode::InternalServerError, &"An error occurred while sending the response to the stream".to_owned())))
                                         })
                                         .await;
                                     if let Err(err) = result {
@@ -134,8 +134,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                 tokio::spawn(async move {
                                     let mut users = Users::default();
                                     loop {
-                                        let friendship = friendship.next().await;
-                                        match friendship {
+                                        match friendship.next().await {
                                             Some(friendship) => {
                                                 users
                                                     .users
@@ -240,7 +239,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                                     response: Some(request_events_response::Response::Error(
                                         as_service_error(
                                             DomainErrorCode::InternalServerError,
-                                            "".to_string(),
+                                            &"".to_owned(),
                                         ),
                                     )),
                                 })
@@ -255,7 +254,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                             response: Some(request_events_response::Response::Error(
                                 as_service_error(
                                     DomainErrorCode::InternalServerError,
-                                    "".to_string(),
+                                    &"".to_owned(),
                                 ),
                             )),
                         })
@@ -282,7 +281,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
                     response: Some(update_friendship_response::Response::Error(
                         as_service_error(
                             DomainErrorCode::Unauthorized,
-                            "`auth_token` was not provided".to_string(),
+                            &"`auth_token` was not provided".to_owned(),
                         ),
                     )),
                 });
