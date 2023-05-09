@@ -55,7 +55,7 @@ pub struct Config {
     pub wkc_metrics_bearer_token: String,
     pub redis: RedisConfig,
     pub cache_hashing_key: String,
-    pub friends_stream_page_size: String,
+    pub friends_stream_page_size: u16,
 }
 
 const SYNAPSE_URL_ENV: &str = "SYNAPSE_URL";
@@ -109,7 +109,7 @@ impl Config {
             .set_default("db.name", "social_service")? // docker-compose -> local env
             .set_default("redis.host", "0.0.0.0")? // docker-compose -> local env
             .set_default("cache_hashing_key", "test_key")? // docker-compose -> local env
-            .set_default("friends_stream_page_size", "5")?
+            .set_default("friends_stream_page_size", 20)?
             .build()?;
 
         config.try_deserialize()

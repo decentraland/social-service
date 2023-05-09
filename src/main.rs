@@ -29,7 +29,7 @@ async fn main() -> io::Result<()> {
         redis_subscriber: ws_components.redis_subscriber.clone(),
         friendships_events_generators: ws_components.friendships_events_generators.clone(),
         transport_context: ws_components.transport_context.clone(),
-        friends_stream_page_size: app_data.config.friends_stream_page_size.clone(),
+        friends_stream_page_size: app_data.config.friends_stream_page_size,
     };
     // Run RPC Websocket Transport
     let (rpc_server_handle, http_server_handle) = run_ws_transport(ctx).await;
