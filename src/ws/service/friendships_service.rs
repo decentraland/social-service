@@ -102,7 +102,7 @@ impl FriendshipsServiceServer<SocialContext, FriendshipsServiceError> for MyFrie
 
                         let users_len = users.users.len();
                         let friends_stream_page_size =
-                            context.server_context.friends_stream_page_size.clone() as usize;
+                            context.server_context.friends_stream_page_size as usize;
                         if users_len == friends_stream_page_size {
                             generator_yielder.r#yield(users).await.unwrap();
                             users = Users::default();
