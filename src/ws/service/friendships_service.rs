@@ -8,14 +8,15 @@ use futures_util::StreamExt;
 
 use crate::{
     components::{notifications::ChannelPublisher, users_cache::UserId},
+    domain::address::Address,
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     friendships::{
         request_events_response, subscribe_friendship_events_updates_response,
-        update_friendship_response, users_response, FriendshipsServiceServer, Payload,
-        RequestEventsResponse, ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse,
-        UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users, UsersResponse,
+        update_friendship_response, users_response, FriendshipsServiceServer, InternalServerError,
+        Payload, RequestEventsResponse, ServerStreamResponse,
+        SubscribeFriendshipEventsUpdatesResponse, UnauthorizedError, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User, Users, UsersResponse,
     },
-    models::address::Address,
     ws::{
         app::{record_error_response_code, SocialContext, SocialTransportContext},
         service::errors::{as_service_error, DomainErrorCode},
@@ -70,15 +71,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         let Some(repos) = context.server_context.db.db_repos.clone() else {
             log::error!("Get friends > Db repositories > `repos` is None.");
-            record_error_response_code(DomainErrorCode::InternalServerError as u32);
+            record_error_response_code("INTERNAL_SERVER_ERROR");
             tokio::spawn(async move {
                 let result = friendships_yielder
-                .r#yield(UsersResponse::from_response(users_response::Response::Error(
-                        as_service_error(
-                            DomainErrorCode::InternalServerError,
-                            "An error occurred while getting the friendships",
-                        )
-                )))
+                .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
+                    InternalServerError{ message: "An error occurred while getting the friendships".to_owned() })))
                 .await;
                 if let Err(err) = result {
                     log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
@@ -89,11 +86,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.code as u32);
+                record_error_response_code("UNAUTHORIZED");
                 tokio::spawn(async move {
                     let result = friendships_yielder
                         .r#yield(UsersResponse::from_response(
-                            users_response::Response::Error(err),
+                            users_response::Response::UnauthorizedError(err),
                         ))
                         .await;
                     if let Err(err) = result {
@@ -112,14 +109,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         log::error!(
                             "Get friends > Get user friends stream > Error: There was an error accessing to the friendships repository."
                         );
-                        record_error_response_code(
-                            DomainErrorCode::InternalServerError as u32,
-                        );
+                        record_error_response_code("INTERNAL_SERVER_ERROR");
                         tokio::spawn(async move {
-                            let error = as_service_error(DomainErrorCode::InternalServerError, "An error occurred while sending the response to the stream");
                             let result = friendships_yielder
-                                .r#yield(
-                                    UsersResponse::from_response(users_response::Response::Error(error)))
+                                .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
+                                    InternalServerError{ message: "An error occurred while sending the response to the stream".to_owned() })))
                                 .await;
                             if let Err(err) = result {
                                 log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
@@ -178,10 +172,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.code as u32);
+                record_error_response_code("UNAUTHORIZED");
 
                 return Ok(RequestEventsResponse::from_response(
-                    request_events_response::Response::Error(err),
+                    request_events_response::Response::UnauthorizedError(err),
                 ));
             }
             Ok(user_id) => {
@@ -190,13 +184,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                 let Some(repos) = context.server_context.db.db_repos.clone() else {
                     log::error!("Get request events > Db repositories > `repos` is None.");
-                    record_error_response_code(DomainErrorCode::InternalServerError as u32);
+                    record_error_response_code("INTERNAL_SERVER_ERROR");
 
                     return Ok(RequestEventsResponse::from_response(
-                        request_events_response::Response::Error(
-                            as_service_error(DomainErrorCode::InternalServerError, ""),
-                        )),
-                    );
+                        request_events_response::Response::InternalServerError(InternalServerError { message: "".to_owned() })));
                 };
 
                 let requests = repos
@@ -209,13 +200,14 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         log::error!(
                             "Get request events > Get user pending request events > Error: {err}."
                         );
-                        record_error_response_code(DomainErrorCode::InternalServerError as u32);
+                        record_error_response_code("INTERNAL_SERVER_ERROR");
 
                         Ok(RequestEventsResponse::from_response(
-                            request_events_response::Response::Error(as_service_error(
-                                DomainErrorCode::InternalServerError,
-                                "",
-                            )),
+                            request_events_response::Response::InternalServerError(
+                                InternalServerError {
+                                    message: "".to_owned(),
+                                },
+                            ),
                         ))
                     }
                     Ok(requests) => {
@@ -237,16 +229,14 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         context: ProcedureContext<SocialContext>,
     ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
         let Some(auth_token) = request.clone().auth_token.take() else {
-            record_error_response_code(DomainErrorCode::Unauthorized as u32);
+            record_error_response_code("UNAUTHORIZED");
 
             return Ok(UpdateFriendshipResponse::from_response(
-                update_friendship_response::Response::Error(
-                    as_service_error(
-                        DomainErrorCode::Unauthorized,
-                        "`auth_token` was not provided",
+                update_friendship_response::Response::UnauthorizedError(
+                    UnauthorizedError{ message: "`auth_token` was not provided".to_owned() }
                     )
                 )
-            ));
+            );
         };
 
         let request_user_id = get_user_id_from_request(
@@ -258,10 +248,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.code as u32);
+                record_error_response_code("UNAUTHORIZED");
 
                 return Ok(UpdateFriendshipResponse::from_response(
-                    update_friendship_response::Response::Error(err),
+                    update_friendship_response::Response::UnauthorizedError(err),
                 ));
             }
             Ok(user_id) => {

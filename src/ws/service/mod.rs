@@ -1,5 +1,4 @@
 pub mod database_handler;
-pub mod errors;
 pub mod friendship_event_updates;
 pub mod friendship_event_validator;
 pub mod friendship_status_calculator;

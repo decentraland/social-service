@@ -13,19 +13,19 @@ pub struct ErrorResponse {
 #[derive(Error, Debug)]
 pub enum CommonError {
     #[error("Not found")]
-    NotFound,
+    NotFound(String),
     #[error("Bad request {0}")]
     BadRequest(String),
     #[error("Requested user was not found")]
-    UserNotFound,
+    UserNotFound(String),
     #[error("{0}")]
     Forbidden(String),
     #[error("Unknown Internal Error")]
-    Unknown,
+    Unknown(String),
     #[error("Unauthorized")]
-    Unauthorized,
+    Unauthorized(String),
     #[error("Too many requests")]
-    TooManyRequests,
+    TooManyRequests(String),
 }
 
 impl PartialEq for CommonError {
@@ -43,13 +43,13 @@ impl CommonError {
 impl ResponseError for CommonError {
     fn status_code(&self) -> StatusCode {
         match self {
-            Self::NotFound => StatusCode::NOT_FOUND,
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::UserNotFound => StatusCode::NOT_FOUND,
-            Self::TooManyRequests => StatusCode::TOO_MANY_REQUESTS,
+            Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Self::UserNotFound(_) => StatusCode::NOT_FOUND,
+            Self::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             Self::Forbidden(_) => StatusCode::FORBIDDEN,
-            Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Unknown(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

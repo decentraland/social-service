@@ -15,11 +15,11 @@ use crate::{
         synapse::{RoomMembersResponse, SynapseComponent},
         users_cache::UserId,
     },
+    domain::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
 };
 
 use super::errors::SynapseError;
@@ -490,8 +490,8 @@ mod tests {
 
     use crate::{
         api::routes::synapse::errors::SynapseError,
+        domain::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
         entities::friendship_history::FriendshipHistory,
-        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
     };
 
     use super::process_friendship_status;

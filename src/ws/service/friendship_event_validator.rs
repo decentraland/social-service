@@ -1,7 +1,7 @@
 use crate::{
+    domain::friendship_event::FriendshipEvent,
     entities::friendship_history::FriendshipHistory,
     friendships::FriendshipServiceError,
-    models::friendship_event::FriendshipEvent,
     ws::service::errors::{as_service_error, DomainErrorCode},
 };
 

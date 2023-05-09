@@ -2,3 +2,5 @@
 pub mod address;
 pub mod friendship_event;
 pub mod friendship_status;
+pub mod error;
+pub mod room;

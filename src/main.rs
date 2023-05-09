@@ -1,3 +1,5 @@
+pub mod db;
+
 use std::{io, sync::Arc};
 
 use social_service::{

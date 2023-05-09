@@ -4,16 +4,13 @@ use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
+    db::types::FriendshipDbRepositories,
+    domain::{error::CommonError, friendship_status::FriendshipStatus, room::RoomInfo},
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    friendships::FriendshipServiceError,
-    models::friendship_status::FriendshipStatus,
-    ws::service::types::{FriendshipPortsWs, RoomInfoWs},
 };
-
-use super::errors::{as_service_error, DomainErrorCode};
 
 /// Retrieves a friendship relationship between two addresses
 ///
@@ -26,17 +23,14 @@ pub async fn get_friendship(
     friendships_repository: &FriendshipsRepository,
     address_1: &str,
     address_2: &str,
-) -> Result<Option<Friendship>, FriendshipServiceError> {
+) -> Result<Option<Friendship>, CommonError> {
     let (friendship_result, _) = friendships_repository
         .get_friendship((address_1, address_2), None)
         .await;
 
     friendship_result.map_err(|err| {
         log::error!("Database handler > Get friendship > Error {err}");
-        as_service_error(
-            DomainErrorCode::InternalServerError,
-            "There was an error retrieving friendship",
-        )
+        CommonError::Unknown("There was an error retrieving friendship".to_owned())
     })
 }
 
@@ -49,7 +43,7 @@ pub async fn get_friendship(
 pub async fn get_last_history(
     friendship_history_repository: &FriendshipHistoryRepository,
     friendship: &Option<Friendship>,
-) -> Result<Option<FriendshipHistory>, FriendshipServiceError> {
+) -> Result<Option<FriendshipHistory>, CommonError> {
     let friendship = {
         match friendship {
             Some(friendship) => friendship,
@@ -63,10 +57,7 @@ pub async fn get_last_history(
 
     friendship_history_result.map_err(|err| {
         log::error!("Database handler > Get last history > Error {err}");
-        as_service_error(
-            DomainErrorCode::InternalServerError,
-            "There was an error retrieving friendship",
-        )
+        CommonError::Unknown("There was an error retrieving friendship".to_owned())
     })
 }
 
@@ -79,10 +70,7 @@ async fn store_friendship_update(
     address_2: &str,
     synapse_room_id: &str,
     transaction: Transaction<'static, Postgres>,
-) -> (
-    Result<Uuid, FriendshipServiceError>,
-    Transaction<'static, Postgres>,
-) {
+) -> (Result<Uuid, CommonError>, Transaction<'static, Postgres>) {
     match friendship {
         Some(friendship) => {
             let (res, transaction) = friendships_repository
@@ -93,9 +81,8 @@ async fn store_friendship_update(
                 Ok(_) => Ok(friendship.id),
                 Err(err) => {
                     log::error!("Database handler > Store friendship update > Couldn't update friendship {err}");
-                    Err(as_service_error(
-                        DomainErrorCode::InternalServerError,
-                        "There was an error storing friendship update",
+                    Err(CommonError::Unknown(
+                        "There was an error storing friendship update".to_owned(),
                     ))
                 }
             };
@@ -114,7 +101,7 @@ async fn store_friendship_update(
             (
                 friendship_id.map_err(|err| {
                     log::error!("Database handler > Store friendship update > Couldn't create new friendship {err}");
-                    as_service_error(DomainErrorCode::InternalServerError, "There was an error storing friendship update")
+                    CommonError::Unknown( "There was an error storing friendship update".to_owned() )
                 }),
                 transaction.unwrap(),
             )
@@ -128,10 +115,10 @@ pub async fn update_friendship_status<'a>(
     acting_user: &'a str,
     second_user: &'a str,
     new_status: FriendshipStatus,
-    room_info: RoomInfoWs<'a>,
-    friendship_ports: FriendshipPortsWs<'a>,
+    room_info: RoomInfo<'a>,
+    friendship_ports: FriendshipDbRepositories<'a>,
     transaction: Transaction<'static, Postgres>,
-) -> Result<Transaction<'static, Postgres>, FriendshipServiceError> {
+) -> Result<Transaction<'static, Postgres>, CommonError> {
     // Store friendship update
     let is_active = new_status == FriendshipStatus::Friends;
     let (friendship_id_result, transaction) = store_friendship_update(
@@ -163,9 +150,8 @@ pub async fn update_friendship_status<'a>(
                 "Database handler > Update friendship status > Error serializing room event: {err}"
             );
             let _ = transaction.rollback().await;
-            return Err(as_service_error(
-                DomainErrorCode::InternalServerError,
-                "There was an error storing friendship update",
+            return Err(CommonError::Unknown(
+                "There was an error storing friendship update".to_owned(),
             ));
         }
     };
@@ -195,9 +181,8 @@ pub async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Database handler > Update friendship status > Couldn't store friendship history update: {err}");
             let _ = transaction.rollback().await;
-            Err(as_service_error(
-                DomainErrorCode::InternalServerError,
-                "There was an error storing friendship update",
+            Err(CommonError::Unknown(
+                "There was an error storing friendship update".to_owned(),
             ))
         }
     }

@@ -2,6 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     api::routes::v1::error::CommonError,
+    domain::friendship_event::FriendshipEvent,
     entities::friendship_history::FriendshipRequestEvent,
     friendships::{
         friendship_event_payload, friendship_event_response, request_events_response,
@@ -11,7 +12,6 @@ use crate::{
         RequestResponse, Requests, SubscribeFriendshipEventsUpdatesResponse,
         UpdateFriendshipPayload, UpdateFriendshipResponse, User, UsersResponse,
     },
-    models::friendship_event::FriendshipEvent,
     ws::service::{
         errors::{as_service_error, DomainErrorCode},
         types::{EventPayload, EventResponse},
@@ -284,24 +284,9 @@ pub fn event_response_as_update_response(
     Ok(update_response)
 }
 
-pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipServiceError {
-    match err {
-        CommonError::Forbidden(error_message) => {
-            as_service_error(DomainErrorCode::Forbidden, &error_message)
-        }
-        CommonError::Unauthorized => as_service_error(DomainErrorCode::Unauthorized, ""),
-        CommonError::TooManyRequests => as_service_error(DomainErrorCode::TooManyRequests, ""),
-        _ => as_service_error(DomainErrorCode::InternalServerError, ""),
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::map_common_error_to_friendships_error;
-    use crate::{
-        api::routes::v1::error::CommonError,
-        ws::service::errors::{as_service_error, DomainErrorCode},
-    };
+    use crate::domain::error::CommonError;
 
     #[test]
     fn test_map_common_error_to_friendships_error() {

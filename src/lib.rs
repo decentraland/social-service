@@ -1,8 +1,9 @@
 pub mod api;
 pub mod components;
 pub mod entities;
-pub mod models;
+pub mod domain;
 pub mod ws;
+pub mod db;
 pub mod friendships {
     include!(concat!(
         env!("OUT_DIR"),

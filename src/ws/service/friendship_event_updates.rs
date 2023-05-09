@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
 use crate::{
-    components::database::DatabaseComponentImplementation,
-    friendships::{FriendshipServiceError, UpdateFriendshipPayload},
-    ws::{
-        app::SocialContext,
-        service::{
-            database_handler::{get_friendship, get_last_history, update_friendship_status},
-            errors::{as_service_error, DomainErrorCode},
-            types::{EventResponse, FriendshipPortsWs, RoomInfoWs},
-        },
+    db::{
+        friendships_handler::{get_friendship, get_last_history},
+        types::FriendshipDbRepositories,
     },
+    friendships::{
+        BadRequestError, InternalServerError, UnauthorizedError, UpdateFriendshipPayload,
+    },
+    ws::{app::SocialContext, service::types::EventResponse},
 };
 
 use super::{
@@ -23,12 +21,18 @@ use super::{
     },
 };
 
+enum HandleFriendshipUpdateError {
+    Unauthorized(UnauthorizedError),
+    InternalServer(InternalServerError),
+    BadRequest(BadRequestError),
+}
+
 /// Processes a friendship event update by validating it and updating the Database and Synapse.
 pub async fn handle_friendship_update(
     request: UpdateFriendshipPayload,
     context: Arc<SocialContext>,
     acting_user: String,
-) -> Result<EventResponse, FriendshipServiceError> {
+) -> Result<EventResponse, HandleFriendshipUpdateError> {
     let event_payload = update_request_as_event_payload(request.clone())?;
     let new_event = event_payload.friendship_event;
     let second_user = event_payload.second_user;
@@ -38,23 +42,37 @@ pub async fn handle_friendship_update(
         .as_ref()
         .ok_or_else(|| {
             log::error!("Handle friendship update > `auth_token` is missing.");
-            as_service_error(DomainErrorCode::Unauthorized, "`auth_token` is missing")
+            HandleFriendshipUpdateError::Unauthorized(UnauthorizedError {
+                message: "`auth_token` is missing".to_owned(),
+            })
         })?
         .synapse_token
         .as_ref()
         .ok_or_else(|| {
             log::error!("Handle friendship update > `synapse_token` is missing.");
-            as_service_error(DomainErrorCode::Unauthorized, "`synapse_token` is missing")
+            HandleFriendshipUpdateError::Unauthorized(UnauthorizedError {
+                message: "`synapse_token` is missing".to_owned(),
+            })
         })?;
 
     let db_repos = context.db.clone().db_repos.ok_or_else(|| {
         log::error!("Handle friendship update > Db repositories > `repos` is None.");
-        as_service_error(DomainErrorCode::InternalServerError, "")
+        HandleFriendshipUpdateError::InternalServer(InternalServerError {
+            message: "".to_owned(),
+        })
     })?;
 
     // Get the friendship info
     let friendships_repository = &db_repos.friendships;
-    let friendship = get_friendship(friendships_repository, &acting_user, &second_user).await?;
+    let friendship = get_friendship(friendships_repository, &acting_user, &second_user)
+        .await
+        .or_else(|err| {
+            Err(HandleFriendshipUpdateError::InternalServer(
+                InternalServerError {
+                    message: err.to_string(),
+                },
+            ))
+        })?;
 
     let synapse_room_id = get_or_create_synapse_room_id(
         friendship.as_ref(),
@@ -64,7 +82,8 @@ pub async fn handle_friendship_update(
         token,
         &context.synapse.clone(),
     )
-    .await?;
+    .await
+    .or_else(|err| Err(HandleFriendshipUpdateError::BadRequest(err)))?;
 
     set_account_data(
         token,
@@ -87,7 +106,7 @@ pub async fn handle_friendship_update(
     let new_status = get_new_friendship_status(&acting_user, &last_recorded_history, new_event)?;
 
     // Start a database transaction.
-    let friendship_ports = FriendshipPortsWs {
+    let friendship_ports = FriendshipDbRepositories {
         db: &context.db,
         friendships_repository: &db_repos.friendships,
         friendship_history_repository: &db_repos.friendship_history,
@@ -102,7 +121,7 @@ pub async fn handle_friendship_update(
 
     // Update the friendship accordingly in the database. This means creating an entry in the friendships table or updating the is_active column.
     let room_message_body = event_payload.request_event_message_body.as_deref();
-    let room_info = RoomInfoWs {
+    let room_info = RoomInfo {
         room_event: new_event,
         room_message_body,
         room_id: synapse_room_id.as_str(),
