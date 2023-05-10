@@ -52,7 +52,7 @@ mod tests {
             },
             social_service::friendships::request_events_response::Response::Events(result) => {
 
-                match result.outgoing { 
+                match result.outgoing {
                     Some(outgoing) => {
 
                         assert_eq!(outgoing.total, 1);
@@ -66,7 +66,7 @@ mod tests {
                             }
                             None => unreachable!("An error response was found"),
                         }
-                    } 
+                    }
                     None => unreachable!("An error response was found"),
                 }
 

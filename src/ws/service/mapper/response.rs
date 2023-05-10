@@ -1,9 +1,10 @@
 use crate::friendships::{
-        friendship_event_payload, friendship_event_response, AcceptResponse, CancelResponse,
-        DeleteResponse, FriendshipEventPayload, FriendshipEventResponse, RejectResponse,
-        RequestResponse, User, RequestEventsResponse, request_events_response, UpdateFriendshipResponse, SubscribeFriendshipEventsUpdatesResponse, subscribe_friendship_events_updates_response, update_friendship_response, UsersResponse, users_response,
-    };
-
+    friendship_event_payload, friendship_event_response, request_events_response,
+    subscribe_friendship_events_updates_response, update_friendship_response, users_response,
+    AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventPayload,
+    FriendshipEventResponse, RejectResponse, RequestEventsResponse, RequestResponse,
+    SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipResponse, User, UsersResponse,
+};
 
 impl UsersResponse {
     pub fn from_response(response: users_response::Response) -> Self {

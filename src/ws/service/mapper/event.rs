@@ -8,15 +8,16 @@ use crate::{
     },
     entities::friendship_history::FriendshipRequestEvent,
     friendships::{
-        friendship_event_payload, friendship_event_response, request_events_response, update_friendship_response,
-        AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse, RejectResponse,
-        RequestEvents, RequestEventsResponse, RequestResponse, Requests, UpdateFriendshipPayload,
-        UpdateFriendshipResponse, User, FriendshipEventPayload,
-    }, notifications::Event,
+        friendship_event_payload, friendship_event_response, request_events_response,
+        update_friendship_response, AcceptResponse, CancelResponse, DeleteResponse,
+        FriendshipEventPayload, FriendshipEventResponse, RejectResponse, RequestEvents,
+        RequestEventsResponse, RequestResponse, Requests, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User,
+    },
+    notifications::Event,
 };
 
 use super::response::payload_event_as_response;
-
 
 /// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.
 ///
@@ -235,7 +236,6 @@ pub fn event_response_as_update_response(
     Ok(update_response)
 }
 
-
 pub fn update_friendship_payload_as_event(
     payload: FriendshipEventPayload,
     from: &str,
@@ -251,4 +251,3 @@ pub fn update_friendship_payload_as_event(
         None
     }
 }
-
