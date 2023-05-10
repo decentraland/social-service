@@ -11,7 +11,7 @@ use crate::{
         },
         users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
     },
-    domain::{friendship_event::FriendshipEvent, error::CommonError},
+    domain::{error::CommonError, friendship_event::FriendshipEvent},
     entities::friendships::Friendship,
     friendships::Payload,
 };
@@ -67,7 +67,9 @@ pub async fn get_user_id_from_request(
         // If no authentication token was provided, return an Unauthorized error.
         None => {
             log::error!("Get user id from request > `synapse_token` is None.");
-            Err(CommonError::Unauthorized("`synapse_token` was not provided".to_owned()))
+            Err(CommonError::Unauthorized(
+                "`synapse_token` was not provided".to_owned(),
+            ))
         }
     }
 }
@@ -226,7 +228,9 @@ pub async fn get_or_create_synapse_room_id(
                 }
             } else {
                 log::error!("Get or create synapse room > Friendship does not exists and the event is different than Request");
-                Err(CommonError::BadRequest("Invalid frienship event update".to_owned()))
+                Err(CommonError::BadRequest(
+                    "Invalid frienship event update".to_owned(),
+                ))
             }
         }
     }

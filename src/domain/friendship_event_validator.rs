@@ -1,5 +1,5 @@
 use crate::{
-    domain::{friendship_event::FriendshipEvent, error::CommonError},
+    domain::{error::CommonError, friendship_event::FriendshipEvent},
     entities::friendship_history::FriendshipHistory,
 };
 
@@ -16,7 +16,9 @@ pub fn validate_new_event(
             new_event,
             last_recorded_event
         );
-        return Err(CommonError::BadRequest("Invalid friendship event update".to_owned()));
+        return Err(CommonError::BadRequest(
+            "Invalid friendship event update".to_owned(),
+        ));
     };
     Ok(())
 }

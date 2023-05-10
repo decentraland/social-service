@@ -1,5 +1,7 @@
 use crate::{
-    domain::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus, error::CommonError},
+    domain::{
+        error::CommonError, friendship_event::FriendshipEvent, friendship_status::FriendshipStatus,
+    },
     entities::friendship_history::FriendshipHistory,
 };
 
@@ -27,7 +29,9 @@ pub fn get_new_friendship_status(
                 room_event,
                 acting_user
             );
-            Err(CommonError::BadRequest("Invalid friendship event update".to_owned()))
+            Err(CommonError::BadRequest(
+                "Invalid friendship event update".to_owned(),
+            ))
         }
         FriendshipEvent::REJECT => {
             if let Some(last_history) = last_recorded_history {
@@ -40,7 +44,9 @@ pub fn get_new_friendship_status(
                 room_event,
                 acting_user
             );
-            Err(CommonError::BadRequest("Invalid friendship event update".to_owned()))
+            Err(CommonError::BadRequest(
+                "Invalid friendship event update".to_owned(),
+            ))
         }
         FriendshipEvent::DELETE => Ok(FriendshipStatus::NotFriends),
     }
@@ -63,7 +69,9 @@ fn calculate_new_friendship_status(
                     acting_user,
                     FriendshipEvent::REQUEST,
                 );
-                Err(CommonError::BadRequest("Invalid friendship event update".to_owned()))
+                Err(CommonError::BadRequest(
+                    "Invalid friendship event update".to_owned(),
+                ))
             }
         };
     }
@@ -79,7 +87,9 @@ fn calculate_new_friendship_status(
                     acting_user,
                     last_history.event
                 );
-                return Err(CommonError::BadRequest("Invalid friendship event update".to_owned()));
+                return Err(CommonError::BadRequest(
+                    "Invalid friendship event update".to_owned(),
+                ));
             }
 
             match room_event {
@@ -91,7 +101,9 @@ fn calculate_new_friendship_status(
                         acting_user,
                         last_history.event
                     );
-                    Err(CommonError::BadRequest("Invalid friendship event update".to_owned()))
+                    Err(CommonError::BadRequest(
+                        "Invalid friendship event update".to_owned(),
+                    ))
                 }
             }
         }
@@ -102,7 +114,9 @@ fn calculate_new_friendship_status(
                 acting_user,
                 last_history.event,
             );
-            Err(CommonError::BadRequest("Invalid friendship event update".to_owned()))
+            Err(CommonError::BadRequest(
+                "Invalid friendship event update".to_owned(),
+            ))
         }
         _ => match room_event {
             FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
@@ -113,7 +127,8 @@ fn calculate_new_friendship_status(
                     acting_user,
                     last_history.event,
                 );
-                Err(CommonError::BadRequest("Invalid friendship event update".to_owned()
+                Err(CommonError::BadRequest(
+                    "Invalid friendship event update".to_owned(),
                 ))
             }
         },
