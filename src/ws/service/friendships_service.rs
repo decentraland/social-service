@@ -26,10 +26,6 @@ use crate::{
 use super::{
     friendship_event_updates::handle_friendship_update,
     mapper::{
-        error::{
-            to_request_events_response, to_subscribe_friendship_events_updates_response,
-            to_update_friendship_response, to_user_response,
-        },
         events::{
             event_response_as_update_response, friendship_requests_as_request_events_response,
             update_request_as_event_payload,
@@ -94,7 +90,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Err(err) => {
                 record_error_response_code(err.clone().into());
                 tokio::spawn(async move {
-                    let result = friendships_yielder.r#yield(to_user_response(err)).await;
+                    let result = friendships_yielder.r#yield(err.into()).await;
                     if let Err(err) = result {
                         log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
                     };
@@ -176,8 +172,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         match request_user_id {
             Err(err) => {
                 record_error_response_code(err.clone().into());
-
-                return Ok(to_request_events_response(err));
+                return Ok(err.into());
             }
             Ok(user_id) => {
                 let social_id = user_id.social_id.clone();
@@ -250,8 +245,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         match request_user_id {
             Err(err) => {
                 record_error_response_code(err.clone().into());
-
-                return Ok(to_update_friendship_response(err));
+                return Ok(err.into());
             }
             Ok(user_id) => {
                 let event_payload = update_request_as_event_payload(request.clone());
@@ -259,8 +253,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 match event_payload {
                     Err(err) => {
                         record_error_response_code(err.clone().into());
-
-                        return Ok(to_update_friendship_response(err));
+                        return Ok(err.into());
                     }
                     Ok(event_payload) => {
                         let token = get_synapse_token(request.clone());
@@ -268,8 +261,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         match token {
                             Err(err) => {
                                 record_error_response_code(err.clone().into());
-
-                                return Ok(to_update_friendship_response(err));
+                                return Ok(err.into());
                             }
                             Ok(token) => {
                                 let friendship_update_response = handle_friendship_update(
@@ -283,8 +275,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                 match friendship_update_response {
                                     Err(err) => {
                                         record_error_response_code(err.clone().into());
-
-                                        return Ok(to_update_friendship_response(err));
+                                        return Ok(err.into());
                                     }
                                     Ok(friendship_update_response) => {
                                         let update_response = event_response_as_update_response(
@@ -295,8 +286,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                         match update_response {
                                             Err(err) => {
                                                 record_error_response_code(err.clone().into());
-
-                                                return Ok(to_update_friendship_response(err));
+                                                return Ok(err.into());
                                             }
                                             Ok(update_response) => {
                                                 // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
@@ -362,10 +352,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 record_error_response_code(err.clone().into());
 
                 tokio::spawn(async move {
-                    friendships_yielder
-                        .r#yield(to_subscribe_friendship_events_updates_response(err))
-                        .await
-                        .unwrap();
+                    friendships_yielder.r#yield(err.into()).await.unwrap();
                 });
             }
             Ok(user_id) => {

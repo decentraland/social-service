@@ -70,102 +70,116 @@ impl From<CommonError> for WsServiceError {
     }
 }
 
-pub fn to_user_response(err: CommonError) -> UsersResponse {
-    let err: WsServiceError = err.into();
-    match err {
-        WsServiceError::Unauthorized(err) => {
-            UsersResponse::from_response(users_response::Response::UnauthorizedError(err))
-        }
-        WsServiceError::InternalServer(err) => {
-            UsersResponse::from_response(users_response::Response::InternalServerError(err))
-        }
-        WsServiceError::Forbidden(err) => {
-            UsersResponse::from_response(users_response::Response::ForbiddenError(err))
-        }
-        WsServiceError::TooManyRequests(err) => {
-            UsersResponse::from_response(users_response::Response::TooManyRequestsError(err))
-        }
-        WsServiceError::BadRequest(err) => UsersResponse::from_response(
-            users_response::Response::InternalServerError(InternalServerError {
-                message: err.message,
-            }),
-        ),
-    }
-}
-
-pub fn to_request_events_response(err: CommonError) -> RequestEventsResponse {
-    let err: WsServiceError = err.into();
-    match err {
-        WsServiceError::Unauthorized(err) => RequestEventsResponse::from_response(
-            request_events_response::Response::UnauthorizedError(err),
-        ),
-        WsServiceError::InternalServer(err) => RequestEventsResponse::from_response(
-            request_events_response::Response::InternalServerError(err),
-        ),
-        WsServiceError::Forbidden(err) => RequestEventsResponse::from_response(
-            request_events_response::Response::ForbiddenError(err),
-        ),
-        WsServiceError::TooManyRequests(err) => RequestEventsResponse::from_response(
-            request_events_response::Response::TooManyRequestsError(err),
-        ),
-        WsServiceError::BadRequest(err) => RequestEventsResponse::from_response(
-            request_events_response::Response::InternalServerError(InternalServerError {
-                message: err.message,
-            }),
-        ),
-    }
-}
-
-pub fn to_update_friendship_response(err: CommonError) -> UpdateFriendshipResponse {
-    let err: WsServiceError = err.into();
-    match err {
-        WsServiceError::Unauthorized(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::UnauthorizedError(err),
-        ),
-        WsServiceError::InternalServer(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::InternalServerError(err),
-        ),
-        WsServiceError::BadRequest(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::BadRequestError(err),
-        ),
-        WsServiceError::Forbidden(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::ForbiddenError(err),
-        ),
-        WsServiceError::TooManyRequests(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::TooManyRequestsError(err),
-        ),
-    }
-}
-
-pub fn to_subscribe_friendship_events_updates_response(
-    err: CommonError,
-) -> SubscribeFriendshipEventsUpdatesResponse {
-    let err: WsServiceError = err.into();
-    match err {
-        WsServiceError::Unauthorized(err) => {
-            SubscribeFriendshipEventsUpdatesResponse::from_response(
-                subscribe_friendship_events_updates_response::Response::UnauthorizedError(err),
-            )
-        }
-        WsServiceError::InternalServer(err) => {
-            SubscribeFriendshipEventsUpdatesResponse::from_response(
-                subscribe_friendship_events_updates_response::Response::InternalServerError(err),
-            )
-        }
-        WsServiceError::Forbidden(err) => SubscribeFriendshipEventsUpdatesResponse::from_response(
-            subscribe_friendship_events_updates_response::Response::ForbiddenError(err),
-        ),
-        WsServiceError::TooManyRequests(err) => {
-            SubscribeFriendshipEventsUpdatesResponse::from_response(
-                subscribe_friendship_events_updates_response::Response::TooManyRequestsError(err),
-            )
-        }
-        WsServiceError::BadRequest(err) => SubscribeFriendshipEventsUpdatesResponse::from_response(
-            subscribe_friendship_events_updates_response::Response::InternalServerError(
-                InternalServerError {
+impl From<CommonError> for UsersResponse {
+    fn from(value: CommonError) -> Self {
+        let err: WsServiceError = value.into();
+        match err {
+            WsServiceError::Unauthorized(err) => {
+                UsersResponse::from_response(users_response::Response::UnauthorizedError(err))
+            }
+            WsServiceError::InternalServer(err) => {
+                UsersResponse::from_response(users_response::Response::InternalServerError(err))
+            }
+            WsServiceError::Forbidden(err) => {
+                UsersResponse::from_response(users_response::Response::ForbiddenError(err))
+            }
+            WsServiceError::TooManyRequests(err) => {
+                UsersResponse::from_response(users_response::Response::TooManyRequestsError(err))
+            }
+            WsServiceError::BadRequest(err) => UsersResponse::from_response(
+                users_response::Response::InternalServerError(InternalServerError {
                     message: err.message,
-                },
+                }),
             ),
-        ),
+        }
+    }
+}
+
+impl From<CommonError> for RequestEventsResponse {
+    fn from(value: CommonError) -> Self {
+        let err: WsServiceError = value.into();
+        match err {
+            WsServiceError::Unauthorized(err) => RequestEventsResponse::from_response(
+                request_events_response::Response::UnauthorizedError(err),
+            ),
+            WsServiceError::InternalServer(err) => RequestEventsResponse::from_response(
+                request_events_response::Response::InternalServerError(err),
+            ),
+            WsServiceError::Forbidden(err) => RequestEventsResponse::from_response(
+                request_events_response::Response::ForbiddenError(err),
+            ),
+            WsServiceError::TooManyRequests(err) => RequestEventsResponse::from_response(
+                request_events_response::Response::TooManyRequestsError(err),
+            ),
+            WsServiceError::BadRequest(err) => RequestEventsResponse::from_response(
+                request_events_response::Response::InternalServerError(InternalServerError {
+                    message: err.message,
+                }),
+            ),
+        }
+    }
+}
+
+impl From<CommonError> for UpdateFriendshipResponse {
+    fn from(value: CommonError) -> Self {
+        let err: WsServiceError = value.into();
+        match err {
+            WsServiceError::Unauthorized(err) => UpdateFriendshipResponse::from_response(
+                update_friendship_response::Response::UnauthorizedError(err),
+            ),
+            WsServiceError::InternalServer(err) => UpdateFriendshipResponse::from_response(
+                update_friendship_response::Response::InternalServerError(err),
+            ),
+            WsServiceError::BadRequest(err) => UpdateFriendshipResponse::from_response(
+                update_friendship_response::Response::BadRequestError(err),
+            ),
+            WsServiceError::Forbidden(err) => UpdateFriendshipResponse::from_response(
+                update_friendship_response::Response::ForbiddenError(err),
+            ),
+            WsServiceError::TooManyRequests(err) => UpdateFriendshipResponse::from_response(
+                update_friendship_response::Response::TooManyRequestsError(err),
+            ),
+        }
+    }
+}
+
+impl From<CommonError> for SubscribeFriendshipEventsUpdatesResponse {
+    fn from(value: CommonError) -> Self {
+        let err: WsServiceError = value.into();
+        match err {
+            WsServiceError::Unauthorized(err) => {
+                SubscribeFriendshipEventsUpdatesResponse::from_response(
+                    subscribe_friendship_events_updates_response::Response::UnauthorizedError(err),
+                )
+            }
+            WsServiceError::InternalServer(err) => {
+                SubscribeFriendshipEventsUpdatesResponse::from_response(
+                    subscribe_friendship_events_updates_response::Response::InternalServerError(
+                        err,
+                    ),
+                )
+            }
+            WsServiceError::Forbidden(err) => {
+                SubscribeFriendshipEventsUpdatesResponse::from_response(
+                    subscribe_friendship_events_updates_response::Response::ForbiddenError(err),
+                )
+            }
+            WsServiceError::TooManyRequests(err) => {
+                SubscribeFriendshipEventsUpdatesResponse::from_response(
+                    subscribe_friendship_events_updates_response::Response::TooManyRequestsError(
+                        err,
+                    ),
+                )
+            }
+            WsServiceError::BadRequest(err) => {
+                SubscribeFriendshipEventsUpdatesResponse::from_response(
+                    subscribe_friendship_events_updates_response::Response::InternalServerError(
+                        InternalServerError {
+                            message: err.message,
+                        },
+                    ),
+                )
+            }
+        }
     }
 }
