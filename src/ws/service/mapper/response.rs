@@ -1,29 +1,43 @@
-use crate::{
-    friendships::{
+use crate::friendships::{
         friendship_event_payload, friendship_event_response, AcceptResponse, CancelResponse,
         DeleteResponse, FriendshipEventPayload, FriendshipEventResponse, RejectResponse,
-        RequestResponse, User,
-    },
-    notifications::Event,
-};
+        RequestResponse, User, RequestEventsResponse, request_events_response, UpdateFriendshipResponse, SubscribeFriendshipEventsUpdatesResponse, subscribe_friendship_events_updates_response, update_friendship_response, UsersResponse, users_response,
+    };
 
-pub fn update_friendship_payload_as_event(
-    payload: FriendshipEventPayload,
-    from: &str,
-    created_at: i64,
-) -> Option<Event> {
-    if let Ok((friendship_event, to)) = payload_event_as_response(payload, from, created_at) {
-        Some(Event {
-            friendship_event,
-            from: from.to_string(),
-            to,
-        })
-    } else {
-        None
+
+impl UsersResponse {
+    pub fn from_response(response: users_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
     }
 }
 
-fn payload_event_as_response(
+impl RequestEventsResponse {
+    pub fn from_response(response: request_events_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
+    }
+}
+
+impl UpdateFriendshipResponse {
+    pub fn from_response(response: update_friendship_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
+    }
+}
+
+impl SubscribeFriendshipEventsUpdatesResponse {
+    pub fn from_response(response: subscribe_friendship_events_updates_response::Response) -> Self {
+        Self {
+            response: Some(response),
+        }
+    }
+}
+
+pub fn payload_event_as_response(
     payload: FriendshipEventPayload,
     from: &str,
     created_at: i64,

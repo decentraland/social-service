@@ -14,7 +14,7 @@ mod tests {
             friendship_event_payload::Body, friendship_event_response, CancelPayload,
             FriendshipEventPayload, Payload, RequestPayload, UpdateFriendshipPayload, User,
         },
-        ws::service::mapper::events::{
+        ws::service::mapper::event::{
             event_response_as_update_response, friendship_requests_as_request_events_response,
             update_request_as_event_payload,
         },
@@ -51,7 +51,25 @@ mod tests {
                 unreachable!("An error response was found");
             },
             social_service::friendships::request_events_response::Response::Events(result) => {
-                assert_eq!(result.outgoing.unwrap().total, 1);
+
+                match result.outgoing { 
+                    Some(outgoing) => {
+
+                        assert_eq!(outgoing.total, 1);
+
+                        let first_request = outgoing.items.get(0);
+                        match first_request {
+                            Some(req) => {
+                                assert_eq!(req.user.as_ref().unwrap().address, "PedroL");
+                                assert!(req.created_at > 0);
+                                assert!(req.message.is_none());
+                            }
+                            None => unreachable!("An error response was found"),
+                        }
+                    } 
+                    None => unreachable!("An error response was found"),
+                }
+
                 match result.incoming {
                     Some(incoming) => {
                         assert_eq!(incoming.total, 1);
@@ -137,7 +155,11 @@ mod tests {
         let result = event_response_as_update_response(update_payload, event_response);
         assert!(result.is_ok());
 
-        let update_response = result.unwrap().response.unwrap();
+        let update_response = result
+            .expect("Failed to get result")
+            .response
+            .expect("Failed to get response");
+
         match update_response {
             social_service::friendships::update_friendship_response::Response::InternalServerError(_) => {
                 unreachable!("An error response was found");

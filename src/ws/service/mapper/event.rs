@@ -8,46 +8,15 @@ use crate::{
     },
     entities::friendship_history::FriendshipRequestEvent,
     friendships::{
-        friendship_event_payload, friendship_event_response, request_events_response,
-        subscribe_friendship_events_updates_response, update_friendship_response, users_response,
+        friendship_event_payload, friendship_event_response, request_events_response, update_friendship_response,
         AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse, RejectResponse,
-        RequestEvents, RequestEventsResponse, RequestResponse, Requests,
-        SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
-        UpdateFriendshipResponse, User, UsersResponse,
-    },
+        RequestEvents, RequestEventsResponse, RequestResponse, Requests, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User, FriendshipEventPayload,
+    }, notifications::Event,
 };
 
-impl UsersResponse {
-    pub fn from_response(response: users_response::Response) -> Self {
-        Self {
-            response: Some(response),
-        }
-    }
-}
+use super::response::payload_event_as_response;
 
-impl RequestEventsResponse {
-    pub fn from_response(response: request_events_response::Response) -> Self {
-        Self {
-            response: Some(response),
-        }
-    }
-}
-
-impl UpdateFriendshipResponse {
-    pub fn from_response(response: update_friendship_response::Response) -> Self {
-        Self {
-            response: Some(response),
-        }
-    }
-}
-
-impl SubscribeFriendshipEventsUpdatesResponse {
-    pub fn from_response(response: subscribe_friendship_events_updates_response::Response) -> Self {
-        Self {
-            response: Some(response),
-        }
-    }
-}
 
 /// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.
 ///
@@ -266,35 +235,20 @@ pub fn event_response_as_update_response(
     Ok(update_response)
 }
 
-// TODO: Check if this tests need rewrite
-// #[cfg(test)]
-// mod tests {
-//     use crate::domain::error::CommonError;
 
-//     #[test]
-//     fn test_map_common_error_to_friendships_error() {
-//         let err = CommonError::Forbidden("Forbidden".to_owned());
-//         assert_eq!(
-//             map_common_error_to_friendships_error(err),
-//             as_service_error(DomainErrorCode::Forbidden, "Forbidden")
-//         );
+pub fn update_friendship_payload_as_event(
+    payload: FriendshipEventPayload,
+    from: &str,
+    created_at: i64,
+) -> Option<Event> {
+    if let Ok((friendship_event, to)) = payload_event_as_response(payload, from, created_at) {
+        Some(Event {
+            friendship_event,
+            from: from.to_string(),
+            to,
+        })
+    } else {
+        None
+    }
+}
 
-//         let err = CommonError::Unauthorized;
-//         assert_eq!(
-//             map_common_error_to_friendships_error(err),
-//             as_service_error(DomainErrorCode::Unauthorized, "")
-//         );
-
-//         let err = CommonError::TooManyRequests;
-//         assert_eq!(
-//             map_common_error_to_friendships_error(err),
-//             as_service_error(DomainErrorCode::TooManyRequests, "")
-//         );
-
-//         let err = CommonError::Unknown;
-//         assert_eq!(
-//             map_common_error_to_friendships_error(err),
-//             as_service_error(DomainErrorCode::InternalServerError, "")
-//         );
-//     }
-// }

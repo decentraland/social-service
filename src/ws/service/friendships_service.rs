@@ -26,12 +26,11 @@ use crate::{
 use super::{
     friendship_event_updates::handle_friendship_update,
     mapper::{
-        events::{
+        event::{
             event_response_as_update_response, friendship_requests_as_request_events_response,
-            update_request_as_event_payload,
+            update_friendship_payload_as_event, update_request_as_event_payload,
         },
-        payload_to_response::update_friendship_payload_as_event,
-        payload_token::get_synapse_token,
+        payload::get_synapse_token,
     },
 };
 
@@ -382,6 +381,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
     }
 }
 
+/// Filters out the friend of the authenticated user based on the provided `user_id`.
+///
+/// * `friendship` - A `Friendship` struct representing the friendship between the two users.
+/// * `user_id` - The id of the authenticated user.
 fn build_user(friendship: Friendship, user_id: UserId) -> User {
     let address1: String = friendship.address_1;
     let address2: String = friendship.address_2;
