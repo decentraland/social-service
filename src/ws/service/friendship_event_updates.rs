@@ -8,10 +8,7 @@ use crate::{
         friendships_handler::{get_friendship, get_last_history, update_friendship_status},
         types::FriendshipDbRepositories,
     },
-    domain::{
-        error::{as_ws_service, WsServiceError},
-        room::RoomInfo,
-    },
+    domain::room::RoomInfo,
     domain::{
         friendship_event_validator::validate_new_event,
         friendship_status_calculator::get_new_friendship_status,
@@ -24,7 +21,10 @@ use crate::{
     ws::{app::SocialContext, service::types::EventResponse},
 };
 
-use super::mapper::events::update_request_as_event_payload;
+use super::mapper::{
+    error::{as_ws_service, WsServiceError},
+    events::update_request_as_event_payload,
+};
 
 /// Processes a friendship event update by validating it and updating the Database and Synapse.
 pub async fn handle_friendship_update(

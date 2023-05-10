@@ -30,7 +30,7 @@ mod tests {
         let requests: Vec<FriendshipRequestEvent> = generate_request_events();
 
         // Authenticated user
-        let user_id: String = "Pizarnik".to_string();
+        let user_id: String = "Pizarnik".to_owned();
 
         let result = friendship_requests_as_request_events_response(requests, user_id)
             .response
@@ -41,12 +41,18 @@ mod tests {
                 _,
             ) => {
                 unreachable!("An error response was found");
-            }
+            },
             social_service::friendships::request_events_response::Response::UnauthorizedError(
                 _,
             ) => {
                 unreachable!("An error response was found");
-            }
+            },
+            social_service::friendships::request_events_response::Response::ForbiddenError(_) => {
+                unreachable!("An error response was found");
+            },
+            social_service::friendships::request_events_response::Response::TooManyRequestsError(_) => {
+                unreachable!("An error response was found");
+            },
             social_service::friendships::request_events_response::Response::Events(result) => {
                 assert_eq!(result.outgoing.unwrap().total, 1);
                 match result.incoming {
@@ -74,12 +80,12 @@ mod tests {
         // Case 1: Request event
         let request = generate_update_friendship_payload(
             Body::Request(RequestPayload {
-                message: Some("Let's be friends!".to_string()),
+                message: Some("Let's be friends!".to_owned()),
                 user: Some(User {
-                    address: "Pizarnik".to_string(),
+                    address: "Pizarnik".to_owned(),
                 }),
             }),
-            "Pizarnik".to_string(),
+            "Pizarnik".to_owned(),
         );
 
         let result = update_request_as_event_payload(request).unwrap();
@@ -94,10 +100,10 @@ mod tests {
         let cancel = generate_update_friendship_payload(
             Body::Cancel(CancelPayload {
                 user: Some(User {
-                    address: "Pizarnik".to_string(),
+                    address: "Pizarnik".to_owned(),
                 }),
             }),
-            "Pizarnik".to_string(),
+            "Pizarnik".to_owned(),
         );
 
         let result = update_request_as_event_payload(cancel).unwrap();
@@ -119,16 +125,16 @@ mod tests {
         // Create an UpdateFriendshipPayload with a Request body
         let update_payload = generate_update_friendship_payload(
             Body::Request(RequestPayload {
-                message: Some("Let's be friends!".to_string()),
+                message: Some("Let's be friends!".to_owned()),
                 user: Some(User {
-                    address: "Pizarnik".to_string(),
+                    address: "Pizarnik".to_owned(),
                 }),
             }),
-            "Pizarnik".to_string(),
+            "Pizarnik".to_owned(),
         );
 
         let event_response = EventResponse {
-            user_id: "Pizarnik".to_string(),
+            user_id: "Pizarnik".to_owned(),
         };
 
         let result = event_response_as_update_response(update_payload, event_response);
@@ -161,11 +167,11 @@ mod tests {
                     friendship_event_response::Body::Request(request_response) => {
                         assert_eq!(
                             request_response.user.unwrap().address,
-                            "Pizarnik".to_string()
+                            "Pizarnik".to_owned()
                         );
                         assert_eq!(
                             request_response.message.unwrap(),
-                            "Let's be friends!".to_string()
+                            "Let's be friends!".to_owned()
                         );
                     }
                     _ => panic!("Expected Request body"),
@@ -252,20 +258,20 @@ mod tests {
 
         vec![
             FriendshipRequestEvent {
-                acting_user: "Martha".to_string(),
-                address_1: "Martha".to_string(),
-                address_2: "Pizarnik".to_string(),
+                acting_user: "Martha".to_owned(),
+                address_1: "Martha".to_owned(),
+                address_2: "Pizarnik".to_owned(),
                 timestamp,
                 metadata: Some(sqlx::types::Json(FriendshipMetadata {
-                    message: Some("Hey, let's be friends!".to_string()),
+                    message: Some("Hey, let's be friends!".to_owned()),
                     synapse_room_id: None,
                     migrated_from_synapse: None,
                 })),
             },
             FriendshipRequestEvent {
-                acting_user: "Pizarnik".to_string(),
-                address_1: "PedroL".to_string(),
-                address_2: "Pizarnik".to_string(),
+                acting_user: "Pizarnik".to_owned(),
+                address_1: "PedroL".to_owned(),
+                address_2: "Pizarnik".to_owned(),
                 timestamp,
                 metadata: None,
             },

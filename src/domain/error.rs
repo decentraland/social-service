@@ -3,10 +3,6 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::friendships::{
-    BadRequestError, ForbiddenError, InternalServerError, TooManyRequestsError, UnauthorizedError,
-};
-
 #[derive(Serialize, Deserialize)]
 pub struct ErrorResponse {
     pub code: u16,
@@ -66,45 +62,5 @@ impl ResponseError for CommonError {
             error: self.name(),
         };
         HttpResponse::build(status_code).json(error_response)
-    }
-}
-
-pub enum WsServiceError {
-    Unauthorized(UnauthorizedError),
-    InternalServer(InternalServerError),
-    BadRequest(BadRequestError),
-    Forbidden(ForbiddenError),
-    TooManyRequests(TooManyRequestsError),
-}
-
-pub fn as_ws_service(err: CommonError) -> WsServiceError {
-    match err {
-        CommonError::Forbidden(error_message) => WsServiceError::Forbidden(ForbiddenError {
-            message: error_message,
-        }),
-        CommonError::Unauthorized(error_message) => {
-            WsServiceError::Unauthorized(UnauthorizedError {
-                message: error_message,
-            })
-        }
-        CommonError::TooManyRequests(error_message) => {
-            WsServiceError::TooManyRequests(TooManyRequestsError {
-                message: error_message,
-            })
-        }
-        CommonError::Unknown(error_message) => {
-            WsServiceError::InternalServer(InternalServerError {
-                message: error_message,
-            })
-        }
-        CommonError::NotFound(error_message) => WsServiceError::BadRequest(BadRequestError {
-            message: error_message,
-        }),
-        CommonError::BadRequest(error_message) => WsServiceError::BadRequest(BadRequestError {
-            message: error_message,
-        }),
-        CommonError::UserNotFound(error_message) => WsServiceError::BadRequest(BadRequestError {
-            message: error_message,
-        }),
     }
 }
