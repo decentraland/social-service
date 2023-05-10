@@ -1,21 +1,17 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    api::routes::v1::error::CommonError,
+    domain::{error::CommonError, friendship_event::FriendshipEvent},
     entities::friendship_history::FriendshipRequestEvent,
     friendships::{
         friendship_event_payload, friendship_event_response, request_events_response,
         subscribe_friendship_events_updates_response, update_friendship_response, users_response,
-        AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse,
-        FriendshipServiceError, RejectResponse, RequestEvents, RequestEventsResponse,
-        RequestResponse, Requests, SubscribeFriendshipEventsUpdatesResponse,
-        UpdateFriendshipPayload, UpdateFriendshipResponse, User, UsersResponse,
+        AcceptResponse, CancelResponse, DeleteResponse, FriendshipEventResponse, RejectResponse,
+        RequestEvents, RequestEventsResponse, RequestResponse, Requests,
+        SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User, UsersResponse,
     },
-    models::friendship_event::FriendshipEvent,
-    ws::service::{
-        errors::{as_service_error, DomainErrorCode},
-        types::{EventPayload, EventResponse},
-    },
+    ws::service::types::{EventPayload, EventResponse},
 };
 
 impl UsersResponse {
@@ -111,7 +107,7 @@ pub fn friendship_requests_as_request_events_response(
 /// that is, the room event, the other user who is part of the friendship event, and the message body from the request event.
 pub fn update_request_as_event_payload(
     request: UpdateFriendshipPayload,
-) -> Result<EventPayload, FriendshipServiceError> {
+) -> Result<EventPayload, CommonError> {
     let event_payload = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(request)) => EventPayload {
@@ -119,9 +115,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: request.message,
                 second_user: request
                     .user
-                    .ok_or(as_service_error(
-                        DomainErrorCode::BadRequest,
-                        "`user address` is missing",
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -130,9 +125,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: accept
                     .user
-                    .ok_or(as_service_error(
-                        DomainErrorCode::BadRequest,
-                        "`user address` is missing",
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -141,9 +135,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: reject
                     .user
-                    .ok_or(as_service_error(
-                        DomainErrorCode::BadRequest,
-                        "`user address` is missing",
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -152,9 +145,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: cancel
                     .user
-                    .ok_or(as_service_error(
-                        DomainErrorCode::BadRequest,
-                        "`user address` is missing",
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -163,24 +155,19 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: delete
                     .user
-                    .ok_or(as_service_error(
-                        DomainErrorCode::BadRequest,
-                        "`user address` is missing",
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
             None => {
-                return Err(as_service_error(
-                    DomainErrorCode::BadRequest,
-                    "`friendship_event_payload::body` is missing",
+                return Err(CommonError::BadRequest(
+                    "`friendship_event_payload::body` is missing".to_owned(),
                 ))
             }
         }
     } else {
-        return Err(as_service_error(
-            DomainErrorCode::BadRequest,
-            "`event` is missing",
-        ));
+        return Err(CommonError::BadRequest("`event` is missing".to_owned()));
     };
 
     Ok(event_payload)
@@ -189,7 +176,7 @@ pub fn update_request_as_event_payload(
 pub fn event_response_as_update_response(
     request: UpdateFriendshipPayload,
     result: EventResponse,
-) -> Result<UpdateFriendshipResponse, FriendshipServiceError> {
+) -> Result<UpdateFriendshipResponse, CommonError> {
     let update_response = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(payload)) => {
@@ -267,66 +254,44 @@ pub fn event_response_as_update_response(
                     update_friendship_response::Response::Event(event),
                 )
             }
-            None => {
-                return Err(as_service_error(
-                    DomainErrorCode::InternalServerError,
-                    "Unexpected error",
-                ))
-            }
+            None => return Err(CommonError::Unknown("Unexpected error".to_owned())),
         }
     } else {
-        return Err(as_service_error(
-            DomainErrorCode::InternalServerError,
-            "Unexpected error",
-        ));
+        return Err(CommonError::Unknown("Unexpected error".to_owned()));
     };
 
     Ok(update_response)
 }
 
-pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipServiceError {
-    match err {
-        CommonError::Forbidden(error_message) => {
-            as_service_error(DomainErrorCode::Forbidden, &error_message)
-        }
-        CommonError::Unauthorized => as_service_error(DomainErrorCode::Unauthorized, ""),
-        CommonError::TooManyRequests => as_service_error(DomainErrorCode::TooManyRequests, ""),
-        _ => as_service_error(DomainErrorCode::InternalServerError, ""),
-    }
-}
+// TODO: Check if this tests need rewrite
+// #[cfg(test)]
+// mod tests {
+//     use crate::domain::error::CommonError;
 
-#[cfg(test)]
-mod tests {
-    use super::map_common_error_to_friendships_error;
-    use crate::{
-        api::routes::v1::error::CommonError,
-        ws::service::errors::{as_service_error, DomainErrorCode},
-    };
+//     #[test]
+//     fn test_map_common_error_to_friendships_error() {
+//         let err = CommonError::Forbidden("Forbidden".to_owned());
+//         assert_eq!(
+//             map_common_error_to_friendships_error(err),
+//             as_service_error(DomainErrorCode::Forbidden, "Forbidden")
+//         );
 
-    #[test]
-    fn test_map_common_error_to_friendships_error() {
-        let err = CommonError::Forbidden("Forbidden".to_owned());
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::Forbidden, "Forbidden")
-        );
+//         let err = CommonError::Unauthorized;
+//         assert_eq!(
+//             map_common_error_to_friendships_error(err),
+//             as_service_error(DomainErrorCode::Unauthorized, "")
+//         );
 
-        let err = CommonError::Unauthorized;
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::Unauthorized, "")
-        );
+//         let err = CommonError::TooManyRequests;
+//         assert_eq!(
+//             map_common_error_to_friendships_error(err),
+//             as_service_error(DomainErrorCode::TooManyRequests, "")
+//         );
 
-        let err = CommonError::TooManyRequests;
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::TooManyRequests, "")
-        );
-
-        let err = CommonError::Unknown;
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            as_service_error(DomainErrorCode::InternalServerError, "")
-        );
-    }
-}
+//         let err = CommonError::Unknown;
+//         assert_eq!(
+//             map_common_error_to_friendships_error(err),
+//             as_service_error(DomainErrorCode::InternalServerError, "")
+//         );
+//     }
+// }

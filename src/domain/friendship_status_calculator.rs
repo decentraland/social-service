@@ -1,8 +1,8 @@
 use crate::{
+    domain::{
+        error::CommonError, friendship_event::FriendshipEvent, friendship_status::FriendshipStatus,
+    },
     entities::friendship_history::FriendshipHistory,
-    friendships::FriendshipServiceError,
-    models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
-    ws::service::errors::{as_service_error, DomainErrorCode},
 };
 
 /// Calculates the new friendship status based on the provided friendship event and the last recorded history.
@@ -10,7 +10,7 @@ pub fn get_new_friendship_status(
     acting_user: &str,
     last_recorded_history: &Option<FriendshipHistory>,
     room_event: FriendshipEvent,
-) -> Result<FriendshipStatus, FriendshipServiceError> {
+) -> Result<FriendshipStatus, CommonError> {
     match room_event {
         FriendshipEvent::REQUEST => {
             calculate_new_friendship_status(acting_user, last_recorded_history, room_event)
@@ -29,9 +29,8 @@ pub fn get_new_friendship_status(
                 room_event,
                 acting_user
             );
-            Err(as_service_error(
-                DomainErrorCode::BadRequest,
-                "Invalid friendship event update",
+            Err(CommonError::BadRequest(
+                "Invalid friendship event update".to_owned(),
             ))
         }
         FriendshipEvent::REJECT => {
@@ -45,9 +44,8 @@ pub fn get_new_friendship_status(
                 room_event,
                 acting_user
             );
-            Err(as_service_error(
-                DomainErrorCode::BadRequest,
-                "Invalid friendship event update",
+            Err(CommonError::BadRequest(
+                "Invalid friendship event update".to_owned(),
             ))
         }
         FriendshipEvent::DELETE => Ok(FriendshipStatus::NotFriends),
@@ -60,7 +58,7 @@ fn calculate_new_friendship_status(
     acting_user: &str,
     last_recorded_history: &Option<FriendshipHistory>,
     room_event: FriendshipEvent,
-) -> Result<FriendshipStatus, FriendshipServiceError> {
+) -> Result<FriendshipStatus, CommonError> {
     if last_recorded_history.is_none() {
         return match room_event {
             FriendshipEvent::REQUEST => Ok(FriendshipStatus::Requested(acting_user.to_string())),
@@ -71,9 +69,8 @@ fn calculate_new_friendship_status(
                     acting_user,
                     FriendshipEvent::REQUEST,
                 );
-                Err(as_service_error(
-                    DomainErrorCode::BadRequest,
-                    "Invalid friendship event update",
+                Err(CommonError::BadRequest(
+                    "Invalid friendship event update".to_owned(),
                 ))
             }
         };
@@ -90,9 +87,8 @@ fn calculate_new_friendship_status(
                     acting_user,
                     last_history.event
                 );
-                return Err(as_service_error(
-                    DomainErrorCode::BadRequest,
-                    "Invalid friendship event update",
+                return Err(CommonError::BadRequest(
+                    "Invalid friendship event update".to_owned(),
                 ));
             }
 
@@ -105,9 +101,8 @@ fn calculate_new_friendship_status(
                         acting_user,
                         last_history.event
                     );
-                    Err(as_service_error(
-                        DomainErrorCode::BadRequest,
-                        "Invalid friendship event update",
+                    Err(CommonError::BadRequest(
+                        "Invalid friendship event update".to_owned(),
                     ))
                 }
             }
@@ -119,9 +114,8 @@ fn calculate_new_friendship_status(
                 acting_user,
                 last_history.event,
             );
-            Err(as_service_error(
-                DomainErrorCode::BadRequest,
-                "Invalid friendship event update",
+            Err(CommonError::BadRequest(
+                "Invalid friendship event update".to_owned(),
             ))
         }
         _ => match room_event {
@@ -133,9 +127,8 @@ fn calculate_new_friendship_status(
                     acting_user,
                     last_history.event,
                 );
-                Err(as_service_error(
-                    DomainErrorCode::BadRequest,
-                    "Invalid friendship event update",
+                Err(CommonError::BadRequest(
+                    "Invalid friendship event update".to_owned(),
                 ))
             }
         },

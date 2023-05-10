@@ -1,5 +1,4 @@
 // Responsible for managing Synapse rooms and storing events in these rooms.
-// The errors of this file are coupled with the `ws` scope.
 use std::{collections::HashMap, sync::Arc};
 use urlencoding::encode;
 
@@ -12,13 +11,9 @@ use crate::{
         },
         users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
     },
+    domain::{error::CommonError, friendship_event::FriendshipEvent},
     entities::friendships::Friendship,
-    friendships::{FriendshipServiceError, Payload},
-    models::friendship_event::FriendshipEvent,
-    ws::service::{
-        errors::{as_service_error, DomainErrorCode},
-        mapper::events::map_common_error_to_friendships_error,
-    },
+    friendships::Payload,
 };
 
 /// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
@@ -57,24 +52,23 @@ fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str
 /// authentication token was provided, returns a `Unauthorized`
 /// error.
 pub async fn get_user_id_from_request(
-    request: &Payload,
+    request: &Payload, // TODO: Remove this dependency
     synapse: SynapseComponent,
     users_cache: Arc<Mutex<UsersCacheComponent>>,
-) -> Result<UserId, FriendshipServiceError> {
+) -> Result<UserId, CommonError> {
     match request.synapse_token.clone() {
         // If an authentication token was provided, get the user id from the token
         Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
             .await
             .map_err(|err| {
                 log::error!("Get user id from request > Error {err}");
-                map_common_error_to_friendships_error(err)
+                err
             }),
         // If no authentication token was provided, return an Unauthorized error.
         None => {
             log::error!("Get user id from request > `synapse_token` is None.");
-            Err(as_service_error(
-                DomainErrorCode::Unauthorized,
-                "`synapse_token` was not provided",
+            Err(CommonError::Unauthorized(
+                "`synapse_token` was not provided".to_owned(),
             ))
         }
     }
@@ -87,7 +81,7 @@ pub async fn store_message_in_synapse_room<'a>(
     room_event: FriendshipEvent,
     room_message_body: Option<&str>,
     synapse: &SynapseComponent,
-) -> Result<(), FriendshipServiceError> {
+) -> Result<(), CommonError> {
     // Check if it's a `request` event.
     if room_event != FriendshipEvent::REQUEST {
         return Ok(());
@@ -108,7 +102,7 @@ pub async fn store_message_in_synapse_room<'a>(
                     Err(err) => {
                         if retry_count == 2 {
                             log::error!("Store message in synapse room > Error {err}");
-                            return Err(map_common_error_to_friendships_error(err));
+                            return Err(err);
                         }
                     }
                 }
@@ -125,7 +119,7 @@ pub async fn store_room_event_in_synapse_room(
     room_event: FriendshipEvent,
     room_message_body: Option<&str>,
     synapse: &SynapseComponent,
-) -> Result<(), FriendshipServiceError> {
+) -> Result<(), CommonError> {
     let res = synapse
         .store_room_event(token, room_id, room_event, room_message_body)
         .await;
@@ -134,7 +128,7 @@ pub async fn store_room_event_in_synapse_room(
         Ok(_) => Ok(()),
         Err(err) => {
             log::error!("Store room event in synapse room > Error {err}");
-            Err(map_common_error_to_friendships_error(err))
+            Err(err)
         }
     }
 }
@@ -151,7 +145,7 @@ async fn create_private_room_in_synapse(
     synapse_user_ids: Vec<&str>,
     room_alias_name: String,
     synapse: &SynapseComponent,
-) -> Result<CreateRoomResponse, FriendshipServiceError> {
+) -> Result<CreateRoomResponse, CommonError> {
     let res = synapse
         .create_private_room(token, synapse_user_ids, &room_alias_name)
         .await;
@@ -165,7 +159,7 @@ async fn create_private_room_in_synapse(
         }
         Err(err) => {
             log::error!("Create private room in synapse > Error {err}");
-            Err(map_common_error_to_friendships_error(err))
+            Err(err)
         }
     }
 }
@@ -174,14 +168,14 @@ async fn get_room_id_for_alias_in_synapse(
     token: &str,
     room_alias_name: &str,
     synapse: &SynapseComponent,
-) -> Result<String, FriendshipServiceError> {
+) -> Result<String, CommonError> {
     let res = synapse.get_room_id_for_alias(token, room_alias_name).await;
 
     match res {
         Ok(response) => Ok(response.room_id),
         Err(err) => {
             log::error!("Get room id for alias in synapse > Error {err}");
-            Err(map_common_error_to_friendships_error(err))
+            Err(err)
         }
     }
 }
@@ -202,7 +196,7 @@ pub async fn get_or_create_synapse_room_id(
     second_user: &str,
     token: &str,
     synapse: &SynapseComponent,
-) -> Result<String, FriendshipServiceError> {
+) -> Result<String, CommonError> {
     match friendship {
         Some(friendship) => Ok(friendship.synapse_room_id.clone()),
         None => {
@@ -234,9 +228,8 @@ pub async fn get_or_create_synapse_room_id(
                 }
             } else {
                 log::error!("Get or create synapse room > Friendship does not exists and the event is different than Request");
-                Err(as_service_error(
-                    DomainErrorCode::BadRequest,
-                    "Invalid frienship event update",
+                Err(CommonError::BadRequest(
+                    "Invalid frienship event update".to_owned(),
                 ))
             }
         }
@@ -256,7 +249,7 @@ pub async fn set_account_data(
     second_user: &str,
     room_id: &str,
     synapse: &SynapseComponent,
-) -> Result<(), FriendshipServiceError> {
+) -> Result<(), CommonError> {
     let acting_user_as_synapse_id = user_id_as_synapse_user_id(acting_user, &synapse.synapse_url);
     let m_direct_event = synapse
         .get_account_data(token, &acting_user_as_synapse_id)
@@ -282,7 +275,7 @@ pub async fn set_account_data(
                         .await
                         .map_err(|err| {
                             log::error!("Set account data > Error setting account data {err}");
-                            map_common_error_to_friendships_error(err)
+                            err
                         })?;
                     return Ok(());
                 }
@@ -291,7 +284,7 @@ pub async fn set_account_data(
         }
         Err(err) => {
             log::error!("Set account data > Error getting account data {err}");
-            Err(map_common_error_to_friendships_error(err))
+            Err(err)
         }
     }
 }

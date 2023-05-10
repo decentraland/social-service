@@ -2,6 +2,11 @@
 mod tests {
     use chrono::NaiveDateTime;
     use social_service::{
+        domain::{
+            friendship_event::FriendshipEvent, friendship_event_validator::validate_new_event,
+            friendship_status::FriendshipStatus,
+            friendship_status_calculator::get_new_friendship_status,
+        },
         entities::friendship_history::{
             FriendshipHistory, FriendshipMetadata, FriendshipRequestEvent,
         },
@@ -9,10 +14,7 @@ mod tests {
             friendship_event_payload::Body, friendship_event_response, CancelPayload,
             FriendshipEventPayload, Payload, RequestPayload, UpdateFriendshipPayload, User,
         },
-        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
         ws::service::{
-            friendship_event_validator::validate_new_event,
-            friendship_status_calculator::get_new_friendship_status,
             mapper::events::{
                 event_response_as_update_response, friendship_requests_as_request_events_response,
                 update_request_as_event_payload,
@@ -35,7 +37,14 @@ mod tests {
             .unwrap();
 
         match result {
-            social_service::friendships::request_events_response::Response::Error(_) => {
+            social_service::friendships::request_events_response::Response::InternalServerError(
+                _,
+            ) => {
+                unreachable!("An error response was found");
+            }
+            social_service::friendships::request_events_response::Response::UnauthorizedError(
+                _,
+            ) => {
                 unreachable!("An error response was found");
             }
             social_service::friendships::request_events_response::Response::Events(result) => {
@@ -127,9 +136,21 @@ mod tests {
 
         let update_response = result.unwrap().response.unwrap();
         match update_response {
-            social_service::friendships::update_friendship_response::Response::Error(_) => {
+            social_service::friendships::update_friendship_response::Response::InternalServerError(_) => {
                 unreachable!("An error response was found");
-            }
+            },
+            social_service::friendships::update_friendship_response::Response::UnauthorizedError(_) => {
+                unreachable!("An error response was found");
+            },
+            social_service::friendships::update_friendship_response::Response::ForbiddenError(_) => {
+                unreachable!("An error response was found");
+            },
+            social_service::friendships::update_friendship_response::Response::TooManyRequestsError(_) => {
+                unreachable!("An error response was found");
+            },
+            social_service::friendships::update_friendship_response::Response::BadRequestError(_) => {
+                unreachable!("An error response was found");
+            },
             social_service::friendships::update_friendship_response::Response::Event(
                 update_response,
             ) => {
