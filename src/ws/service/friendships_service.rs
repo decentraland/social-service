@@ -1,14 +1,22 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use dcl_rpc::{
     rpc_protocol::RemoteErrorResponse,
     {service_module_definition::ProcedureContext, stream_protocol::Generator},
 };
 use futures_util::StreamExt;
+use tokio::sync::Mutex;
 
 use crate::{
-    components::{notifications::ChannelPublisher, users_cache::UserId},
-    domain::address::Address,
+    components::{
+        notifications::ChannelPublisher,
+        synapse::SynapseComponent,
+        users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
+    },
+    domain::{address::Address, error::CommonError},
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     friendships::{
         request_events_response, update_friendship_response, users_response,
@@ -16,7 +24,6 @@ use crate::{
         ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UnauthorizedError,
         UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users, UsersResponse,
     },
-    synapse::synapse_handler::get_user_id_from_request,
     ws::{
         app::{SocialContext, SocialTransportContext},
         metrics::record_error_response_code,
@@ -380,6 +387,35 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             }
         }
         Ok(friendships_generator)
+    }
+}
+
+/// Retrieves the User Id associated with the given Authentication Token.
+///
+/// If an authentication token was provided in the request, gets the
+/// user id from the token and returns it as a `Result<UserId, Error>`. If no
+/// authentication token was provided, returns a `Unauthorized`
+/// error.
+pub async fn get_user_id_from_request(
+    request: &Payload,
+    synapse: SynapseComponent,
+    users_cache: Arc<Mutex<UsersCacheComponent>>,
+) -> Result<UserId, CommonError> {
+    match request.synapse_token.clone() {
+        // If an authentication token was provided, get the user id from the token
+        Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
+            .await
+            .map_err(|err| {
+                log::error!("Get user id from request > Error {err}");
+                err
+            }),
+        // If no authentication token was provided, return an Unauthorized error.
+        None => {
+            log::error!("Get user id from request > `synapse_token` is None.");
+            Err(CommonError::Unauthorized(
+                "`synapse_token` was not provided".to_owned(),
+            ))
+        }
     }
 }
 

@@ -1,19 +1,13 @@
 // Responsible for managing Synapse rooms and storing events in these rooms.
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 use urlencoding::encode;
 
-use tokio::sync::Mutex;
-
 use crate::{
-    components::{
-        synapse::{
-            extract_domain, user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent,
-        },
-        users_cache::{get_user_id_from_token, UserId, UsersCacheComponent},
+    components::synapse::{
+        extract_domain, user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent,
     },
     domain::{error::CommonError, friendship_event::FriendshipEvent},
     entities::friendships::Friendship,
-    friendships::Payload,
 };
 
 /// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
@@ -43,35 +37,6 @@ fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str
         extract_domain(synapse_url)
     ))
     .into_owned()
-}
-
-/// Retrieves the User Id associated with the given Authentication Token.
-///
-/// If an authentication token was provided in the request, gets the
-/// user id from the token and returns it as a `Result<UserId, Error>`. If no
-/// authentication token was provided, returns a `Unauthorized`
-/// error.
-pub async fn get_user_id_from_request(
-    request: &Payload, // TODO: Remove this dependency
-    synapse: SynapseComponent,
-    users_cache: Arc<Mutex<UsersCacheComponent>>,
-) -> Result<UserId, CommonError> {
-    match request.synapse_token.clone() {
-        // If an authentication token was provided, get the user id from the token
-        Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
-            .await
-            .map_err(|err| {
-                log::error!("Get user id from request > Error {err}");
-                err
-            }),
-        // If no authentication token was provided, return an Unauthorized error.
-        None => {
-            log::error!("Get user id from request > `synapse_token` is None.");
-            Err(CommonError::Unauthorized(
-                "`synapse_token` was not provided".to_owned(),
-            ))
-        }
-    }
 }
 
 /// Stores a message event in a Synapse room if it's a friendship request event and the request contains a message.
