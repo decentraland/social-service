@@ -1,3 +1,5 @@
+use crate::{domain::error::CommonError, friendships::UpdateFriendshipPayload};
+
 pub fn get_synapse_token(request: UpdateFriendshipPayload) -> Result<String, CommonError> {
     let Some(auth_token) = request
       .auth_token
