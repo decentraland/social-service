@@ -1,7 +1,11 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    domain::{error::CommonError, friendship_event::FriendshipEvent},
+    domain::{
+        error::CommonError,
+        event::{EventPayload, EventResponse},
+        friendship_event::FriendshipEvent,
+    },
     entities::friendship_history::FriendshipRequestEvent,
     friendships::{
         friendship_event_payload, friendship_event_response, request_events_response,
@@ -11,7 +15,6 @@ use crate::{
         SubscribeFriendshipEventsUpdatesResponse, UpdateFriendshipPayload,
         UpdateFriendshipResponse, User, UsersResponse,
     },
-    ws::service::types::{EventPayload, EventResponse},
 };
 
 impl UsersResponse {

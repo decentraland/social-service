@@ -32,8 +32,10 @@ use super::{
         },
         events::{
             event_response_as_update_response, friendship_requests_as_request_events_response,
+            update_request_as_event_payload,
         },
         payload_to_response::update_friendship_payload_as_event,
+        payload_token::get_synapse_token,
     },
 };
 
@@ -250,56 +252,80 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 return Ok(to_update_friendship_response(err));
             }
             Ok(user_id) => {
-                let friendship_update_response = handle_friendship_update(
-                    request.clone(),
-                    context.server_context.clone(),
-                    user_id.clone().social_id,
-                )
-                .await;
+                let event_payload = update_request_as_event_payload(request.clone());
 
-                match friendship_update_response {
+                match event_payload {
                     Err(err) => {
-                        record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
+                        record_error_response_code("UNAUTHORIZED");
 
                         return Ok(to_update_friendship_response(err));
                     }
-                    Ok(friendship_update_response) => {
-                        let update_response = event_response_as_update_response(
-                            request.clone(),
-                            friendship_update_response,
-                        );
+                    Ok(event_payload) => {
+                        let token = get_synapse_token(request.clone());
 
-                        match update_response {
+                        match token {
                             Err(err) => {
-                                record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
+                                record_error_response_code("UNAUTHORIZED");
 
                                 return Ok(to_update_friendship_response(err));
                             }
-                            Ok(update_response) => {
-                                // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
-                                let created_at = SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_secs()
-                                    as i64;
+                            Ok(token) => {
+                                let friendship_update_response = handle_friendship_update(
+                                    token,
+                                    event_payload,
+                                    context.server_context.clone(),
+                                    user_id.clone().social_id,
+                                )
+                                .await;
 
-                                let publisher = context.server_context.redis_publisher.clone();
-                                if let Some(event) = request.clone().event {
-                                    tokio::spawn(async move {
-                                        if let Some(update_friendship_payload_as_event) =
-                                            update_friendship_payload_as_event(
-                                                event,
-                                                user_id.social_id.as_str(),
-                                                created_at,
-                                            )
-                                        {
-                                            publisher
-                                                .publish(update_friendship_payload_as_event)
-                                                .await;
+                                match friendship_update_response {
+                                    Err(err) => {
+                                        record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
+
+                                        return Ok(to_update_friendship_response(err));
+                                    }
+                                    Ok(friendship_update_response) => {
+                                        let update_response = event_response_as_update_response(
+                                            request.clone(),
+                                            friendship_update_response,
+                                        );
+
+                                        match update_response {
+                                            Err(err) => {
+                                                record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
+
+                                                return Ok(to_update_friendship_response(err));
+                                            }
+                                            Ok(update_response) => {
+                                                // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
+                                                let created_at = SystemTime::now()
+                                                    .duration_since(UNIX_EPOCH)
+                                                    .unwrap()
+                                                    .as_secs()
+                                                    as i64;
+
+                                                let publisher =
+                                                    context.server_context.redis_publisher.clone();
+                                                if let Some(event) = request.clone().event {
+                                                    tokio::spawn(async move {
+                                                        if let Some(
+                                                            update_friendship_payload_as_event,
+                                                        ) = update_friendship_payload_as_event(
+                                                            event,
+                                                            user_id.social_id.as_str(),
+                                                            created_at,
+                                                        ) {
+                                                            publisher
+                                                                .publish(update_friendship_payload_as_event)
+                                                                .await;
+                                                        }
+                                                    });
+                                                };
+                                                Ok(update_response)
+                                            }
                                         }
-                                    });
-                                };
-                                Ok(update_response)
+                                    }
+                                }
                             }
                         }
                     }

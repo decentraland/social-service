@@ -8,43 +8,27 @@ use crate::{
     },
     domain::room::RoomInfo,
     domain::{
-        error::CommonError, friendship_event_validator::validate_new_event,
+        error::CommonError,
+        event::{EventPayload, EventResponse},
+        friendship_event_validator::validate_new_event,
         friendship_status_calculator::get_new_friendship_status,
     },
-    friendships::UpdateFriendshipPayload,
     synapse::synapse_handler::{
         get_or_create_synapse_room_id, set_account_data, store_message_in_synapse_room,
         store_room_event_in_synapse_room,
     },
-    ws::{app::SocialContext, service::types::EventResponse},
+    ws::app::SocialContext,
 };
-
-use super::mapper::events::update_request_as_event_payload;
 
 /// Processes a friendship event update by validating it and updating the Database and Synapse.
 pub async fn handle_friendship_update(
-    request: UpdateFriendshipPayload, //TODO: Change this to string
+    synapse_token: String,
+    event_payload: EventPayload,
     context: Arc<SocialContext>,
     acting_user: String,
 ) -> Result<EventResponse, CommonError> {
-    let event_payload = update_request_as_event_payload(request.clone())?;
-
     let new_event = event_payload.friendship_event;
     let second_user = event_payload.second_user;
-
-    let token = request
-        .auth_token
-        .as_ref()
-        .ok_or_else(|| {
-            log::error!("Handle friendship update > `auth_token` is missing.");
-            CommonError::Unauthorized("`auth_token` is missing".to_owned())
-        })?
-        .synapse_token
-        .as_ref()
-        .ok_or_else(|| {
-            log::error!("Handle friendship update > `synapse_token` is missing.");
-            CommonError::Unauthorized("`synapse_token` is missing".to_owned())
-        })?;
 
     let db_repos = context.db.clone().db_repos.ok_or_else(|| {
         log::error!("Handle friendship update > Db repositories > `repos` is None.");
@@ -60,13 +44,13 @@ pub async fn handle_friendship_update(
         &new_event,
         &acting_user,
         &second_user,
-        token,
+        &synapse_token,
         &context.synapse.clone(),
     )
     .await?;
 
     set_account_data(
-        token,
+        &synapse_token,
         &acting_user,
         &second_user,
         &synapse_room_id,
@@ -120,7 +104,7 @@ pub async fn handle_friendship_update(
 
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
     store_message_in_synapse_room(
-        token,
+        &synapse_token,
         synapse_room_id.as_str(),
         new_event,
         room_message_body,
@@ -131,7 +115,7 @@ pub async fn handle_friendship_update(
     // Store the friendship event in the given room.
     // We'll continue storing the event in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates
     store_room_event_in_synapse_room(
-        token,
+        &synapse_token,
         synapse_room_id.as_str(),
         new_event,
         room_message_body,
