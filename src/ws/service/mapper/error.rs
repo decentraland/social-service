@@ -147,24 +147,3 @@ pub fn to_subscribe_friendship_events_updates_response(
         ),
     }
 }
-
-// Delete this method
-pub fn to_update_friendship_response2(err: WsServiceError) -> UpdateFriendshipResponse {
-    match err {
-        WsServiceError::Unauthorized(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::UnauthorizedError(err),
-        ),
-        WsServiceError::InternalServer(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::InternalServerError(err),
-        ),
-        WsServiceError::BadRequest(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::BadRequestError(err),
-        ),
-        WsServiceError::Forbidden(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::ForbiddenError(err),
-        ),
-        WsServiceError::TooManyRequests(err) => UpdateFriendshipResponse::from_response(
-            update_friendship_response::Response::TooManyRequestsError(err),
-        ),
-    }
-}

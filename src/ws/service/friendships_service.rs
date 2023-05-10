@@ -28,7 +28,7 @@ use super::{
     mapper::{
         error::{
             to_request_events_response, to_subscribe_friendship_events_updates_response,
-            to_update_friendship_response, to_update_friendship_response2, to_user_response,
+            to_update_friendship_response, to_user_response,
         },
         events::{
             event_response_as_update_response, friendship_requests_as_request_events_response,
@@ -261,7 +261,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     Err(err) => {
                         record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
 
-                        return Ok(to_update_friendship_response2(err));
+                        return Ok(to_update_friendship_response(err));
                     }
                     Ok(friendship_update_response) => {
                         let update_response = event_response_as_update_response(
