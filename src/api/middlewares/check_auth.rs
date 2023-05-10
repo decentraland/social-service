@@ -12,7 +12,10 @@ use actix_web::{
 };
 use futures_util::future::LocalBoxFuture;
 
-use crate::components::{app::AppComponents, users_cache::get_user_id_from_token};
+use crate::{
+    components::{app::AppComponents, users_cache::get_user_id_from_token},
+    domain::error::CommonError,
+};
 
 pub struct CheckAuthToken {
     auth_routes: Vec<String>,
@@ -74,7 +77,8 @@ where
         let is_metrics_call = request.path().eq_ignore_ascii_case("/metrics");
         if matched_route.is_none() && !is_metrics_call {
             let (request, _pl) = request.into_parts();
-            let response = HttpResponse::from_error(CommonError::NotFound).map_into_right_body();
+            let response = HttpResponse::from_error(CommonError::NotFound("".to_owned()))
+                .map_into_right_body();
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }
 
@@ -144,8 +148,8 @@ where
                 }
                 None => {
                     let (request, _pl) = request.into_parts();
-                    let response =
-                        HttpResponse::from_error(CommonError::Unknown).map_into_right_body();
+                    let response = HttpResponse::from_error(CommonError::Unknown("".to_owned()))
+                        .map_into_right_body();
                     Ok(ServiceResponse::new(request, response))
                 }
             }

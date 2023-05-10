@@ -1,57 +1,15 @@
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use dcl_rpc::{
-    server::RpcServer,
-    stream_protocol::GeneratorYielder,
-    transports::{Transport, TransportError, TransportMessage},
-};
+use dcl_rpc::transports::{Transport, TransportError, TransportMessage};
 
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
 
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 
-use warp::{
-    http::header::HeaderValue,
-    ws::{Message as WarpWSMessage, WebSocket},
-    Filter, Rejection, Reply,
-};
-
-use crate::{
-    components::notifications::{
-        init_events_channel_publisher, init_events_channel_subscriber, RedisChannelPublisher,
-        RedisChannelSubscriber,
-    },
-    components::{
-        configuration::{Config, Server},
-        database::DatabaseComponent,
-        notifications::{ChannelSubscriber, EVENT_UPDATES_CHANNEL_NAME},
-        redis::Redis,
-        synapse::SynapseComponent,
-        users_cache::UsersCacheComponent,
-    },
-    friendships::{
-        subscribe_friendship_events_updates_response, FriendshipEventResponses,
-        FriendshipsServiceRegistration, SubscribeFriendshipEventsUpdatesResponse,
-    },
-    domain::address::Address,
-    notifications::Event,
-};
-
-use lazy_static::lazy_static;
-use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
-
-use super::{service::friendships_service, metrics::{metrics_handler, register_metrics}};
-
-
+use warp::ws::{Message as WarpWSMessage, WebSocket};
 
 type ReadStream = SplitStream<WebSocket>;
 type WriteStream = SplitSink<WebSocket, WarpWSMessage>;

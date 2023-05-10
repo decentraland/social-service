@@ -1,10 +1,4 @@
-use crate::{
-    components::database::DatabaseComponent,
-    domain::friendship_event::FriendshipEvent,
-    entities::{
-        friendship_history::FriendshipHistoryRepository, friendships::FriendshipsRepository,
-    },
-};
+use crate::domain::friendship_event::FriendshipEvent;
 
 pub struct EventResponse {
     pub user_id: String,

@@ -1,15 +1,15 @@
 use crate::{
-    api::routes::v1::error::CommonError,
     components::{
         app::AppComponents,
         synapse::{clean_synapse_user_id, SynapseLoginRequest},
     },
+    domain::error::CommonError,
 };
-
+use actix_web::ResponseError;
 use actix_web::{
     get, post,
     web::{self, Data},
-    HttpResponse, ResponseError,
+    HttpResponse,
 };
 
 #[get("/_matrix/client/versions")]
@@ -47,7 +47,8 @@ pub async fn login(
                 log::error!(
                     "login handler: Error on storing hashed token and user id into users redis cache"
                 );
-                CommonError::Unknown.error_response()
+                let unknown_error = CommonError::Unknown("".to_owned());
+                unknown_error.error_response()
             }
         }
         Err(err_response) => err_response.error_response(),

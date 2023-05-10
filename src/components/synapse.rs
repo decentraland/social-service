@@ -2,11 +2,8 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
-    api::routes::{
-        synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
-        v1::error::CommonError,
-    },
-    domain::friendship_event::FriendshipEvent,
+    api::routes::synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
+    domain::{error::CommonError, friendship_event::FriendshipEvent},
 };
 
 #[derive(Deserialize, Serialize)]
@@ -378,7 +375,7 @@ impl SynapseComponent {
                 let text = response.text().await;
                 if let Err(err) = text {
                     log::warn!("error reading synapse response {}", err);
-                    return Err(CommonError::Unknown);
+                    return Err(CommonError::Unknown("".to_owned()));
                 }
 
                 let text = text.unwrap();
@@ -388,7 +385,7 @@ impl SynapseComponent {
             }
             Err(err) => {
                 log::warn!("error connecting to synapse {}", err);
-                Err(CommonError::Unknown)
+                Err(CommonError::Unknown("".to_owned()))
             }
         }
     }
@@ -401,14 +398,14 @@ impl SynapseComponent {
                 "M_FORBIDDEN" => {
                     CommonError::Forbidden(error.error.unwrap_or("Forbidden".to_string()))
                 }
-                "M_UNKNOWN_TOKEN" => CommonError::Unauthorized,
-                "M_MISSING_TOKEN" => CommonError::Unauthorized,
-                "M_LIMIT_EXCEEDED" => CommonError::TooManyRequests,
-                _ => CommonError::Unknown,
+                "M_UNKNOWN_TOKEN" => CommonError::Unauthorized("".to_owned()),
+                "M_MISSING_TOKEN" => CommonError::Unauthorized("".to_owned()),
+                "M_LIMIT_EXCEEDED" => CommonError::TooManyRequests("".to_owned()),
+                _ => CommonError::Unknown("".to_owned()),
             },
             Err(err) => {
                 log::warn!("error parsing synapse error {}", err);
-                CommonError::Unknown
+                CommonError::Unknown("".to_owned())
             }
         }
     }

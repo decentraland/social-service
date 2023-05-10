@@ -8,7 +8,10 @@ use futures_util::StreamExt;
 
 use crate::{
     components::{notifications::ChannelPublisher, users_cache::UserId},
-    domain::address::Address,
+    domain::{
+        address::Address,
+        error::{as_ws_service, CommonError, WsServiceError},
+    },
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     friendships::{
         request_events_response, subscribe_friendship_events_updates_response,
@@ -17,9 +20,10 @@ use crate::{
         SubscribeFriendshipEventsUpdatesResponse, UnauthorizedError, UpdateFriendshipPayload,
         UpdateFriendshipResponse, User, Users, UsersResponse,
     },
+    synapse::synapse_handler::get_user_id_from_request,
     ws::{
-        app::{record_error_response_code, SocialContext, SocialTransportContext},
-        service::errors::{as_service_error, DomainErrorCode},
+        app::{SocialContext, SocialTransportContext},
+        metrics::record_error_response_code,
     },
 };
 
@@ -31,7 +35,6 @@ use super::{
         },
         payload_to_response::update_friendship_payload_as_event,
     },
-    synapse_handler::get_user_id_from_request,
 };
 
 #[derive(Debug)]
@@ -88,11 +91,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Err(err) => {
                 record_error_response_code("UNAUTHORIZED");
                 tokio::spawn(async move {
-                    let result = friendships_yielder
-                        .r#yield(UsersResponse::from_response(
-                            users_response::Response::UnauthorizedError(err),
-                        ))
-                        .await;
+                    let result = friendships_yielder.r#yield(to_user_response(err)).await;
                     if let Err(err) = result {
                         log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
                     };
@@ -174,9 +173,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Err(err) => {
                 record_error_response_code("UNAUTHORIZED");
 
-                return Ok(RequestEventsResponse::from_response(
-                    request_events_response::Response::UnauthorizedError(err),
-                ));
+                return Ok(to_request_events_response(err));
             }
             Ok(user_id) => {
                 let social_id = user_id.social_id.clone();
@@ -250,9 +247,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Err(err) => {
                 record_error_response_code("UNAUTHORIZED");
 
-                return Ok(UpdateFriendshipResponse::from_response(
-                    update_friendship_response::Response::UnauthorizedError(err),
-                ));
+                return Ok(to_update_friendship_response(err));
             }
             Ok(user_id) => {
                 let friendship_update_response = handle_friendship_update(
@@ -264,11 +259,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                 match friendship_update_response {
                     Err(err) => {
-                        record_error_response_code(err.code as u32);
+                        record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
 
-                        return Ok(UpdateFriendshipResponse::from_response(
-                            update_friendship_response::Response::Error(err),
-                        ));
+                        return Ok(to_update_friendship_response2(err));
                     }
                     Ok(friendship_update_response) => {
                         let update_response = event_response_as_update_response(
@@ -278,11 +271,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                         match update_response {
                             Err(err) => {
-                                record_error_response_code(err.code as u32);
+                                record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
 
-                                return Ok(UpdateFriendshipResponse::from_response(
-                                    update_friendship_response::Response::Error(err),
-                                ));
+                                return Ok(to_update_friendship_response(err));
                             }
                             Ok(update_response) => {
                                 // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
@@ -340,13 +331,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.code as u32);
+                record_error_response_code("INTERNAL"); // TODO: THIS IS HARDCODED!!! IT SHOULD BE READ FROM err
 
                 tokio::spawn(async move {
                     friendships_yielder
-                        .r#yield(SubscribeFriendshipEventsUpdatesResponse::from_response(
-                            subscribe_friendship_events_updates_response::Response::Error(err),
-                        ))
+                        .r#yield(to_subscribe_friendship_events_updates_response(err))
                         .await
                         .unwrap();
                 });
@@ -375,6 +364,155 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             }
         }
         Ok(friendships_generator)
+    }
+}
+
+fn to_user_response(err: CommonError) -> UsersResponse {
+    let err = as_ws_service(err);
+    match err {
+        WsServiceError::Unauthorized(err) => {
+            UsersResponse::from_response(users_response::Response::UnauthorizedError(err))
+        }
+        WsServiceError::InternalServer(err) => {
+            UsersResponse::from_response(users_response::Response::InternalServerError(err))
+        }
+        WsServiceError::BadRequest(err) => {
+            UsersResponse::from_response(users_response::Response::InternalServerError(
+                InternalServerError {
+                    message: err.message,
+                },
+            )) // TODO: Check if necessary
+        }
+        WsServiceError::Forbidden(err) => {
+            UsersResponse::from_response(users_response::Response::InternalServerError(
+                InternalServerError {
+                    message: err.message,
+                },
+            )) // TODO: Check if necessary
+        }
+        WsServiceError::TooManyRequests(err) => {
+            UsersResponse::from_response(users_response::Response::InternalServerError(
+                InternalServerError {
+                    message: err.message,
+                },
+            )) // TODO: Check if necessary
+        }
+    }
+}
+
+fn to_request_events_response(err: CommonError) -> RequestEventsResponse {
+    let err = as_ws_service(err);
+    match err {
+        WsServiceError::Unauthorized(err) => RequestEventsResponse::from_response(
+            request_events_response::Response::UnauthorizedError(err),
+        ),
+        WsServiceError::InternalServer(err) => RequestEventsResponse::from_response(
+            request_events_response::Response::InternalServerError(err),
+        ),
+        WsServiceError::BadRequest(err) => {
+            RequestEventsResponse::from_response(
+                request_events_response::Response::InternalServerError(InternalServerError {
+                    message: err.message,
+                }),
+            ) // TODO: Check if necessary
+        }
+        WsServiceError::Forbidden(err) => {
+            RequestEventsResponse::from_response(
+                request_events_response::Response::InternalServerError(InternalServerError {
+                    message: err.message,
+                }),
+            ) // TODO: Check if necessary
+        }
+        WsServiceError::TooManyRequests(err) => {
+            RequestEventsResponse::from_response(
+                request_events_response::Response::InternalServerError(InternalServerError {
+                    message: err.message,
+                }),
+            ) // TODO: Check if necessary
+        }
+    }
+}
+
+fn to_update_friendship_response(err: CommonError) -> UpdateFriendshipResponse {
+    let err = as_ws_service(err);
+    match err {
+        WsServiceError::Unauthorized(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::UnauthorizedError(err),
+        ),
+        WsServiceError::InternalServer(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::InternalServerError(err),
+        ),
+        WsServiceError::BadRequest(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::BadRequestError(err),
+        ),
+        WsServiceError::Forbidden(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::ForbiddenError(err),
+        ),
+        WsServiceError::TooManyRequests(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::TooManyRequestsError(err),
+        ),
+    }
+}
+
+fn to_subscribe_friendship_events_updates_response(
+    err: CommonError,
+) -> SubscribeFriendshipEventsUpdatesResponse {
+    let err = as_ws_service(err);
+    match err {
+        WsServiceError::Unauthorized(err) => {
+            SubscribeFriendshipEventsUpdatesResponse::from_response(
+                subscribe_friendship_events_updates_response::Response::UnauthorizedError(err),
+            )
+        }
+        WsServiceError::InternalServer(err) => {
+            SubscribeFriendshipEventsUpdatesResponse::from_response(
+                subscribe_friendship_events_updates_response::Response::InternalServerError(err),
+            )
+        }
+        WsServiceError::BadRequest(err) => SubscribeFriendshipEventsUpdatesResponse::from_response(
+            subscribe_friendship_events_updates_response::Response::InternalServerError(
+                InternalServerError {
+                    message: err.message,
+                },
+            ),
+        ),
+        WsServiceError::Forbidden(err) => SubscribeFriendshipEventsUpdatesResponse::from_response(
+            subscribe_friendship_events_updates_response::Response::InternalServerError(
+                InternalServerError {
+                    message: err.message,
+                },
+            ),
+        ),
+        WsServiceError::TooManyRequests(err) => {
+            SubscribeFriendshipEventsUpdatesResponse::from_response(
+                subscribe_friendship_events_updates_response::Response::InternalServerError(
+                    InternalServerError {
+                        message: err.message,
+                    },
+                ),
+            )
+        }
+    }
+}
+
+// Delete this method
+fn to_update_friendship_response2(err: WsServiceError) -> UpdateFriendshipResponse {
+    match err {
+        WsServiceError::Unauthorized(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::UnauthorizedError(err),
+        ),
+        WsServiceError::InternalServer(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::InternalServerError(err),
+        ),
+        WsServiceError::BadRequest(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::BadRequestError(err),
+        ),
+        WsServiceError::Forbidden(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::ForbiddenError(err),
+        ),
+        WsServiceError::TooManyRequests(err) => UpdateFriendshipResponse::from_response(
+            update_friendship_response::Response::TooManyRequestsError(err),
+        ),
     }
 }
 

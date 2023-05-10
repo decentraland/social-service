@@ -1,29 +1,10 @@
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::{collections::HashMap, sync::Arc};
 
-use dcl_rpc::{
-    server::RpcServer,
-    stream_protocol::GeneratorYielder,
-    transports::{Transport, TransportError, TransportMessage},
-};
-
-use futures_util::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
-};
+use dcl_rpc::{server::RpcServer, stream_protocol::GeneratorYielder};
 
 use tokio::sync::{Mutex, RwLock};
 
-use warp::{
-    http::header::HeaderValue,
-    ws::{Message as WarpWSMessage, WebSocket},
-    Filter, Rejection, Reply,
-};
+use warp::{http::header::HeaderValue, Filter};
 
 use crate::{
     components::notifications::{
@@ -45,9 +26,6 @@ use crate::{
     },
     notifications::Event,
 };
-
-use lazy_static::lazy_static;
-use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
 
 use super::{
     metrics::{metrics_handler, register_metrics},

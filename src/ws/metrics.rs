@@ -1,56 +1,7 @@
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
-
-use actix_http::error;
-use dcl_rpc::{
-    server::RpcServer,
-    stream_protocol::GeneratorYielder,
-    transports::{Transport, TransportError, TransportMessage},
-};
-
-use futures_util::{
-    stream::{SplitSink, SplitStream},
-    SinkExt, StreamExt,
-};
-
-use tokio::sync::{Mutex, RwLock};
-
-use warp::{
-    http::header::HeaderValue,
-    ws::{Message as WarpWSMessage, WebSocket},
-    Filter, Rejection, Reply,
-};
-
-use crate::{
-    components::notifications::{
-        init_events_channel_publisher, init_events_channel_subscriber, RedisChannelPublisher,
-        RedisChannelSubscriber,
-    },
-    components::{
-        configuration::{Config, Server},
-        database::DatabaseComponent,
-        notifications::{ChannelSubscriber, EVENT_UPDATES_CHANNEL_NAME},
-        redis::Redis,
-        synapse::SynapseComponent,
-        users_cache::UsersCacheComponent,
-    },
-    domain::address::Address,
-    friendships::{
-        subscribe_friendship_events_updates_response, FriendshipEventResponses,
-        FriendshipsServiceRegistration, SubscribeFriendshipEventsUpdatesResponse,
-    },
-    notifications::Event,
-};
+use warp::{Rejection, Reply};
 
 use lazy_static::lazy_static;
 use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
-
-use super::service::friendships_service;
 
 // TODO: Check that only valid error codes are sent to prevent a huge granularity per tag
 pub fn record_error_response_code(error_code: &str) {
