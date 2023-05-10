@@ -16,40 +16,62 @@ pub enum WsServiceError {
     TooManyRequests(TooManyRequestsError),
 }
 
-pub fn as_ws_service(err: CommonError) -> WsServiceError {
-    match err {
-        CommonError::Forbidden(error_message) => WsServiceError::Forbidden(ForbiddenError {
-            message: error_message,
-        }),
-        CommonError::Unauthorized(error_message) => {
-            WsServiceError::Unauthorized(UnauthorizedError {
-                message: error_message,
-            })
+impl From<UnauthorizedError> for WsServiceError {
+    fn from(value: UnauthorizedError) -> Self {
+        WsServiceError::Unauthorized(value)
+    }
+}
+impl From<InternalServerError> for WsServiceError {
+    fn from(value: InternalServerError) -> Self {
+        WsServiceError::InternalServer(value)
+    }
+}
+impl From<BadRequestError> for WsServiceError {
+    fn from(value: BadRequestError) -> Self {
+        WsServiceError::BadRequest(value)
+    }
+}
+impl From<ForbiddenError> for WsServiceError {
+    fn from(value: ForbiddenError) -> Self {
+        WsServiceError::Forbidden(value)
+    }
+}
+impl From<TooManyRequestsError> for WsServiceError {
+    fn from(value: TooManyRequestsError) -> Self {
+        WsServiceError::TooManyRequests(value)
+    }
+}
+
+impl From<CommonError> for WsServiceError {
+    fn from(value: CommonError) -> Self {
+        match value {
+            CommonError::NotFound(message) => {
+                WsServiceError::BadRequest(BadRequestError { message })
+            }
+            CommonError::BadRequest(message) => {
+                WsServiceError::BadRequest(BadRequestError { message })
+            }
+            CommonError::UserNotFound(message) => {
+                WsServiceError::BadRequest(BadRequestError { message })
+            }
+            CommonError::Forbidden(message) => {
+                WsServiceError::Forbidden(ForbiddenError { message })
+            }
+            CommonError::Unknown(message) => {
+                WsServiceError::InternalServer(InternalServerError { message })
+            }
+            CommonError::Unauthorized(message) => {
+                WsServiceError::Unauthorized(UnauthorizedError { message })
+            }
+            CommonError::TooManyRequests(message) => {
+                WsServiceError::TooManyRequests(TooManyRequestsError { message })
+            }
         }
-        CommonError::TooManyRequests(error_message) => {
-            WsServiceError::TooManyRequests(TooManyRequestsError {
-                message: error_message,
-            })
-        }
-        CommonError::Unknown(error_message) => {
-            WsServiceError::InternalServer(InternalServerError {
-                message: error_message,
-            })
-        }
-        CommonError::NotFound(error_message) => WsServiceError::BadRequest(BadRequestError {
-            message: error_message,
-        }),
-        CommonError::BadRequest(error_message) => WsServiceError::BadRequest(BadRequestError {
-            message: error_message,
-        }),
-        CommonError::UserNotFound(error_message) => WsServiceError::BadRequest(BadRequestError {
-            message: error_message,
-        }),
     }
 }
 
 pub fn to_user_response(err: CommonError) -> UsersResponse {
-    let err = as_ws_service(err);
+    let err: WsServiceError = err.into();
     match err {
         WsServiceError::Unauthorized(err) => {
             UsersResponse::from_response(users_response::Response::UnauthorizedError(err))
@@ -72,7 +94,7 @@ pub fn to_user_response(err: CommonError) -> UsersResponse {
 }
 
 pub fn to_request_events_response(err: CommonError) -> RequestEventsResponse {
-    let err = as_ws_service(err);
+    let err: WsServiceError = err.into();
     match err {
         WsServiceError::Unauthorized(err) => RequestEventsResponse::from_response(
             request_events_response::Response::UnauthorizedError(err),
@@ -95,7 +117,7 @@ pub fn to_request_events_response(err: CommonError) -> RequestEventsResponse {
 }
 
 pub fn to_update_friendship_response(err: CommonError) -> UpdateFriendshipResponse {
-    let err = as_ws_service(err);
+    let err: WsServiceError = err.into();
     match err {
         WsServiceError::Unauthorized(err) => UpdateFriendshipResponse::from_response(
             update_friendship_response::Response::UnauthorizedError(err),
@@ -118,7 +140,7 @@ pub fn to_update_friendship_response(err: CommonError) -> UpdateFriendshipRespon
 pub fn to_subscribe_friendship_events_updates_response(
     err: CommonError,
 ) -> SubscribeFriendshipEventsUpdatesResponse {
-    let err = as_ws_service(err);
+    let err: WsServiceError = err.into();
     match err {
         WsServiceError::Unauthorized(err) => {
             SubscribeFriendshipEventsUpdatesResponse::from_response(

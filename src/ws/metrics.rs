@@ -3,10 +3,18 @@ use warp::{Rejection, Reply};
 use lazy_static::lazy_static;
 use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
 
-// TODO: Check that only valid error codes are sent to prevent a huge granularity per tag
-pub fn record_error_response_code(error_code: &str) {
+use super::service::mapper::error::WsServiceError;
+
+pub fn record_error_response_code(error: WsServiceError) {
+    let label = match error {
+        WsServiceError::Unauthorized(_) => "UNAUTHORIZED",
+        WsServiceError::InternalServer(_) => "INTERNAL_SERVER",
+        WsServiceError::BadRequest(_) => "BAD_REQUEST",
+        WsServiceError::Forbidden(_) => "FORBIDDEN",
+        WsServiceError::TooManyRequests(_) => "TOO_MANY_REQUESTS",
+    };
     ERROR_RESPONSE_CODE_COLLECTOR
-        .with_label_values(&[error_code])
+        .with_label_values(&[label])
         .inc();
 }
 

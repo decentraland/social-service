@@ -8,7 +8,7 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum CommonError {
     #[error("Not found")]
     NotFound(String),
