@@ -376,27 +376,17 @@ fn to_user_response(err: CommonError) -> UsersResponse {
         WsServiceError::InternalServer(err) => {
             UsersResponse::from_response(users_response::Response::InternalServerError(err))
         }
-        WsServiceError::BadRequest(err) => {
-            UsersResponse::from_response(users_response::Response::InternalServerError(
-                InternalServerError {
-                    message: err.message,
-                },
-            )) // TODO: Check if necessary
-        }
         WsServiceError::Forbidden(err) => {
-            UsersResponse::from_response(users_response::Response::InternalServerError(
-                InternalServerError {
-                    message: err.message,
-                },
-            )) // TODO: Check if necessary
+            UsersResponse::from_response(users_response::Response::ForbiddenError(err))
         }
         WsServiceError::TooManyRequests(err) => {
-            UsersResponse::from_response(users_response::Response::InternalServerError(
-                InternalServerError {
-                    message: err.message,
-                },
-            )) // TODO: Check if necessary
+            UsersResponse::from_response(users_response::Response::TooManyRequestsError(err))
         }
+        WsServiceError::BadRequest(err) => UsersResponse::from_response(
+            users_response::Response::InternalServerError(InternalServerError {
+                message: err.message,
+            }),
+        ),
     }
 }
 
@@ -409,27 +399,17 @@ fn to_request_events_response(err: CommonError) -> RequestEventsResponse {
         WsServiceError::InternalServer(err) => RequestEventsResponse::from_response(
             request_events_response::Response::InternalServerError(err),
         ),
-        WsServiceError::BadRequest(err) => {
-            RequestEventsResponse::from_response(
-                request_events_response::Response::InternalServerError(InternalServerError {
-                    message: err.message,
-                }),
-            ) // TODO: Check if necessary
-        }
-        WsServiceError::Forbidden(err) => {
-            RequestEventsResponse::from_response(
-                request_events_response::Response::InternalServerError(InternalServerError {
-                    message: err.message,
-                }),
-            ) // TODO: Check if necessary
-        }
-        WsServiceError::TooManyRequests(err) => {
-            RequestEventsResponse::from_response(
-                request_events_response::Response::InternalServerError(InternalServerError {
-                    message: err.message,
-                }),
-            ) // TODO: Check if necessary
-        }
+        WsServiceError::Forbidden(err) => RequestEventsResponse::from_response(
+            request_events_response::Response::ForbiddenError(err),
+        ),
+        WsServiceError::TooManyRequests(err) => RequestEventsResponse::from_response(
+            request_events_response::Response::TooManyRequestsError(err),
+        ),
+        WsServiceError::BadRequest(err) => RequestEventsResponse::from_response(
+            request_events_response::Response::InternalServerError(InternalServerError {
+                message: err.message,
+            }),
+        ),
     }
 }
 
@@ -469,6 +449,14 @@ fn to_subscribe_friendship_events_updates_response(
                 subscribe_friendship_events_updates_response::Response::InternalServerError(err),
             )
         }
+        WsServiceError::Forbidden(err) => SubscribeFriendshipEventsUpdatesResponse::from_response(
+            subscribe_friendship_events_updates_response::Response::ForbiddenError(err),
+        ),
+        WsServiceError::TooManyRequests(err) => {
+            SubscribeFriendshipEventsUpdatesResponse::from_response(
+                subscribe_friendship_events_updates_response::Response::TooManyRequestsError(err),
+            )
+        }
         WsServiceError::BadRequest(err) => SubscribeFriendshipEventsUpdatesResponse::from_response(
             subscribe_friendship_events_updates_response::Response::InternalServerError(
                 InternalServerError {
@@ -476,22 +464,6 @@ fn to_subscribe_friendship_events_updates_response(
                 },
             ),
         ),
-        WsServiceError::Forbidden(err) => SubscribeFriendshipEventsUpdatesResponse::from_response(
-            subscribe_friendship_events_updates_response::Response::InternalServerError(
-                InternalServerError {
-                    message: err.message,
-                },
-            ),
-        ),
-        WsServiceError::TooManyRequests(err) => {
-            SubscribeFriendshipEventsUpdatesResponse::from_response(
-                subscribe_friendship_events_updates_response::Response::InternalServerError(
-                    InternalServerError {
-                        message: err.message,
-                    },
-                ),
-            )
-        }
     }
 }
 
