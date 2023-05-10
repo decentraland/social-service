@@ -139,10 +139,18 @@ mod tests {
             social_service::friendships::update_friendship_response::Response::InternalServerError(_) => {
                 unreachable!("An error response was found");
             },
-            social_service::friendships::update_friendship_response::Response::UnauthorizedError(_) => {unreachable!("An error response was found");},
-            social_service::friendships::update_friendship_response::Response::ForbiddenError(_) => {unreachable!("An error response was found");},
-            social_service::friendships::update_friendship_response::Response::TooManyRequestsError(_) => {unreachable!("An error response was found");},
-            social_service::friendships::update_friendship_response::Response::BadRequestError(_) => {unreachable!("An error response was found");},
+            social_service::friendships::update_friendship_response::Response::UnauthorizedError(_) => {
+                unreachable!("An error response was found");
+            },
+            social_service::friendships::update_friendship_response::Response::ForbiddenError(_) => {
+                unreachable!("An error response was found");
+            },
+            social_service::friendships::update_friendship_response::Response::TooManyRequestsError(_) => {
+                unreachable!("An error response was found");
+            },
+            social_service::friendships::update_friendship_response::Response::BadRequestError(_) => {
+                unreachable!("An error response was found");
+            },
             social_service::friendships::update_friendship_response::Response::Event(
                 update_response,
             ) => {
