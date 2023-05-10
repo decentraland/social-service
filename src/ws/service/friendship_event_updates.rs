@@ -69,7 +69,7 @@ pub async fn handle_friendship_update(
             let friendships_repository = &db_repos.friendships;
             let friendship = get_friendship(friendships_repository, &acting_user, &second_user)
                 .await
-                .or_else(|err| Err(as_ws_service(err)))?;
+                .map_err(as_ws_service)?;
 
             let synapse_room_id = get_or_create_synapse_room_id(
                 friendship.as_ref(),
@@ -80,7 +80,7 @@ pub async fn handle_friendship_update(
                 &context.synapse.clone(),
             )
             .await
-            .or_else(|err| Err(as_ws_service(err)))?;
+            .map_err(as_ws_service)?;
 
             if let Err(err) = set_account_data(
                 token,
@@ -98,9 +98,7 @@ pub async fn handle_friendship_update(
             let friendship_history_repository = &db_repos.friendship_history;
 
             match get_last_history(friendship_history_repository, &friendship).await {
-                Err(err) => {
-                    return Err(as_ws_service(err));
-                }
+                Err(err) => Err(as_ws_service(err)),
                 Ok(last_recorded_history) => {
                     // Validate the new event is valid and different from the last recorded.
                     if let Err(err) = validate_new_event(&last_recorded_history, new_event) {
@@ -111,9 +109,7 @@ pub async fn handle_friendship_update(
                     let n =
                         get_new_friendship_status(&acting_user, &last_recorded_history, new_event);
                     match n {
-                        Err(err) => {
-                            return Err(as_ws_service(err));
-                        }
+                        Err(err) => Err(as_ws_service(err)),
                         Ok(new_status) => {
                             // Start a database transaction.
                             let friendship_ports = FriendshipDbRepositories {
