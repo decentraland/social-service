@@ -299,7 +299,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                     context.server_context.redis_publisher.clone();
                                                 if let Some(event) = request.clone().event {
                                                     tokio::spawn(async move {
-                                                        if let Some(
+                                                        if let Ok(
                                                             update_friendship_payload_as_event,
                                                         ) = update_friendship_payload_as_event(
                                                             event,
@@ -309,6 +309,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                             publisher
                                                                 .publish(update_friendship_payload_as_event)
                                                                 .await;
+                                                        } else {
+                                                            log::error!("There was an error parsing from friendship payload to event")
                                                         }
                                                     });
                                                 };

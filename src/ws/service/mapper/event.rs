@@ -240,14 +240,14 @@ pub fn update_friendship_payload_as_event(
     payload: FriendshipEventPayload,
     from: &str,
     created_at: i64,
-) -> Option<Event> {
+) -> Result<Event, CommonError> {
     if let Ok((friendship_event, to)) = payload_event_as_response(payload, from, created_at) {
-        Some(Event {
-            friendship_event,
+        Ok(Event {
+            friendship_event: Some(friendship_event),
             from: from.to_string(),
             to,
         })
     } else {
-        None
+        Err(CommonError::Unknown("".to_owned()))
     }
 }
