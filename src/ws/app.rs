@@ -21,6 +21,7 @@ use tokio::sync::{Mutex, RwLock};
 
 use warp::{
     http::header::HeaderValue,
+    reject::Reject,
     ws::{Message as WarpWSMessage, WebSocket},
     Filter, Rejection, Reply,
 };
@@ -79,6 +80,11 @@ pub struct WsComponents {
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
     pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
 }
+
+#[derive(Debug)]
+struct InvalidHeader;
+
+impl Reject for InvalidHeader {}
 
 pub async fn init_ws_components(config: Config) -> WsComponents {
     let redis = Redis::new_and_run(&config.redis).await;
@@ -174,20 +180,7 @@ pub async fn run_ws_transport(
         .and(warp::header::value("authorization"))
         .and_then(move |header_value: HeaderValue| {
             let expected_token = wkc_metrics_bearer_token.clone();
-            async move {
-                header_value
-                    .to_str()
-                    .map_err(|_| warp::reject::reject())
-                    .and_then(|header_value_str| {
-                        let token = header_value_str.trim_start_matches("Bearer ").trim();
-
-                        if token == &*expected_token {
-                            Ok(())
-                        } else {
-                            Err(warp::reject::reject())
-                        }
-                    })
-            }
+            validate_bearer_token(header_value, expected_token)
         })
         .untuple_one()
         .and_then(metrics_handler);
@@ -200,6 +193,26 @@ pub async fn run_ws_transport(
     });
 
     (rpc_server_handle, http_server_handle)
+}
+
+async fn validate_bearer_token(
+    header_value: HeaderValue,
+    expected_token: String,
+) -> Result<(), Rejection> {
+    header_value
+        .to_str()
+        .map_err(|_| warp::reject::custom(InvalidHeader))
+        .and_then(|header_value_str| {
+            let split_header_bearer = header_value_str.split(' ').collect::<Vec<&str>>();
+            let token = split_header_bearer.get(1);
+            let token = token.map_or("", |token| token.to_owned());
+
+            if token == expected_token {
+                Ok(())
+            } else {
+                Err(warp::reject::custom(InvalidHeader))
+            }
+        })
 }
 
 async fn remove_transport_id_from_context(
