@@ -147,7 +147,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             users = Users::default();
                         }
                     }
-                    if users.users.len() > 0 {
+                    if !users.users.is_empty() {
                         let result = friendships_yielder
                             .r#yield(UsersResponse::from_response(
                                 users_response::Response::Users(users),
