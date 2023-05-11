@@ -179,7 +179,9 @@ pub async fn run_ws_transport(
                     .to_str()
                     .map_err(|_| warp::reject::reject())
                     .and_then(|header_value_str| {
-                        if header_value_str == &*expected_token {
+                        let token = header_value_str.trim_start_matches("Bearer ").trim();
+
+                        if token == &*expected_token {
                             Ok(())
                         } else {
                             Err(warp::reject::reject())
