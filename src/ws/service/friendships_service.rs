@@ -393,8 +393,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 /// Retrieves the User Id associated with the given Authentication Token.
 ///
 /// If an authentication token was provided in the request, gets the
-/// user id from the token and returns it as a `Result<UserId, Error>`. If no
-/// authentication token was provided, returns a `Unauthorized`
+/// user id from the token and returns it as a `Result<UserId>`. If no
+/// authentication token was provided, returns a `Err(CommonError::Unauthorized)`
 /// error.
 pub async fn get_user_id_from_request(
     request: &Payload,
