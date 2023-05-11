@@ -34,27 +34,9 @@ mod tests {
             .unwrap();
 
         match result {
-            social_service::friendships::request_events_response::Response::InternalServerError(
-                _,
-            ) => {
-                unreachable!("An error response was found");
-            },
-            social_service::friendships::request_events_response::Response::UnauthorizedError(
-                _,
-            ) => {
-                unreachable!("An error response was found");
-            },
-            social_service::friendships::request_events_response::Response::ForbiddenError(_) => {
-                unreachable!("An error response was found");
-            },
-            social_service::friendships::request_events_response::Response::TooManyRequestsError(_) => {
-                unreachable!("An error response was found");
-            },
             social_service::friendships::request_events_response::Response::Events(result) => {
-
                 match result.outgoing {
                     Some(outgoing) => {
-
                         assert_eq!(outgoing.total, 1);
 
                         let first_request = outgoing.items.get(0);
@@ -86,6 +68,10 @@ mod tests {
                     }
                     None => unreachable!("An error response was found"),
                 }
+            }
+            // Error responses
+            _ => {
+                unreachable!("An error response was found");
             }
         }
     }
@@ -161,21 +147,6 @@ mod tests {
             .expect("Failed to get response");
 
         match update_response {
-            social_service::friendships::update_friendship_response::Response::InternalServerError(_) => {
-                unreachable!("An error response was found");
-            },
-            social_service::friendships::update_friendship_response::Response::UnauthorizedError(_) => {
-                unreachable!("An error response was found");
-            },
-            social_service::friendships::update_friendship_response::Response::ForbiddenError(_) => {
-                unreachable!("An error response was found");
-            },
-            social_service::friendships::update_friendship_response::Response::TooManyRequestsError(_) => {
-                unreachable!("An error response was found");
-            },
-            social_service::friendships::update_friendship_response::Response::BadRequestError(_) => {
-                unreachable!("An error response was found");
-            },
             social_service::friendships::update_friendship_response::Response::Event(
                 update_response,
             ) => {
@@ -195,6 +166,10 @@ mod tests {
                     }
                     _ => panic!("Expected Request body"),
                 }
+            }
+            // Error responses
+            _ => {
+                unreachable!("An error response was found");
             }
         }
     }
