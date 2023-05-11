@@ -126,15 +126,15 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         });
                         return Ok(friendships_generator);
                     };
-
                 tokio::spawn(async move {
                     let mut users = Users::default();
 
+                    let friends_stream_page_size =
+                        context.server_context.friends_stream_page_size as usize;
+
                     while let Some(friendship) = friendship.next().await {
                         users.users.push(build_user(friendship, user_id.clone()));
-
-                        if users.users.len() == 5 {
-                            // TODO: Move this value (5) to a Env Variable, Config or sth like that (#ISSUE: https://github.com/decentraland/social-service/issues/199)
+                        if users.users.len() == friends_stream_page_size {
                             let result = friendships_yielder
                                 .r#yield(UsersResponse::from_response(
                                     users_response::Response::Users(users.clone()),
@@ -147,14 +147,16 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             users = Users::default();
                         }
                     }
-                    let result = friendships_yielder
-                        .r#yield(UsersResponse::from_response(
-                            users_response::Response::Users(users),
-                        ))
-                        .await;
-                    if let Err(err) = result {
-                        log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
-                    };
+                    if users.users.len() > 0 {
+                        let result = friendships_yielder
+                            .r#yield(UsersResponse::from_response(
+                                users_response::Response::Users(users),
+                            ))
+                            .await;
+                        if let Err(err) = result {
+                            log::error!("There was an error yielding the response to the friendships generator: {:?}", err);
+                        };
+                    }
                 });
                 log::info!("Returning generator for all friends for user {}", social_id);
             }
