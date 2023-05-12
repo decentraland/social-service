@@ -80,27 +80,26 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             log::error!("Get friends > Db repositories > `repos` is None.");
             let error = InternalServerError{ message: "An error occurred while getting the friendships".to_owned() };
             record_error_response_code(error.clone().into());
-            tokio::spawn(async move {
-                let result = friendships_yielder
-                .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
-                    error)))
-                .await;
-                if let Err(err) = result {
-                    log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
-                };
-            });
+            let result = friendships_yielder
+            .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
+                error)))
+            .await;
+            if let Err(err) = result {
+                log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
+            };
             return Ok(friendships_generator);
         };
 
         match request_user_id {
             Err(err) => {
                 record_error_response_code(err.clone().into());
-                tokio::spawn(async move {
-                    let result = friendships_yielder.r#yield(err.into()).await;
-                    if let Err(err) = result {
-                        log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
-                    };
-                });
+                let result = friendships_yielder.r#yield(err.into()).await;
+                if let Err(err) = result {
+                    log::error!(
+                        "There was an error yielding the error to the friendships generator: {:?}",
+                        err
+                    );
+                };
             }
             Ok(user_id) => {
                 let social_id = user_id.social_id.clone();
@@ -115,15 +114,13 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         );
                         let error = InternalServerError{ message: "An error occurred while sending the response to the stream".to_owned() };
                         record_error_response_code(error.clone().into());
-                        tokio::spawn(async move {
-                            let result = friendships_yielder
-                                .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
-                                    error)))
-                                .await;
-                            if let Err(err) = result {
-                                log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
-                            };
-                        });
+                        let result = friendships_yielder
+                            .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
+                                error)))
+                            .await;
+                        if let Err(err) = result {
+                            log::error!("There was an error yielding the error to the friendships generator: {:?}", err);
+                        };
                         return Ok(friendships_generator);
                     };
                 tokio::spawn(async move {
@@ -361,9 +358,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             Err(err) => {
                 record_error_response_code(err.clone().into());
 
-                tokio::spawn(async move {
-                    friendships_yielder.r#yield(err.into()).await.unwrap();
-                });
+                let result = friendships_yielder.r#yield(err.into()).await;
+                if let Err(err) = result {
+                    log::error!("There was an error yielding the error to the subscribe friendships generator: {:?}", err);
+                };
             }
             Ok(user_id) => {
                 // Attach transport_id to the context by transport
