@@ -1,9 +1,14 @@
-use warp::{Rejection, Reply};
+use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
 use lazy_static::lazy_static;
 use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
 
 use super::service::mapper::error::WsServiceError;
+
+#[derive(Debug)]
+struct InvalidHeader;
+
+impl Reject for InvalidHeader {}
 
 pub fn record_error_response_code(error: WsServiceError) {
     let label = match error {
@@ -53,6 +58,26 @@ pub async fn metrics_handler() -> Result<impl Reply, Rejection> {
     buffer.clear();
 
     Ok(res)
+}
+
+pub async fn validate_bearer_token(
+    header_value: HeaderValue,
+    expected_token: String,
+) -> Result<(), Rejection> {
+    header_value
+        .to_str()
+        .map_err(|_| warp::reject::custom(InvalidHeader))
+        .and_then(|header_value_str| {
+            let split_header_bearer = header_value_str.split(' ').collect::<Vec<&str>>();
+            let token = split_header_bearer.get(1);
+            let token = token.map_or("", |token| token.to_owned());
+
+            if token == expected_token {
+                Ok(())
+            } else {
+                Err(warp::reject::custom(InvalidHeader))
+            }
+        })
 }
 
 lazy_static! {

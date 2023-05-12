@@ -4,7 +4,7 @@ use dcl_rpc::{server::RpcServer, stream_protocol::GeneratorYielder};
 
 use tokio::sync::{Mutex, RwLock};
 
-use warp::{http::header::HeaderValue, reject::Reject, Filter, Rejection};
+use warp::{http::header::HeaderValue, Filter};
 
 use crate::{
     components::notifications::{
@@ -28,7 +28,7 @@ use crate::{
 };
 
 use super::{
-    metrics::{metrics_handler, register_metrics},
+    metrics::{metrics_handler, register_metrics, validate_bearer_token},
     service::friendships_service,
     transport::WarpWebSocketTransport,
 };
@@ -64,11 +64,6 @@ pub struct WsComponents {
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
     pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
 }
-
-#[derive(Debug)]
-struct InvalidHeader;
-
-impl Reject for InvalidHeader {}
 
 pub async fn init_ws_components(config: Config) -> WsComponents {
     let redis = Redis::new_and_run(&config.redis).await;
@@ -177,26 +172,6 @@ pub async fn run_ws_transport(
     });
 
     (rpc_server_handle, http_server_handle)
-}
-
-async fn validate_bearer_token(
-    header_value: HeaderValue,
-    expected_token: String,
-) -> Result<(), Rejection> {
-    header_value
-        .to_str()
-        .map_err(|_| warp::reject::custom(InvalidHeader))
-        .and_then(|header_value_str| {
-            let split_header_bearer = header_value_str.split(' ').collect::<Vec<&str>>();
-            let token = split_header_bearer.get(1);
-            let token = token.map_or("", |token| token.to_owned());
-
-            if token == expected_token {
-                Ok(())
-            } else {
-                Err(warp::reject::custom(InvalidHeader))
-            }
-        })
 }
 
 async fn remove_transport_id_from_context(
