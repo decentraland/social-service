@@ -28,7 +28,7 @@ use crate::{
 };
 
 use super::{
-    metrics::{metrics_handler, register_metrics},
+    metrics::{metrics_handler, register_metrics, validate_bearer_token},
     service::friendships_service,
     transport::WarpWebSocketTransport,
 };
@@ -159,18 +159,7 @@ pub async fn run_ws_transport(
         .and(warp::header::value("authorization"))
         .and_then(move |header_value: HeaderValue| {
             let expected_token = wkc_metrics_bearer_token.clone();
-            async move {
-                header_value
-                    .to_str()
-                    .map_err(|_| warp::reject::reject())
-                    .and_then(|header_value_str| {
-                        if header_value_str == &*expected_token {
-                            Ok(())
-                        } else {
-                            Err(warp::reject::reject())
-                        }
-                    })
-            }
+            validate_bearer_token(header_value, expected_token)
         })
         .untuple_one()
         .and_then(metrics_handler);
