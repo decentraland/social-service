@@ -138,7 +138,7 @@ mod tests {
             user_id: "Pizarnik".to_owned(),
         };
 
-        let result = event_response_as_update_response(update_payload, event_response);
+        let result = event_response_as_update_response(update_payload, event_response, 1);
         assert!(result.is_ok());
 
         let update_response = result
