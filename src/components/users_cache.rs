@@ -11,11 +11,9 @@ type HmacSha256 = Hmac<Sha256>;
 
 use std::sync::Arc;
 
-use crate::components::synapse::SynapseComponent;
+use crate::{components::synapse::SynapseComponent, domain::error::CommonError};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-
-use crate::api::routes::v1::error::CommonError;
 
 const DEFAULT_EXPIRATION_TIME_SECONDS: i32 = 1800;
 

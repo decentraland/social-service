@@ -2,23 +2,21 @@
 mod tests {
     use chrono::NaiveDateTime;
     use social_service::{
+        domain::{
+            event::EventResponse, friendship_event::FriendshipEvent,
+            friendship_event_validator::validate_new_event, friendship_status::FriendshipStatus,
+            friendship_status_calculator::get_new_friendship_status,
+        },
         entities::friendship_history::{
             FriendshipHistory, FriendshipMetadata, FriendshipRequestEvent,
         },
         friendships::{
             friendship_event_payload::Body, friendship_event_response, CancelPayload,
-            FriendshipEventPayload, Payload, RequestEvents, RequestPayload,
-            UpdateFriendshipPayload, User,
+            FriendshipEventPayload, Payload, RequestPayload, UpdateFriendshipPayload, User,
         },
-        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
-        ws::service::{
-            friendship_event_validator::validate_new_event,
-            friendship_status_calculator::get_new_friendship_status,
-            mapper::events::{
-                event_response_as_update_response, friendship_requests_as_request_events,
-                update_request_as_event_payload,
-            },
-            types::EventResponse,
+        ws::service::mapper::event::{
+            event_response_as_update_response, friendship_requests_as_request_events_response,
+            update_request_as_event_payload,
         },
     };
     use uuid::Uuid;
@@ -29,22 +27,52 @@ mod tests {
         let requests: Vec<FriendshipRequestEvent> = generate_request_events();
 
         // Authenticated user
-        let user_id: String = "Pizarnik".to_string();
+        let user_id: String = "Pizarnik".to_owned();
 
-        let mut result: RequestEvents = friendship_requests_as_request_events(requests, user_id);
+        let result = friendship_requests_as_request_events_response(requests, user_id)
+            .response
+            .unwrap();
 
-        assert_eq!(result.outgoing.unwrap().total, 1);
-        assert_eq!(result.incoming.clone().unwrap().total, 1);
+        match result {
+            social_service::friendships::request_events_response::Response::Events(result) => {
+                match result.outgoing {
+                    Some(outgoing) => {
+                        assert_eq!(outgoing.total, 1);
 
-        let incoming_requests = result.incoming.take();
-        if let Some(incoming_requests) = incoming_requests {
-            let incoming_request = incoming_requests.items.get(0).unwrap();
-            assert_eq!(incoming_request.user.as_ref().unwrap().address, "Martha");
-            assert!(incoming_request.created_at > 0);
-            assert_eq!(
-                incoming_request.message.clone().unwrap_or_default(),
-                "Hey, let's be friends!"
-            );
+                        let first_request = outgoing.items.get(0);
+                        match first_request {
+                            Some(req) => {
+                                assert_eq!(req.user.as_ref().unwrap().address, "PedroL");
+                                assert!(req.created_at > 0);
+                                assert!(req.message.is_none());
+                            }
+                            None => unreachable!("An error response was found"),
+                        }
+                    }
+                    None => unreachable!("An error response was found"),
+                }
+
+                match result.incoming {
+                    Some(incoming) => {
+                        assert_eq!(incoming.total, 1);
+
+                        let first_request = incoming.items.get(0);
+                        match first_request {
+                            Some(req) => {
+                                assert_eq!(req.user.as_ref().unwrap().address, "Martha");
+                                assert!(req.created_at > 0);
+                                assert_eq!(req.message.as_ref().unwrap(), "Hey, let's be friends!");
+                            }
+                            None => unreachable!("An error response was found"),
+                        }
+                    }
+                    None => unreachable!("An error response was found"),
+                }
+            }
+            // Error responses
+            _ => {
+                unreachable!("An error response was found");
+            }
         }
     }
 
@@ -53,12 +81,12 @@ mod tests {
         // Case 1: Request event
         let request = generate_update_friendship_payload(
             Body::Request(RequestPayload {
-                message: Some("Let's be friends!".to_string()),
+                message: Some("Let's be friends!".to_owned()),
                 user: Some(User {
-                    address: "Pizarnik".to_string(),
+                    address: "Pizarnik".to_owned(),
                 }),
             }),
-            "Pizarnik".to_string(),
+            "Pizarnik".to_owned(),
         );
 
         let result = update_request_as_event_payload(request).unwrap();
@@ -73,10 +101,10 @@ mod tests {
         let cancel = generate_update_friendship_payload(
             Body::Cancel(CancelPayload {
                 user: Some(User {
-                    address: "Pizarnik".to_string(),
+                    address: "Pizarnik".to_owned(),
                 }),
             }),
-            "Pizarnik".to_string(),
+            "Pizarnik".to_owned(),
         );
 
         let result = update_request_as_event_payload(cancel).unwrap();
@@ -98,40 +126,51 @@ mod tests {
         // Create an UpdateFriendshipPayload with a Request body
         let update_payload = generate_update_friendship_payload(
             Body::Request(RequestPayload {
-                message: Some("Let's be friends!".to_string()),
+                message: Some("Let's be friends!".to_owned()),
                 user: Some(User {
-                    address: "Pizarnik".to_string(),
+                    address: "Pizarnik".to_owned(),
                 }),
             }),
-            "Pizarnik".to_string(),
+            "Pizarnik".to_owned(),
         );
 
         let event_response = EventResponse {
-            user_id: "Pizarnik".to_string(),
+            user_id: "Pizarnik".to_owned(),
         };
 
         let result = event_response_as_update_response(update_payload, event_response);
         assert!(result.is_ok());
 
-        let update_response = result.unwrap();
-        assert!(update_response.event.is_some());
+        let update_response = result
+            .expect("Failed to get result")
+            .response
+            .expect("Failed to get response");
 
-        let event = update_response.event.unwrap();
-        assert!(event.body.is_some());
+        match update_response {
+            social_service::friendships::update_friendship_response::Response::Event(
+                update_response,
+            ) => {
+                assert!(update_response.body.is_some());
 
-        let body = event.body.unwrap();
-        match body {
-            friendship_event_response::Body::Request(request_response) => {
-                assert_eq!(
-                    request_response.user.unwrap().address,
-                    "Pizarnik".to_string()
-                );
-                assert_eq!(
-                    request_response.message.unwrap(),
-                    "Let's be friends!".to_string()
-                );
+                let body = update_response.body.unwrap();
+                match body {
+                    friendship_event_response::Body::Request(request_response) => {
+                        assert_eq!(
+                            request_response.user.unwrap().address,
+                            "Pizarnik".to_owned()
+                        );
+                        assert_eq!(
+                            request_response.message.unwrap(),
+                            "Let's be friends!".to_owned()
+                        );
+                    }
+                    _ => panic!("Expected Request body"),
+                }
             }
-            _ => panic!("Expected Request body"),
+            // Error responses
+            _ => {
+                unreachable!("An error response was found");
+            }
         }
     }
 
@@ -213,20 +252,20 @@ mod tests {
 
         vec![
             FriendshipRequestEvent {
-                acting_user: "Martha".to_string(),
-                address_1: "Martha".to_string(),
-                address_2: "Pizarnik".to_string(),
+                acting_user: "Martha".to_owned(),
+                address_1: "Martha".to_owned(),
+                address_2: "Pizarnik".to_owned(),
                 timestamp,
                 metadata: Some(sqlx::types::Json(FriendshipMetadata {
-                    message: Some("Hey, let's be friends!".to_string()),
+                    message: Some("Hey, let's be friends!".to_owned()),
                     synapse_room_id: None,
                     migrated_from_synapse: None,
                 })),
             },
             FriendshipRequestEvent {
-                acting_user: "Pizarnik".to_string(),
-                address_1: "PedroL".to_string(),
-                address_2: "Pizarnik".to_string(),
+                acting_user: "Pizarnik".to_owned(),
+                address_1: "PedroL".to_owned(),
+                address_2: "Pizarnik".to_owned(),
                 timestamp,
                 metadata: None,
             },
