@@ -22,7 +22,7 @@ impl Hash for Address {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::address::Address;
+    use crate::domain::address::Address;
     use std::collections::HashMap;
 
     #[test]

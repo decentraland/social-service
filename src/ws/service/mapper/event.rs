@@ -1,28 +1,32 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    api::routes::v1::error::CommonError,
+    domain::{
+        error::CommonError,
+        event::{EventPayload, EventResponse},
+        friendship_event::FriendshipEvent,
+    },
     entities::friendship_history::FriendshipRequestEvent,
     friendships::{
-        friendship_event_payload, friendship_event_response, AcceptResponse, CancelResponse,
-        DeleteResponse, FriendshipEventResponse, RejectResponse, RequestEvents, RequestResponse,
-        Requests, UpdateFriendshipPayload, UpdateFriendshipResponse, User,
+        friendship_event_payload, friendship_event_response, request_events_response,
+        update_friendship_response, AcceptResponse, CancelResponse, DeleteResponse,
+        FriendshipEventPayload, FriendshipEventResponse, RejectResponse, RequestEvents,
+        RequestEventsResponse, RequestResponse, Requests, UpdateFriendshipPayload,
+        UpdateFriendshipResponse, User,
     },
-    models::friendship_event::FriendshipEvent,
-    ws::service::{
-        errors::FriendshipsServiceError,
-        types::{EventPayload, EventResponse},
-    },
+    notifications::Event,
 };
+
+use super::response::payload_event_as_response;
 
 /// Maps a list of `FriendshipRequestEvents` to a `RequestEvents` struct.
 ///
 /// * `requests` - A vector of `FriendshipRequestEvents` to map to `RequestResponse` struct.
 /// * `user_id` - The id of the auth user.
-pub fn friendship_requests_as_request_events(
+pub fn friendship_requests_as_request_events_response(
     requests: Vec<FriendshipRequestEvent>,
     user_id: String,
-) -> RequestEvents {
+) -> RequestEventsResponse {
     let mut outgoing_requests: Vec<RequestResponse> = Vec::new();
     let mut incoming_requests: Vec<RequestResponse> = Vec::new();
 
@@ -60,7 +64,7 @@ pub fn friendship_requests_as_request_events(
     }
 
     // Return a RequestEvents struct containing the incoming and outgoing request lists
-    RequestEvents {
+    RequestEventsResponse::from_response(request_events_response::Response::Events(RequestEvents {
         outgoing: Some(Requests {
             total: outgoing_requests.len() as i64,
             items: outgoing_requests,
@@ -69,14 +73,14 @@ pub fn friendship_requests_as_request_events(
             total: incoming_requests.len() as i64,
             items: incoming_requests,
         }),
-    }
+    }))
 }
 
 /// Extracts the information from a friendship update payload,
 /// that is, the room event, the other user who is part of the friendship event, and the message body from the request event.
 pub fn update_request_as_event_payload(
     request: UpdateFriendshipPayload,
-) -> Result<EventPayload, FriendshipsServiceError> {
+) -> Result<EventPayload, CommonError> {
     let event_payload = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(request)) => EventPayload {
@@ -84,8 +88,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: request.message,
                 second_user: request
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is missing".to_string(),
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -94,8 +98,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: accept
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is missing".to_string(),
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -104,8 +108,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: reject
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is missing".to_string(),
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -114,8 +118,8 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: cancel
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is missing".to_string(),
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
@@ -124,21 +128,19 @@ pub fn update_request_as_event_payload(
                 request_event_message_body: None,
                 second_user: delete
                     .user
-                    .ok_or(FriendshipsServiceError::BadRequest(
-                        "`user address` is missing".to_string(),
+                    .ok_or(CommonError::BadRequest(
+                        "`user address` is missing".to_owned(),
                     ))?
                     .address,
             },
             None => {
-                return Err(FriendshipsServiceError::BadRequest(
-                    "`friendship_event_payload::body` is missing".to_string(),
+                return Err(CommonError::BadRequest(
+                    "`friendship_event_payload::body` is missing".to_owned(),
                 ))
             }
         }
     } else {
-        return Err(FriendshipsServiceError::BadRequest(
-            "`event` is missing".to_string(),
-        ));
+        return Err(CommonError::BadRequest("`event` is missing".to_owned()));
     };
 
     Ok(event_payload)
@@ -147,7 +149,7 @@ pub fn update_request_as_event_payload(
 pub fn event_response_as_update_response(
     request: UpdateFriendshipPayload,
     result: EventResponse,
-) -> Result<UpdateFriendshipResponse, FriendshipsServiceError> {
+) -> Result<UpdateFriendshipResponse, CommonError> {
     let update_response = if let Some(body) = request.event {
         match body.body {
             Some(friendship_event_payload::Body::Request(payload)) => {
@@ -165,7 +167,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Request(request_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse { event: Some(event) }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Accept(_)) => {
                 let accept_response = AcceptResponse {
@@ -177,7 +181,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Accept(accept_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse { event: Some(event) }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Reject(_)) => {
                 let reject_response = RejectResponse {
@@ -189,7 +195,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Reject(reject_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse { event: Some(event) }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Cancel(_)) => {
                 let cancel_response = CancelResponse {
@@ -201,7 +209,9 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Cancel(cancel_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse { event: Some(event) }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
             Some(friendship_event_payload::Body::Delete(_)) => {
                 let delete_response = DeleteResponse {
@@ -213,57 +223,31 @@ pub fn event_response_as_update_response(
                 let body = friendship_event_response::Body::Delete(delete_response);
                 let event: FriendshipEventResponse = FriendshipEventResponse { body: Some(body) };
 
-                UpdateFriendshipResponse { event: Some(event) }
+                UpdateFriendshipResponse::from_response(
+                    update_friendship_response::Response::Event(event),
+                )
             }
-            None => return Err(FriendshipsServiceError::InternalServerError),
+            None => return Err(CommonError::Unknown("Unexpected error".to_owned())),
         }
     } else {
-        return Err(FriendshipsServiceError::InternalServerError);
+        return Err(CommonError::Unknown("Unexpected error".to_owned()));
     };
 
     Ok(update_response)
 }
 
-pub fn map_common_error_to_friendships_error(err: CommonError) -> FriendshipsServiceError {
-    match err {
-        CommonError::Forbidden(error_message) => FriendshipsServiceError::Forbidden(error_message),
-        CommonError::Unauthorized => FriendshipsServiceError::Unauthorized("".to_owned()),
-        CommonError::TooManyRequests => FriendshipsServiceError::TooManyRequests("".to_owned()),
-        _ => FriendshipsServiceError::InternalServerError,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::map_common_error_to_friendships_error;
-    use crate::{
-        api::routes::v1::error::CommonError, ws::service::errors::FriendshipsServiceError,
-    };
-
-    #[test]
-    fn test_map_common_error_to_friendships_error() {
-        let err = CommonError::Forbidden("Forbidden".to_owned());
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::Forbidden("Forbidden".to_owned())
-        );
-
-        let err = CommonError::Unauthorized;
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::Unauthorized("".to_owned())
-        );
-
-        let err = CommonError::TooManyRequests;
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::TooManyRequests("".to_owned())
-        );
-
-        let err = CommonError::Unknown;
-        assert_eq!(
-            map_common_error_to_friendships_error(err),
-            FriendshipsServiceError::InternalServerError
-        );
+pub fn update_friendship_payload_as_event(
+    payload: FriendshipEventPayload,
+    from: &str,
+    created_at: i64,
+) -> Result<Event, CommonError> {
+    if let Ok((friendship_event, to)) = payload_event_as_response(payload, from, created_at) {
+        Ok(Event {
+            friendship_event: Some(friendship_event),
+            from: from.to_string(),
+            to,
+        })
+    } else {
+        Err(CommonError::Unknown("".to_owned()))
     }
 }

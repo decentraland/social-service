@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, ResponseError};
 use reqwest::StatusCode;
 use thiserror::Error;
 
-use crate::api::routes::v1::error::{CommonError, ErrorResponse};
+use crate::domain::error::{CommonError, ErrorResponse};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum SynapseError {

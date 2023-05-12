@@ -8,18 +8,20 @@ use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    api::{middlewares::check_auth::Token, routes::v1::error::CommonError},
+    api::middlewares::check_auth::Token,
     components::{
         app::AppComponents,
         database::{DatabaseComponent, DatabaseComponentImplementation},
         synapse::{RoomMembersResponse, SynapseComponent},
         users_cache::UserId,
     },
+    domain::{
+        error::CommonError, friendship_event::FriendshipEvent, friendship_status::FriendshipStatus,
+    },
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
 };
 
 use super::errors::SynapseError;
@@ -130,7 +132,9 @@ async fn process_room_event<'a>(
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Couldn't start transaction to store friendship update {error}");
-            return Err(SynapseError::CommonError(CommonError::Unknown));
+            return Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )));
         }
     };
 
@@ -161,7 +165,9 @@ async fn process_room_event<'a>(
 
             match transaction_result {
                 Ok(_) => Ok(value),
-                Err(_) => Err(SynapseError::CommonError(CommonError::Unknown)),
+                Err(_) => Err(SynapseError::CommonError(CommonError::Unknown(
+                    "".to_owned(),
+                ))),
             }
         }
         Err(err) => Err(SynapseError::CommonError(err)),
@@ -208,9 +214,9 @@ async fn get_friendship_from_db(
         let err = friendship_result.err().unwrap();
 
         log::warn!("Error getting friendship in room event {}", err);
-        return Err(SynapseError::CommonError(
-            crate::api::routes::v1::error::CommonError::Unknown,
-        ));
+        return Err(SynapseError::CommonError(CommonError::Unknown(
+            "".to_owned(),
+        )));
     }
 
     Ok(friendship_result.unwrap())
@@ -236,7 +242,7 @@ async fn get_last_history_from_db(
 
         log::warn!("Error getting friendship history in room event {}", err);
         return Err(SynapseError::CommonError(
-            crate::api::routes::v1::error::CommonError::Unknown,
+            crate::domain::error::CommonError::Unknown("".to_owned()),
         ));
     }
 
@@ -359,7 +365,9 @@ async fn update_friendship_status<'a>(
             log::error!("Couldn't store friendship update {err}");
             let _ = transaction.rollback().await;
 
-            return Err(SynapseError::CommonError(CommonError::Unknown));
+            return Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )));
         }
     };
 
@@ -368,7 +376,9 @@ async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Error serializing room event: {:?}", err);
             let _ = transaction.rollback().await;
-            return Err(SynapseError::CommonError(CommonError::Unknown));
+            return Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )));
         }
     };
 
@@ -397,7 +407,9 @@ async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Couldn't store friendship history update: {:?}", err);
             let _ = transaction.rollback().await;
-            Err(SynapseError::CommonError(CommonError::Unknown))
+            Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )))
         }
     }
 }
@@ -421,7 +433,9 @@ async fn store_friendship_update(
                 Ok(_) => Ok(friendship.id),
                 Err(err) => {
                     log::warn!("Couldn't update friendship {err}");
-                    Err(SynapseError::CommonError(CommonError::Unknown))
+                    Err(SynapseError::CommonError(CommonError::Unknown(
+                        "".to_owned(),
+                    )))
                 }
             };
 
@@ -439,7 +453,7 @@ async fn store_friendship_update(
             (
                 friendship_id.map_err(|err| {
                     log::warn!("Couldn't crate new friendship {err}");
-                    SynapseError::CommonError(CommonError::Unknown)
+                    SynapseError::CommonError(CommonError::Unknown("".to_owned()))
                 }),
                 transaction.unwrap(),
             )
@@ -490,8 +504,8 @@ mod tests {
 
     use crate::{
         api::routes::synapse::errors::SynapseError,
+        domain::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
         entities::friendship_history::FriendshipHistory,
-        models::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
     };
 
     use super::process_friendship_status;

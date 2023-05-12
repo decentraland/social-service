@@ -4,10 +4,10 @@ pub use common::*;
 
 use social_service::{
     components::database::{DBRepositories, DatabaseComponentImplementation},
+    domain::friendship_event::FriendshipEvent,
     entities::{
         friendship_history::FriendshipMetadata, friendships::FriendshipRepositoryImplementation,
     },
-    models::friendship_event::FriendshipEvent,
 };
 use uuid::Uuid;
 

@@ -1,7 +1,9 @@
 pub mod api;
 pub mod components;
+pub mod db;
+pub mod domain;
 pub mod entities;
-pub mod models;
+pub mod synapse;
 pub mod ws;
 pub mod friendships {
     include!(concat!(
