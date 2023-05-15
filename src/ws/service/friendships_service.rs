@@ -295,9 +295,15 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                         return Ok(err.into());
                                     }
                                     Ok(friendship_update_response) => {
+                                        let created_at = SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_secs()
+                                            as i64;
                                         let update_response = event_response_as_update_response(
                                             request.clone(),
                                             friendship_update_response,
+                                            created_at,
                                         );
 
                                         match update_response {
@@ -309,13 +315,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                 return Ok(err.into());
                                             }
                                             Ok(update_response) => {
-                                                // TODO: Use created_at from entity instead of calculating it again (#ISSUE: https://github.com/decentraland/social-service/issues/197)
-                                                let created_at = SystemTime::now()
-                                                    .duration_since(UNIX_EPOCH)
-                                                    .unwrap()
-                                                    .as_secs()
-                                                    as i64;
-
                                                 let publisher =
                                                     context.server_context.redis_publisher.clone();
                                                 if let Some(event) = request.clone().event {

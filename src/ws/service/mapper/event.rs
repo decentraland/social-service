@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use crate::{
     domain::{
         error::CommonError,
@@ -149,6 +147,7 @@ pub fn update_request_as_event_payload(
 pub fn event_response_as_update_response(
     request: UpdateFriendshipPayload,
     result: EventResponse,
+    created_at: i64,
 ) -> Result<UpdateFriendshipResponse, CommonError> {
     let update_response = if let Some(body) = request.event {
         match body.body {
@@ -157,10 +156,7 @@ pub fn event_response_as_update_response(
                     user: Some(User {
                         address: result.user_id,
                     }),
-                    created_at: SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs() as i64,
+                    created_at,
                     message: payload.message,
                 };
 
