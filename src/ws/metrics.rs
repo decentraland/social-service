@@ -10,7 +10,25 @@ struct InvalidHeader;
 
 impl Reject for InvalidHeader {}
 
-pub fn record_error_response_code(error: WsServiceError) {
+pub enum Procedure {
+    GetFriends,
+    GetRequestEvents,
+    UpdateFriendshipEvent,
+    SubscribeFriendshipEventsUpdates,
+}
+
+impl Procedure {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Procedure::GetFriends => "GetFriends",
+            Procedure::GetRequestEvents => "GetRequestEvents",
+            Procedure::UpdateFriendshipEvent => "UpdateFriendshipEvent",
+            Procedure::SubscribeFriendshipEventsUpdates => "SubscribeFriendshipEventsUpdates",
+        }
+    }
+}
+
+pub fn record_error_response_code(error: WsServiceError, procedure: Procedure) {
     let label = match error {
         WsServiceError::Unauthorized(_) => "UNAUTHORIZED",
         WsServiceError::InternalServer(_) => "INTERNAL_SERVER",
@@ -19,7 +37,7 @@ pub fn record_error_response_code(error: WsServiceError) {
         WsServiceError::TooManyRequests(_) => "TOO_MANY_REQUESTS",
     };
     ERROR_RESPONSE_CODE_COLLECTOR
-        .with_label_values(&[label])
+        .with_label_values(&[label, procedure.as_str()])
         .inc();
 }
 
@@ -87,7 +105,7 @@ lazy_static! {
             "Social Service RPC Websocket Error Response Codes",
         );
 
-        IntCounterVec::new(opts, &["status_code"])
+        IntCounterVec::new(opts, &["status_code", "procedure"])
             .expect("dcl_social_service_rpc_error_response_code metric can be created")
     };
     pub static ref REGISTRY: Registry = Registry::new();
