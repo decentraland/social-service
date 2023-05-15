@@ -26,7 +26,7 @@ use crate::{
     },
     ws::{
         app::{SocialContext, SocialTransportContext},
-        metrics::record_error_response_code,
+        metrics::{record_error_response_code, Procedure},
     },
 };
 
@@ -79,7 +79,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         let Some(repos) = context.server_context.db.db_repos.clone() else {
             log::error!("Get friends > Db repositories > `repos` is None.");
             let error = InternalServerError{ message: "An error occurred while getting the friendships".to_owned() };
-            record_error_response_code(error.clone().into());
+            record_error_response_code(error.clone().into(), Procedure::GetFriends);
             tokio::spawn(async move {
                 let result = friendships_yielder
                 .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
@@ -94,7 +94,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.clone().into());
+                record_error_response_code(err.clone().into(), Procedure::GetFriends);
                 tokio::spawn(async move {
                     let result = friendships_yielder.r#yield(err.into()).await;
                     if let Err(err) = result {
@@ -114,7 +114,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             "Get friends > Get user friends stream > Error: There was an error accessing to the friendships repository."
                         );
                         let error = InternalServerError{ message: "An error occurred while sending the response to the stream".to_owned() };
-                        record_error_response_code(error.clone().into());
+                        record_error_response_code(error.clone().into(), Procedure::GetFriends);
                         tokio::spawn(async move {
                             let result = friendships_yielder
                                 .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
@@ -179,7 +179,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.clone().into());
+                record_error_response_code(err.clone().into(), Procedure::GetRequestEvents);
                 return Ok(err.into());
             }
             Ok(user_id) => {
@@ -189,7 +189,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 let Some(repos) = context.server_context.db.db_repos.clone() else {
                     log::error!("Get request events > Db repositories > `repos` is None.");
                     let error = InternalServerError { message: "".to_owned() };
-                    record_error_response_code(error.clone().into());
+                    record_error_response_code(error.clone().into(), Procedure::GetRequestEvents);
 
                     return Ok(RequestEventsResponse::from_response(
                         request_events_response::Response::InternalServerError(error)));
@@ -208,7 +208,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         let error = InternalServerError {
                             message: "".to_owned(),
                         };
-                        record_error_response_code(error.clone().into());
+                        record_error_response_code(
+                            error.clone().into(),
+                            Procedure::GetRequestEvents,
+                        );
 
                         Ok(RequestEventsResponse::from_response(
                             request_events_response::Response::InternalServerError(error),
@@ -234,7 +237,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
     ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
         let Some(auth_token) = request.clone().auth_token.take() else {
             let error = UnauthorizedError{ message: "`auth_token` was not provided".to_owned() };
-            record_error_response_code(error.clone().into());
+            record_error_response_code(error.clone().into(), Procedure::UpdateFriendshipEvent);
             return Ok(UpdateFriendshipResponse::from_response(
                 update_friendship_response::Response::UnauthorizedError(
                     error
@@ -252,7 +255,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.clone().into());
+                record_error_response_code(err.clone().into(), Procedure::UpdateFriendshipEvent);
                 return Ok(err.into());
             }
             Ok(user_id) => {
@@ -260,7 +263,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                 match event_payload {
                     Err(err) => {
-                        record_error_response_code(err.clone().into());
+                        record_error_response_code(
+                            err.clone().into(),
+                            Procedure::UpdateFriendshipEvent,
+                        );
                         return Ok(err.into());
                     }
                     Ok(event_payload) => {
@@ -268,7 +274,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                         match token {
                             Err(err) => {
-                                record_error_response_code(err.clone().into());
+                                record_error_response_code(
+                                    err.clone().into(),
+                                    Procedure::UpdateFriendshipEvent,
+                                );
                                 return Ok(err.into());
                             }
                             Ok(token) => {
@@ -282,7 +291,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                                 match friendship_update_response {
                                     Err(err) => {
-                                        record_error_response_code(err.clone().into());
+                                        record_error_response_code(
+                                            err.clone().into(),
+                                            Procedure::UpdateFriendshipEvent,
+                                        );
                                         return Ok(err.into());
                                     }
                                     Ok(friendship_update_response) => {
@@ -299,7 +311,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                                         match update_response {
                                             Err(err) => {
-                                                record_error_response_code(err.clone().into());
+                                                record_error_response_code(
+                                                    err.clone().into(),
+                                                    Procedure::UpdateFriendshipEvent,
+                                                );
                                                 return Ok(err.into());
                                             }
                                             Ok(update_response) => {
@@ -358,7 +373,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         match request_user_id {
             Err(err) => {
-                record_error_response_code(err.clone().into());
+                record_error_response_code(
+                    err.clone().into(),
+                    Procedure::SubscribeFriendshipEventsUpdates,
+                );
 
                 tokio::spawn(async move {
                     friendships_yielder.r#yield(err.into()).await.unwrap();
