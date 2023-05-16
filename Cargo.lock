@@ -677,9 +677,9 @@ dependencies = [
 
 [[package]]
 name = "dcl-rpc"
-version = "2.1.1"
+version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d274fb5fd9899a9dbd9d30b69db470acb43f39b37069352c62f3f0680f47c1a"
+checksum = "958d28a304a6e8a6246cb2dd566cb80c4b4364659ca8dcb862ba0975fb7745db"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -693,7 +693,6 @@ dependencies = [
  "protobuf-src",
  "quote",
  "tokio",
- "tokio-tungstenite",
  "tokio-util",
 ]
 
@@ -3003,9 +3002,7 @@ checksum = "54319c93411147bced34cb5609a80e0a8e44c5999c93903a81cd866630ec0bfd"
 dependencies = [
  "futures-util",
  "log",
- "native-tls",
  "tokio",
- "tokio-native-tls",
  "tungstenite",
 ]
 
@@ -3162,7 +3159,6 @@ dependencies = [
  "http",
  "httparse",
  "log",
- "native-tls",
  "rand 0.8.5",
  "sha1",
  "thiserror",
