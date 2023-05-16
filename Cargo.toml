@@ -37,7 +37,7 @@ serde_json = "1.0.89"
 mockall = "0.11.3"
 lazy_static = "1.4.0"
 actix-http = "3.2.2"
-dcl-rpc = "2.1.1"
+dcl-rpc = "2.3.3"
 prost = "0.11.5"
 tokio = {version = "1.0.0", default-features = false, features = ["io-util", "io-std", "macros", "net", "rt-multi-thread", "time", "sync"]}
 warp = "0.3"
