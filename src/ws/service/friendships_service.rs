@@ -26,7 +26,7 @@ use crate::{
     },
     ws::{
         app::{SocialContext, SocialTransportContext},
-        metrics::{record_error_response_code, record_request_procedure, Procedure},
+        metrics::{record_error_response_code, record_procedure_calls, Procedure},
     },
 };
 
@@ -67,7 +67,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
-        record_request_procedure(Procedure::GetFriends);
+        record_procedure_calls(Procedure::GetFriends);
 
         let request_user_id = get_user_id_from_request(
             &request,
@@ -169,7 +169,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<RequestEventsResponse, RPCFriendshipsServiceError> {
-        record_request_procedure(Procedure::GetRequestEvents);
+        record_procedure_calls(Procedure::GetRequestEvents);
 
         let request_user_id = get_user_id_from_request(
             &request,
@@ -236,7 +236,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: UpdateFriendshipPayload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
-        record_request_procedure(Procedure::UpdateFriendshipEvent);
+        record_procedure_calls(Procedure::UpdateFriendshipEvent);
 
         let Some(auth_token) = request.clone().auth_token.take() else {
             let error = UnauthorizedError{ message: "`auth_token` was not provided".to_owned() };
@@ -365,7 +365,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
         RPCFriendshipsServiceError,
     > {
-        record_request_procedure(Procedure::SubscribeFriendshipEventsUpdates);
+        record_procedure_calls(Procedure::SubscribeFriendshipEventsUpdates);
 
         let request_user_id = get_user_id_from_request(
             &request,
