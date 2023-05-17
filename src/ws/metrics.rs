@@ -52,11 +52,11 @@ pub fn register_metrics() {
 
     REGISTRY
         .register(Box::new(ERROR_RESPONSE_CODE_COLLECTOR.clone()))
-        .expect("Collector can be registered");
+        .expect("ERROR_RESPONSE_CODE_COLLECTOR can be registered");
 
     REGISTRY
         .register(Box::new(PROCEDURE_CALLS_COLLECTOR.clone()))
-        .expect("Collector can be registered");
+        .expect("PROCEDURE_CALLS_COLLECTOR can be registered");
 
     log::info!("Registered ERROR_RESPONSE_CODE_COLLECTOR and PROCEDURE_CALLS_COLLECTOR");
 }
