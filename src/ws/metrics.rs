@@ -41,15 +41,24 @@ pub fn record_error_response_code(error: WsServiceError, procedure: Procedure) {
         .inc();
 }
 
+pub fn record_request_procedure(procedure: Procedure) {
+    REQUEST_PROCEDURE_COLLECTOR
+        .with_label_values(&[procedure.as_str()])
+        .inc();
+}
+
 pub fn register_metrics() {
-    log::info!("Registering ERROR_RESPONSE_CODE_COLLECTOR");
-    let collector = ERROR_RESPONSE_CODE_COLLECTOR.clone();
+    log::info!("Registering ERROR_RESPONSE_CODE_COLLECTOR and REQUEST_PROCEDURE_COLLECTOR");
 
     REGISTRY
-        .register(Box::new(collector))
+        .register(Box::new(ERROR_RESPONSE_CODE_COLLECTOR.clone()))
         .expect("Collector can be registered");
 
-    log::info!("Registered ERROR_RESPONSE_CODE_COLLECTOR");
+    REGISTRY
+        .register(Box::new(REQUEST_PROCEDURE_COLLECTOR.clone()))
+        .expect("Collector can be registered");
+
+    log::info!("Registered ERROR_RESPONSE_CODE_COLLECTOR and REQUEST_PROCEDURE_COLLECTOR");
 }
 
 pub async fn metrics_handler() -> Result<impl Reply, Rejection> {
@@ -107,6 +116,15 @@ lazy_static! {
 
         IntCounterVec::new(opts, &["status_code", "procedure"])
             .expect("dcl_social_service_rpc_error_response_code metric can be created")
+    };
+    pub static ref REQUEST_PROCEDURE_COLLECTOR: IntCounterVec = {
+        let opts = Opts::new(
+            "dcl_social_service_rpc_request_procedure",
+            "Social Service RPC Websocket Request Procedures",
+        );
+
+        IntCounterVec::new(opts, &["procedure"])
+            .expect("dcl_social_service_rpc_request_procedure metric can be created")
     };
     pub static ref REGISTRY: Registry = Registry::new();
 }

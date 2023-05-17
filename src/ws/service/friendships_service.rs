@@ -26,7 +26,7 @@ use crate::{
     },
     ws::{
         app::{SocialContext, SocialTransportContext},
-        metrics::{record_error_response_code, Procedure},
+        metrics::{record_error_response_code, record_request_procedure, Procedure},
     },
 };
 
@@ -67,6 +67,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
+        record_request_procedure(Procedure::GetFriends);
+
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
@@ -167,6 +169,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<RequestEventsResponse, RPCFriendshipsServiceError> {
+        record_request_procedure(Procedure::GetRequestEvents);
+
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
@@ -232,6 +236,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: UpdateFriendshipPayload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
+        record_request_procedure(Procedure::UpdateFriendshipEvent);
+
         let Some(auth_token) = request.clone().auth_token.take() else {
             let error = UnauthorizedError{ message: "`auth_token` was not provided".to_owned() };
             record_error_response_code(error.clone().into(), Procedure::UpdateFriendshipEvent);
@@ -359,6 +365,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
         RPCFriendshipsServiceError,
     > {
+        record_request_procedure(Procedure::SubscribeFriendshipEventsUpdates);
+
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
