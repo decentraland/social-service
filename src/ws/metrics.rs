@@ -37,19 +37,19 @@ pub fn record_procedure_call(code: Option<WsServiceError>, procedure: Procedure)
         Some(WsServiceError::TooManyRequests(_)) => "TOO_MANY_REQUESTS",
         None => "OK",
     };
-    PROCEDURE_CALLS_COLLECTOR
+    PROCEDURE_CALL_COLLECTOR
         .with_label_values(&[label, procedure.as_str()])
         .inc();
 }
 
 pub fn register_metrics() {
-    log::info!("Registering PROCEDURE_CALLS_COLLECTOR");
+    log::info!("Registering PROCEDURE_CALL_COLLECTOR");
 
     REGISTRY
-        .register(Box::new(PROCEDURE_CALLS_COLLECTOR.clone()))
-        .expect("PROCEDURE_CALLS_COLLECTOR can be registered");
+        .register(Box::new(PROCEDURE_CALL_COLLECTOR.clone()))
+        .expect("PROCEDURE_CALL_COLLECTOR can be registered");
 
-    log::info!("Registered PROCEDURE_CALLS_COLLECTOR");
+    log::info!("Registered PROCEDURE_CALL_COLLECTOR");
 }
 
 pub async fn metrics_handler() -> Result<impl Reply, Rejection> {
@@ -99,13 +99,13 @@ pub async fn validate_bearer_token(
 }
 
 lazy_static! {
-    pub static ref PROCEDURE_CALLS_COLLECTOR: IntCounterVec = {
+    pub static ref PROCEDURE_CALL_COLLECTOR: IntCounterVec = {
         let opts = Opts::new(
             "dcl_social_service_rpc_procedure_call",
             "Social Service RPC Websocket Procedure Calls",
         );
 
-        IntCounterVec::new(opts, &["status_code", "procedure"])
+        IntCounterVec::new(opts, &["code", "procedure"])
             .expect("dcl_social_service_rpc_procedure_call metric can be created")
     };
     pub static ref REGISTRY: Registry = Registry::new();
