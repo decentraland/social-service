@@ -38,7 +38,7 @@ pub fn record_procedure_call(code: Option<WsServiceError>, procedure: Procedure)
         None => "OK",
     };
     PROCEDURE_CALL_COLLECTOR
-        .with_label_values(&[label, procedure.as_str()])
+        .with_label_values(&[code, procedure.as_str()])
         .inc();
 }
 
