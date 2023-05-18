@@ -29,7 +29,7 @@ impl Procedure {
 }
 
 pub fn record_procedure_call(code: Option<WsServiceError>, procedure: Procedure) {
-    let label = match code {
+    let code = match code {
         Some(WsServiceError::Unauthorized(_)) => "UNAUTHORIZED_ERROR",
         Some(WsServiceError::InternalServer(_)) => "INTERNAL_SERVER_ERROR",
         Some(WsServiceError::BadRequest(_)) => "BAD_REQUEST_ERROR",
