@@ -30,11 +30,11 @@ impl Procedure {
 
 pub fn record_procedure_call(code: Option<WsServiceError>, procedure: Procedure) {
     let label = match code {
-        Some(WsServiceError::Unauthorized(_)) => "UNAUTHORIZED",
-        Some(WsServiceError::InternalServer(_)) => "INTERNAL_SERVER",
-        Some(WsServiceError::BadRequest(_)) => "BAD_REQUEST",
-        Some(WsServiceError::Forbidden(_)) => "FORBIDDEN",
-        Some(WsServiceError::TooManyRequests(_)) => "TOO_MANY_REQUESTS",
+        Some(WsServiceError::Unauthorized(_)) => "UNAUTHORIZED_ERROR",
+        Some(WsServiceError::InternalServer(_)) => "INTERNAL_SERVER_ERROR",
+        Some(WsServiceError::BadRequest(_)) => "BAD_REQUEST_ERROR",
+        Some(WsServiceError::Forbidden(_)) => "FORBIDDEN_ERROR",
+        Some(WsServiceError::TooManyRequests(_)) => "TOO_MANY_REQUESTS_ERROR",
         None => "OK",
     };
     PROCEDURE_CALL_COLLECTOR
