@@ -28,7 +28,7 @@ use crate::{
 };
 
 use super::{
-    metrics::{metrics_handler, register_metrics, validate_bearer_token},
+    metrics::{metrics_handler, register_metrics, validate_bearer_token, Metrics},
     service::friendships_service,
     transport::WarpWebSocketTransport,
 };
@@ -55,6 +55,7 @@ pub struct SocialContext {
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
     pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
     pub friends_stream_page_size: u16,
+    pub metrics: Arc<Mutex<Metrics>>,
 }
 
 pub struct WsComponents {
@@ -63,10 +64,14 @@ pub struct WsComponents {
     pub friendships_events_generators:
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
     pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
+    pub metrics: Arc<Mutex<Metrics>>,
 }
 
 pub async fn init_ws_components(config: Config) -> WsComponents {
     let redis = Redis::new_and_run(&config.redis).await;
+
+    let metrics = Arc::new(Mutex::new(Metrics::new()));
+
     match redis {
         Ok(redis) => {
             let redis = Arc::new(redis);
@@ -79,6 +84,7 @@ pub async fn init_ws_components(config: Config) -> WsComponents {
                 redis_subscriber,
                 friendships_events_generators,
                 transport_context,
+                metrics,
             }
         }
         Err(err) => {
@@ -99,6 +105,7 @@ pub async fn run_ws_transport(
     let wkc_metrics_bearer_token = ctx.config.wkc_metrics_bearer_token.clone();
     let generators_clone = ctx.friendships_events_generators.clone();
     let transport_contexts = ctx.transport_context.clone();
+    let metrics = ctx.metrics.clone();
 
     tokio::spawn(async move {
         subscribe_to_event_updates(subs, generators.clone());
@@ -151,7 +158,7 @@ pub async fn run_ws_transport(
         .map(|| "\"alive\"".to_string());
 
     // Register metrics
-    register_metrics();
+    register_metrics(metrics.clone()).await;
 
     // Metrics route
     let metrics_route = warp::path!("metrics")
@@ -162,6 +169,7 @@ pub async fn run_ws_transport(
             validate_bearer_token(header_value, expected_token)
         })
         .untuple_one()
+        .and(warp::any().map(move || Arc::clone(&metrics)))
         .and_then(metrics_handler);
 
     let routes = warp::get().and(rpc_route.or(rest_routes).or(metrics_route));
