@@ -288,8 +288,8 @@ impl SynapseComponent {
             .await;
 
         match result {
-            Ok(_) => Ok(()),  // if successful, we just return Ok(())
-            Err(e) => Err(e), // if there was an error, we forward it
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
