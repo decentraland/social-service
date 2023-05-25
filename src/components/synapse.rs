@@ -278,7 +278,19 @@ impl SynapseComponent {
         let path: String =
             format!("/_matrix/client/r0/user/{synapse_user_id}/account_data/m.direct");
 
-        Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
+        let result: Result<HashMap<String, Vec<String>>, _> =
+            Self::authenticated_put_request::<HashMap<String, Vec<String>>, _>(
+                &path,
+                token,
+                &self.synapse_url,
+                direct_room_map,
+            )
+            .await;
+
+        match result {
+            Ok(_) => Ok(()),  // if successful, we just return Ok(())
+            Err(e) => Err(e), // if there was an error, we forward it
+        }
     }
 
     /// Retrieves the account data content for the given user id
