@@ -42,7 +42,7 @@ impl Transport for WarpWebSocketTransport {
                     return Ok(message_data);
                 } else {
                     // Ignore messages that are not binary
-                    log::error!("> WebSocketTransport > Received message is not binary");
+                    log::error!("[RPC] WebSocketTransport > Received message is not binary");
                     return Err(TransportError::NotBinaryMessage);
                 }
             }
@@ -63,7 +63,7 @@ impl Transport for WarpWebSocketTransport {
         match self.write.lock().await.send(message).await {
             Err(err) => {
                 log::error!(
-                    "> WebSocketTransport > Error on sending in a ws connection {}",
+                    "[RPC] WebSocketTransport > Error on sending in a ws connection {}",
                     err.to_string()
                 );
 
@@ -81,7 +81,7 @@ impl Transport for WarpWebSocketTransport {
                 self.ready.store(false, Ordering::SeqCst);
             }
             _ => {
-                log::error!("Couldn't close transport")
+                log::error!("[RPC] Couldn't close transport")
             }
         }
     }
