@@ -207,7 +207,7 @@ async fn should_run_transaction_succesfully() {
         Ok(read) => {
             assert!(read.is_none())
         }
-        Err(err) => panic!("Failed while reading from db {}", err),
+        Err(err) => panic!("Failed while reading from db {err}"),
     }
 
     let (read, trans) = dbrepos.friendships.get_friendship(addresses, trans).await;
@@ -216,7 +216,7 @@ async fn should_run_transaction_succesfully() {
         Ok(read) => {
             assert!(read.is_some())
         }
-        Err(err) => panic!("Failed while reading from db {}", err),
+        Err(err) => panic!("Failed while reading from db {err}"),
     }
 
     trans.unwrap().commit().await.unwrap();
@@ -227,7 +227,7 @@ async fn should_run_transaction_succesfully() {
         Ok(read) => {
             assert!(read.is_some())
         }
-        Err(err) => panic!("Failed while reading from db {}", err),
+        Err(err) => panic!("Failed while reading from db {err}"),
     }
 }
 
@@ -238,7 +238,7 @@ async fn create_friendship(
     address_2: &str,
     is_active: bool,
 ) -> Uuid {
-    let synapse_room_id = format!("room_id_{}_{}", address_1, address_2);
+    let synapse_room_id = format!("room_id_{address_1}_{address_2}");
     dbrepos
         .friendships
         .create_new_friendships((address_1, address_2), is_active, &synapse_room_id, None)
