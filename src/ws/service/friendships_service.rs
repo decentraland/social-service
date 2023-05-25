@@ -330,7 +330,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                                 .publish(update_friendship_payload_as_event)
                                                                 .await;
                                                         } else {
-                                                            log::error!("There was an error parsing from friendship payload to event")
+                                                            log::error!("[RPC] There was an error parsing from friendship payload to event")
                                                         }
                                                     });
                                                 };
@@ -377,7 +377,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                 let result = friendships_yielder.r#yield(err.into()).await;
                 if let Err(err) = result {
-                    log::error!("There was an error yielding the error to the subscribe friendships generator: {:?}", err);
+                    log::error!("[RPC] There was an error yielding the error to the subscribe friendships generator: {:?}", err);
                 };
             }
             Ok(user_id) => {
@@ -423,12 +423,12 @@ pub async fn get_user_id_from_request(
         Some(token) => get_user_id_from_token(synapse.clone(), users_cache.clone(), &token)
             .await
             .map_err(|err| {
-                log::error!("Get user id from request > Error {err}");
+                log::error!("[RPC] Get user id from request > Error {err}");
                 err
             }),
         // If no authentication token was provided, return an Unauthorized error.
         None => {
-            log::error!("Get user id from request > `synapse_token` is None.");
+            log::error!("[RPC] Get user id from request > `synapse_token` is None.");
             Err(CommonError::Unauthorized(
                 "`synapse_token` was not provided".to_owned(),
             ))

@@ -31,7 +31,7 @@ pub async fn handle_friendship_update(
     let second_user = event_payload.second_user;
 
     let db_repos = context.db.clone().db_repos.ok_or_else(|| {
-        log::error!("Handle friendship update > Db repositories > `repos` is None.");
+        log::error!("[RPC] Handle friendship update > Db repositories > `repos` is None.");
         CommonError::Unknown("".to_owned())
     })?;
 
@@ -79,7 +79,7 @@ pub async fn handle_friendship_update(
     let transaction = match friendship_ports.db.start_transaction().await {
         Ok(tx) => tx,
         Err(error) => {
-            log::error!("Handle friendship update > Couldn't start transaction to store friendship update {error}");
+            log::error!("[RPC] Handle friendship update > Couldn't start transaction to store friendship update {error}");
             return Err(CommonError::Unknown("".to_owned()));
         }
     };
@@ -126,7 +126,7 @@ pub async fn handle_friendship_update(
     // End transaction
     if let Err(err) = transaction.commit().await {
         log::error!(
-            "Handle friendship update > Couldn't end transaction to store friendship update {err}"
+            "[RPC] Handle friendship update > Couldn't end transaction to store friendship update {err}"
         );
         Err(CommonError::Unknown("".to_owned()))
     } else {

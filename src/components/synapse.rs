@@ -386,7 +386,7 @@ impl SynapseComponent {
             Ok(response) => {
                 let text = response.text().await;
                 if let Err(err) = text {
-                    log::warn!("error reading synapse response {}", err);
+                    log::warn!("[Synapse] error reading synapse response {}", err);
                     return Err(CommonError::Unknown("".to_owned()));
                 }
 
@@ -396,7 +396,7 @@ impl SynapseComponent {
                 response.map_err(|_| Self::parse_and_return_error(&text))
             }
             Err(err) => {
-                log::warn!("error connecting to synapse {}", err);
+                log::warn!("[Synapse] error connecting to synapse {}", err);
                 Err(CommonError::Unknown("".to_owned()))
             }
         }

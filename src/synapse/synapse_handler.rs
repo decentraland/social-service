@@ -66,7 +66,7 @@ pub async fn store_message_in_synapse_room<'a>(
                     }
                     Err(err) => {
                         if retry_count == 2 {
-                            log::error!("Store message in synapse room > Error {err}");
+                            log::error!("[RPC] Store message in synapse room > Error {err}");
                             return Err(err);
                         }
                     }
@@ -92,7 +92,7 @@ pub async fn store_room_event_in_synapse_room(
     match res {
         Ok(_) => Ok(()),
         Err(err) => {
-            log::error!("Store room event in synapse room > Error {err}");
+            log::error!("[RPC] Store room event in synapse room > Error {err}");
             Err(err)
         }
     }
@@ -123,7 +123,7 @@ async fn create_private_room_in_synapse(
             Ok(res)
         }
         Err(err) => {
-            log::error!("Create private room in synapse > Error {err}");
+            log::error!("[RPC] Create private room in synapse > Error {err}");
             Err(err)
         }
     }
@@ -139,7 +139,7 @@ async fn get_room_id_for_alias_in_synapse(
     match res {
         Ok(response) => Ok(response.room_id),
         Err(err) => {
-            log::error!("Get room id for alias in synapse > Error {err}");
+            log::error!("[RPC] Get room id for alias in synapse > Error {err}");
             Err(err)
         }
     }
@@ -192,7 +192,7 @@ pub async fn get_or_create_synapse_room_id(
                     }
                 }
             } else {
-                log::error!("Get or create synapse room > Friendship does not exists and the event is different than Request");
+                log::error!("[RPC] Get or create synapse room > Friendship does not exists and the event is different than Request");
                 Err(CommonError::BadRequest(
                     "Invalid frienship event update".to_owned(),
                 ))
@@ -239,7 +239,9 @@ pub async fn set_account_data(
                         .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
                         .await
                         .map_err(|err| {
-                            log::error!("Set account data > Error setting account data {err}");
+                            log::error!(
+                                "[RPC] Set account data > Error setting account data {err}"
+                            );
                             err
                         })?;
                     return Ok(());
@@ -248,7 +250,7 @@ pub async fn set_account_data(
             Ok(())
         }
         Err(err) => {
-            log::error!("Set account data > Error getting account data {err}");
+            log::error!("[RPC] Set account data > Error getting account data {err}");
             Err(err)
         }
     }
