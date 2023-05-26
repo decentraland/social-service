@@ -1,3 +1,12 @@
+<p align="center">
+  <a href="https://decentraland.org">
+    <img alt="Decentraland" src="https://decentraland.org/images/logo.png" width="60" />
+  </a>
+</p>
+<h1 align="center">
+  Decentraland Social Service
+</h1>
+
 # Social service
 
 The social service is an enabler of social interactions for decentraland, it stores the friendships between users, has the logic for managing friend requests, and has logic on top of the chat to make sure it's being used correctly (sets a max amount of friends or channels a user can have).
