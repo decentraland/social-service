@@ -47,10 +47,10 @@ impl Transport for WarpWebSocketTransport {
                 }
             }
             Some(Err(err)) => {
-                println!("Failed to receive message {err:?}");
+                log::error!("[RPC] Failed to receive message {err:?}");
             }
             None => {
-                println!("No message")
+                log::error!("[RPC] No message");
             }
         }
         println!("Closing transport...");
