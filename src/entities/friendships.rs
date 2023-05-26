@@ -244,9 +244,9 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         address: &str,
         only_active: bool,
     ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error> {
-        let active = "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1)) AND is_active";
+        let active = "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1)) AND is_active;";
         let inactive =
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1))";
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1));";
 
         let query = if only_active { active } else { inactive };
 
