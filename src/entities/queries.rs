@@ -48,7 +48,7 @@ pub const USER_REQUESTS_QUERY: &str =
     "SELECT f.address_1, f.address_2, fh.acting_user, fh.timestamp, fh.metadata
       FROM friendships f
       INNER JOIN friendship_history fh ON f.id = fh.friendship_id
-      AND (LOWER(f.address_1) = LOWER($1) OR LOWER(f.address_2) = LOWER($1))
+      WHERE (LOWER(f.address_1) = LOWER($1) OR LOWER(f.address_2) = LOWER($1))
       AND fh.event = '\"request\"'
       AND fh.timestamp = (
         SELECT MAX(fh2.timestamp)
