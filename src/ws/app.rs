@@ -228,7 +228,7 @@ async fn send_update_to_corresponding_generator(
 
         if let Some(generator) = generators_lock.get(&corresponding_user_id) {
             if generator.r#yield(response.clone()).await.is_err() {
-                log::error!("Event Update received > Couldn't send update to subscriptors. Update: {:?}, Subscriptor: {:?}", response, &corresponding_user_id);
+                log::error!("[RPC] Event Update received > Couldn't send update to subscriptors. Update: {:?}, Subscriptor: {:?}", response, &corresponding_user_id);
             }
         }
     }

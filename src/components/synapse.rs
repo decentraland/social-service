@@ -278,7 +278,19 @@ impl SynapseComponent {
         let path: String =
             format!("/_matrix/client/r0/user/{synapse_user_id}/account_data/m.direct");
 
-        Self::authenticated_put_request(&path, token, &self.synapse_url, direct_room_map).await
+        let result: Result<HashMap<String, Vec<String>>, _> =
+            Self::authenticated_put_request::<HashMap<String, Vec<String>>, _>(
+                &path,
+                token,
+                &self.synapse_url,
+                direct_room_map,
+            )
+            .await;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     /// Retrieves the account data content for the given user id
@@ -374,7 +386,7 @@ impl SynapseComponent {
             Ok(response) => {
                 let text = response.text().await;
                 if let Err(err) = text {
-                    log::warn!("error reading synapse response {}", err);
+                    log::warn!("[Synapse] error reading synapse response {}", err);
                     return Err(CommonError::Unknown("".to_owned()));
                 }
 
@@ -384,7 +396,7 @@ impl SynapseComponent {
                 response.map_err(|_| Self::parse_and_return_error(&text))
             }
             Err(err) => {
-                log::warn!("error connecting to synapse {}", err);
+                log::warn!("[Synapse] error connecting to synapse {}", err);
                 Err(CommonError::Unknown("".to_owned()))
             }
         }
