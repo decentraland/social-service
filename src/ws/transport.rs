@@ -53,7 +53,7 @@ impl Transport for WarpWebSocketTransport {
                 log::error!("[RPC] No message");
             }
         }
-        println!("Closing transport...");
+        log::info!("[RPC] Closing transport...");
         self.close().await;
         Err(TransportError::Closed)
     }
