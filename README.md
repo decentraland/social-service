@@ -1,4 +1,11 @@
-# Social service
+<p align="center">
+  <a href="https://decentraland.org">
+    <img alt="Decentraland" src="https://decentraland.org/images/logo.png" width="60" />
+  </a>
+</p>
+<h1 align="center">
+  Decentraland Social Service
+</h1>
 
 The social service is an enabler of social interactions for decentraland, it stores the friendships between users, has the logic for managing friend requests, and has logic on top of the chat to make sure it's being used correctly (sets a max amount of friends or channels a user can have).
 
@@ -19,6 +26,7 @@ This will by default install the stable toolchain, but will also enable you to i
 #### Rust update
 
 Run
+
 ```bash
 rustup update
 ```
@@ -29,16 +37,17 @@ There are two recommended editors/IDEs at the moment:
 
 - [IntelliJ Rust](https://www.jetbrains.com/rust/)
 - VS Code with [Rust Analyzer](https://www.google.com/search?q=rust+analyzer&oq=rust+analyzer&aqs=chrome..69i57j0i512l9.2107j0j7&sourceid=chrome&ie=UTF-8#:~:text=rust%2Dlang/rust,lang%20%E2%80%BA%20rust%2Danalyzer) support
+
 #### Debug Rust in VS Code
 
 - Follow the instructions [in the following post](https://www.forrestthewoods.com/blog/how-to-debug-rust-with-visual-studio-code/) to add the extension for VS Code for debugging LLVM programs in VS Code
-
 
 ### Building the server
 
 The main of this project will run an HTTP Server and a Websocket Server.
 
 The Websocket server implements the protocol definition defined in https://github.com/decentraland/protocol/blob/main/proto/decentraland/social/friendships/friendships.proto which is automatically downloaded from GitHub during the build time. If a build fails, it could be related to that.
+
 ### Running the server
 
 ```
