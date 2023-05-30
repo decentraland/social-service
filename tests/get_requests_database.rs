@@ -7,7 +7,7 @@ use social_service::{
 };
 
 // This is a file that executes all possible flows to check the amount of pending requests
-// The idea is to full test the query: 'USER_REQUESTS_QUERY'
+// The idea is to full test the query: 'USER_REQUESTS_QUERY' and then the mapping done by 'friendship_requests_as_request_events_response'
 
 #[actix_web::test]
 #[serial_test::serial]
