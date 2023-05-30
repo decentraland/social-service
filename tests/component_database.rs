@@ -3,13 +3,12 @@ mod common;
 pub use common::*;
 
 use social_service::{
-    components::database::{DBRepositories, DatabaseComponentImplementation},
+    components::database::DatabaseComponentImplementation,
     domain::friendship_event::FriendshipEvent,
     entities::{
         friendship_history::FriendshipMetadata, friendships::FriendshipRepositoryImplementation,
     },
 };
-use uuid::Uuid;
 
 #[actix_web::test]
 #[serial_test::serial]
@@ -131,20 +130,32 @@ async fn should_get_pending_request_events() {
     create_friendship_event(dbrepos, friendship_id_2, "\"request\"", "A", None).await;
     create_friendship_event(dbrepos, friendship_id_2, "\"accept\"", "C", None).await;
 
-    // retrieve the pending request events for the auth user
-    let requests = dbrepos
+    let user_a_requests = dbrepos
         .friendship_history
         .get_user_pending_request_events("A")
         .await
         .unwrap();
+    let user_b_requests = dbrepos
+        .friendship_history
+        .get_user_pending_request_events("B")
+        .await
+        .unwrap();
+    let user_c_requests = dbrepos
+        .friendship_history
+        .get_user_pending_request_events("C")
+        .await
+        .unwrap();
 
-    // check that the retrieved events have the expected properties
-    assert!(requests.len() == 1);
-    let first_request = &requests[0];
+    assert!(user_a_requests.len() == 0);
+
+    assert!(user_b_requests.len() == 1);
+    let first_request = &user_b_requests[0];
     assert_eq!(first_request.address_1, "A");
     assert_eq!(first_request.address_2, "B");
     assert_eq!(first_request.acting_user, "A");
     assert!(first_request.metadata.is_none());
+
+    assert!(user_c_requests.len() == 0);
 }
 
 #[actix_web::test]
@@ -229,36 +240,4 @@ async fn should_run_transaction_succesfully() {
         }
         Err(err) => panic!("Failed while reading from db {err}"),
     }
-}
-
-/// Creates a new friendship between two users and returns the friendship_id.
-async fn create_friendship(
-    dbrepos: &DBRepositories,
-    address_1: &str,
-    address_2: &str,
-    is_active: bool,
-) -> Uuid {
-    let synapse_room_id = format!("room_id_{address_1}_{address_2}");
-    dbrepos
-        .friendships
-        .create_new_friendships((address_1, address_2), is_active, &synapse_room_id, None)
-        .await
-        .0
-        .unwrap()
-}
-
-/// Adds a new entry to the friendship history for a given friendship_id, event type, and acting user.
-async fn create_friendship_event(
-    dbrepos: &DBRepositories,
-    friendship_id: Uuid,
-    event: &str,
-    acting_user: &str,
-    metadata: Option<sqlx::types::Json<FriendshipMetadata>>,
-) {
-    dbrepos
-        .friendship_history
-        .create(friendship_id, event, acting_user, metadata, None)
-        .await
-        .0
-        .unwrap();
 }

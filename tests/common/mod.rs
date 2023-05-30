@@ -6,15 +6,21 @@ use social_service::{
     components::{
         app::AppComponents,
         configuration::{Config, Database},
-        database::{DatabaseComponent, DatabaseComponentImplementation},
+        database::{DBRepositories, DatabaseComponent, DatabaseComponentImplementation},
         synapse::{WhoAmIResponse, WHO_AM_I_URI},
     },
+    entities::{
+        friendship_history::FriendshipMetadata, friendships::FriendshipRepositoryImplementation,
+    },
 };
+
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use wiremock::{
     matchers::{header, method, path},
     Mock, MockServer, ResponseTemplate,
 };
+
+use uuid::Uuid;
 
 pub async fn get_configuration() -> Config {
     let mut config = Config::new().expect("Couldn't read the configuration file");
@@ -125,4 +131,36 @@ pub async fn create_db_component(config: Option<&Config>) -> DatabaseComponent {
     db.run().await.unwrap();
     assert!(db.is_connected());
     db
+}
+
+/// Creates a new friendship between two users and returns the friendship_id.
+pub async fn create_friendship(
+    dbrepos: &DBRepositories,
+    address_1: &str,
+    address_2: &str,
+    is_active: bool,
+) -> Uuid {
+    let synapse_room_id = format!("room_id_{address_1}_{address_2}");
+    dbrepos
+        .friendships
+        .create_new_friendships((address_1, address_2), is_active, &synapse_room_id, None)
+        .await
+        .0
+        .unwrap()
+}
+
+/// Adds a new entry to the friendship history for a given friendship_id, event type, and acting user.
+pub async fn create_friendship_event(
+    dbrepos: &DBRepositories,
+    friendship_id: Uuid,
+    event: &str,
+    acting_user: &str,
+    metadata: Option<sqlx::types::Json<FriendshipMetadata>>,
+) {
+    dbrepos
+        .friendship_history
+        .create(friendship_id, event, acting_user, metadata, None)
+        .await
+        .0
+        .unwrap();
 }
