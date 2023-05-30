@@ -7,6 +7,7 @@ use social_service::{
 };
 
 // This is a file that executes all possible flows to check the amount of pending requests
+// The idea is to full test the query: 'USER_REQUESTS_QUERY'
 
 #[actix_web::test]
 #[serial_test::serial]
@@ -23,8 +24,12 @@ async fn test_1() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -34,8 +39,12 @@ async fn test_1() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -60,8 +69,8 @@ async fn test_2() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -71,8 +80,8 @@ async fn test_2() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -96,8 +105,8 @@ async fn test_3_a() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -107,8 +116,8 @@ async fn test_3_a() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -134,8 +143,12 @@ async fn test_3_b() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -145,8 +158,12 @@ async fn test_3_b() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -172,8 +189,12 @@ async fn test_3_c() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -183,8 +204,12 @@ async fn test_3_c() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -209,8 +234,8 @@ async fn test_4_a() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -220,8 +245,8 @@ async fn test_4_a() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -248,8 +273,12 @@ async fn test_4_b() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -259,8 +288,12 @@ async fn test_4_b() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -287,8 +320,12 @@ async fn test_4_c() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -298,8 +335,12 @@ async fn test_4_c() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -326,8 +367,8 @@ async fn test_5_a() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -337,8 +378,8 @@ async fn test_5_a() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -367,8 +408,12 @@ async fn test_5_b() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -378,8 +423,12 @@ async fn test_5_b() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -408,8 +457,12 @@ async fn test_5_c() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -419,8 +472,12 @@ async fn test_5_c() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -447,8 +504,8 @@ async fn test_6_a() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -458,8 +515,8 @@ async fn test_6_a() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -488,8 +545,12 @@ async fn test_6_b() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
         }
         _ => {
             panic!("the test failed")
@@ -499,8 +560,12 @@ async fn test_6_b() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -529,8 +594,12 @@ async fn test_6_c() {
     let user_a_requests = get_requests_from(dbrepos, "A").await;
     match user_a_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 1);
-            assert!(e.outgoing.unwrap().items.len() == 0);
+            assert_eq!(e.incoming.clone().unwrap().total, 1);
+            assert_eq!(
+                e.incoming.unwrap().items[0].user.as_ref().unwrap().address,
+                "B"
+            );
+            assert!(e.outgoing.unwrap().items.is_empty());
         }
         _ => {
             panic!("the test failed")
@@ -540,8 +609,12 @@ async fn test_6_c() {
     let user_b_requests = get_requests_from(dbrepos, "B").await;
     match user_b_requests.response.unwrap() {
         social_service::friendships::request_events_response::Response::Events(e) => {
-            assert!(e.incoming.unwrap().items.len() == 0);
-            assert!(e.outgoing.unwrap().items.len() == 1);
+            assert!(e.incoming.unwrap().items.is_empty());
+            assert_eq!(e.outgoing.clone().unwrap().total, 1);
+            assert_eq!(
+                e.outgoing.unwrap().items[0].user.as_ref().unwrap().address,
+                "A"
+            );
         }
         _ => {
             panic!("the test failed")
