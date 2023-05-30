@@ -146,7 +146,12 @@ async fn should_get_pending_request_events() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.is_empty());
+    assert!(user_a_requests.len() == 1);
+    let first_request = &user_a_requests[0];
+    assert_eq!(first_request.address_1, "A");
+    assert_eq!(first_request.address_2, "B");
+    assert_eq!(first_request.acting_user, "A");
+    assert!(first_request.metadata.is_none());
 
     assert!(user_b_requests.len() == 1);
     let first_request = &user_b_requests[0];
