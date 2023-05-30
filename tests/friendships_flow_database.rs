@@ -24,7 +24,7 @@ async fn test_1() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
     assert!(user_b_requests.len() == 1);
 }
 #[actix_web::test]
@@ -48,8 +48,8 @@ async fn test_2() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
+    assert!(user_b_requests.is_empty());
 }
 #[actix_web::test]
 #[serial_test::serial]
@@ -72,8 +72,8 @@ async fn test_3_a() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
+    assert!(user_b_requests.is_empty());
 }
 #[actix_web::test]
 #[serial_test::serial]
@@ -97,7 +97,7 @@ async fn test_3_b() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
     assert!(user_b_requests.len() == 1);
 }
 #[actix_web::test]
@@ -123,7 +123,7 @@ async fn test_3_c() {
         .unwrap();
 
     assert!(user_a_requests.len() == 1);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_b_requests.is_empty());
 }
 
 #[actix_web::test]
@@ -147,8 +147,8 @@ async fn test_4_a() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
+    assert!(user_b_requests.is_empty());
 }
 
 #[actix_web::test]
@@ -173,7 +173,7 @@ async fn test_4_b() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
     assert!(user_b_requests.len() == 1);
 }
 
@@ -200,7 +200,7 @@ async fn test_4_c() {
         .unwrap();
 
     assert!(user_a_requests.len() == 1);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_b_requests.is_empty());
 }
 
 #[actix_web::test]
@@ -225,8 +225,8 @@ async fn test_5_a() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
+    assert!(user_b_requests.is_empty());
 }
 
 #[actix_web::test]
@@ -252,7 +252,7 @@ async fn test_5_b() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
     assert!(user_b_requests.len() == 1);
 }
 
@@ -280,7 +280,7 @@ async fn test_5_c() {
         .unwrap();
 
     assert!(user_a_requests.len() == 1);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_b_requests.is_empty());
 }
 
 #[actix_web::test]
@@ -305,8 +305,8 @@ async fn test_6_a() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
+    assert!(user_b_requests.is_empty());
 }
 
 #[actix_web::test]
@@ -332,7 +332,7 @@ async fn test_6_b() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
     assert!(user_b_requests.len() == 1);
 }
 
@@ -360,5 +360,5 @@ async fn test_6_c() {
         .unwrap();
 
     assert!(user_a_requests.len() == 1);
-    assert!(user_b_requests.len() == 0);
+    assert!(user_b_requests.is_empty());
 }

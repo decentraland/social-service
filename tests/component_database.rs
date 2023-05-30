@@ -146,7 +146,7 @@ async fn should_get_pending_request_events() {
         .await
         .unwrap();
 
-    assert!(user_a_requests.len() == 0);
+    assert!(user_a_requests.is_empty());
 
     assert!(user_b_requests.len() == 1);
     let first_request = &user_b_requests[0];
@@ -155,7 +155,7 @@ async fn should_get_pending_request_events() {
     assert_eq!(first_request.acting_user, "A");
     assert!(first_request.metadata.is_none());
 
-    assert!(user_c_requests.len() == 0);
+    assert!(user_c_requests.is_empty());
 }
 
 #[actix_web::test]
