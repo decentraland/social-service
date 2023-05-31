@@ -16,10 +16,7 @@ async fn should_create_and_get_a_friendship() {
     let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
 
-    create_friendship(dbrepos, "B", "A", false)
-        .await
-        .unwrap()
-        .id;
+    create_friendship(dbrepos, "B", "A", false).await.unwrap();
 
     let friendship = dbrepos
         .friendships
@@ -41,10 +38,7 @@ async fn should_create_a_friendship_request_event() {
     let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
 
-    create_friendship(dbrepos, "C", "D", false)
-        .await
-        .unwrap()
-        .id;
+    create_friendship(dbrepos, "C", "D", false).await.unwrap();
 
     let friendship = dbrepos
         .friendships
