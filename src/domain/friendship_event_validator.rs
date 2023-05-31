@@ -45,11 +45,9 @@ fn validate_auth_new_event(
                 FriendshipEvent::ACCEPT => Err(CommonError::BadRequest(
                     "Invalid acting user for friendship event update accept".to_owned(),
                 )),
-                FriendshipEvent::REJECT => {
-                    return Err(CommonError::BadRequest(
-                        "Invalid acting user for friendship event update reject".to_owned(),
-                    ))
-                }
+                FriendshipEvent::REJECT => Err(CommonError::BadRequest(
+                    "Invalid acting user for friendship event update reject".to_owned(),
+                )),
                 _ => Ok(()),
             }
         } else {

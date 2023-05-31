@@ -215,7 +215,7 @@ mod tests {
 
         // Case 1: Requesting friendship when no history exists
         let event = FriendshipEvent::REQUEST;
-        validate_new_event(&acting_user, &None, event).unwrap();
+        validate_new_event(acting_user, &None, event).unwrap();
         let result = get_new_friendship_status(acting_user, event);
         assert_eq!(result, FriendshipStatus::Requested(acting_user.to_string()));
 
@@ -226,7 +226,7 @@ mod tests {
             "OtherUser",
             "2022-04-12 09:30:00",
         ));
-        validate_new_event(&acting_user, &last_recorded_history, event).unwrap();
+        validate_new_event(acting_user, &last_recorded_history, event).unwrap();
         let result = get_new_friendship_status(acting_user, event);
         assert_eq!(result, FriendshipStatus::Friends);
 
@@ -237,7 +237,7 @@ mod tests {
             "OtherUser",
             "2022-04-12 09:30:00",
         ));
-        validate_new_event(&acting_user, &last_recorded_history, event).unwrap();
+        validate_new_event(acting_user, &last_recorded_history, event).unwrap();
         let result = get_new_friendship_status(acting_user, event);
         assert_eq!(result, FriendshipStatus::NotFriends);
     }
