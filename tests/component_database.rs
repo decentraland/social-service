@@ -16,7 +16,10 @@ async fn should_create_and_get_a_friendship() {
     let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
 
-    create_friendship(dbrepos, "B", "A", false).await;
+    create_friendship(dbrepos, "B", "A", false)
+        .await
+        .unwrap()
+        .id;
 
     let friendship = dbrepos
         .friendships
@@ -38,7 +41,10 @@ async fn should_create_a_friendship_request_event() {
     let db = create_db_component(None).await;
     let dbrepos = db.db_repos.as_ref().unwrap();
 
-    create_friendship(dbrepos, "C", "D", false).await;
+    create_friendship(dbrepos, "C", "D", false)
+        .await
+        .unwrap()
+        .id;
 
     let friendship = dbrepos
         .friendships
@@ -122,8 +128,14 @@ async fn should_get_pending_request_events() {
     let dbrepos = db.db_repos.as_ref().unwrap();
 
     // create friendships between two users
-    let friendship_id_1 = create_friendship(dbrepos, "A", "B", false).await;
-    let friendship_id_2 = create_friendship(dbrepos, "A", "C", false).await;
+    let friendship_id_1 = create_friendship(dbrepos, "A", "B", false)
+        .await
+        .unwrap()
+        .id;
+    let friendship_id_2 = create_friendship(dbrepos, "A", "C", false)
+        .await
+        .unwrap()
+        .id;
 
     // create friendship history entries to represent friendship events
     create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "A", None).await;
@@ -171,8 +183,14 @@ async fn should_get_pending_request_events_other_acting_user() {
     let dbrepos = db.db_repos.as_ref().unwrap();
 
     // create friendships between two users
-    let friendship_id_1 = create_friendship(dbrepos, "A", "B", false).await;
-    let friendship_id_2 = create_friendship(dbrepos, "A", "C", false).await;
+    let friendship_id_1 = create_friendship(dbrepos, "A", "B", false)
+        .await
+        .unwrap()
+        .id;
+    let friendship_id_2 = create_friendship(dbrepos, "A", "C", false)
+        .await
+        .unwrap()
+        .id;
 
     // create friendship history entries to represent friendship events
     create_friendship_event(dbrepos, friendship_id_1, "\"request\"", "B", None).await;

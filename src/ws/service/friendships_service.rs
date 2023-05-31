@@ -256,6 +256,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 return Ok(err.into());
             }
             Ok(user_id) => {
+                // mapping with no colateral effect
                 let event_payload = update_request_as_event_payload(request.clone());
 
                 match event_payload {
@@ -267,6 +268,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         return Ok(err.into());
                     }
                     Ok(event_payload) => {
+                        // TODO: Check if this is necessary as the token was already parsed
                         let token = get_synapse_token(request.clone());
 
                         match token {

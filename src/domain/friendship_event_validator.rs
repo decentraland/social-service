@@ -4,6 +4,7 @@ use crate::{
 };
 
 /// Validates the new event is valid and different from the last recorded.
+/// TODO: Check if we need to validate the acting user too
 pub fn validate_new_event(
     last_recorded_history: &Option<FriendshipHistory>,
     new_event: FriendshipEvent,

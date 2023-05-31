@@ -60,11 +60,11 @@ pub async fn handle_friendship_update(
 
     //  Get the last status from the database to later validate if the current action is valid.
     let friendship_history_repository = &db_repos.friendship_history;
-
     let last_recorded_history =
         get_last_history(friendship_history_repository, &friendship).await?;
 
     // Validate the new event is valid and different from the last recorded.
+    // TODO: Check if here we need to validate the acting user too
     validate_new_event(&last_recorded_history, new_event)?;
 
     // Get new friendship status.

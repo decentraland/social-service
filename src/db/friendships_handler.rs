@@ -73,6 +73,7 @@ async fn store_friendship_update(
 ) -> (Result<Uuid, CommonError>, Transaction<'static, Postgres>) {
     match friendship {
         Some(friendship) => {
+            println!("HOLA AGUS");
             let (res, transaction) = friendships_repository
                 .update_friendship_status(&friendship.id, is_active, Some(transaction))
                 .await;
@@ -175,6 +176,8 @@ pub async fn update_friendship_status<'a>(
         .await;
 
     let transaction = transaction.unwrap();
+
+    println!("HOLA AGUS");
 
     match friendship_history_result {
         Ok(_) => Ok(transaction),

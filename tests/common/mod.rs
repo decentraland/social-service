@@ -10,8 +10,11 @@ use social_service::{
         synapse::{WhoAmIResponse, WHO_AM_I_URI},
     },
     entities::{
-        friendship_history::FriendshipMetadata, friendships::FriendshipRepositoryImplementation,
+        friendship_history::FriendshipMetadata,
+        friendships::{Friendship, FriendshipRepositoryImplementation},
     },
+    friendships::RequestEventsResponse,
+    ws::service::mapper::event::friendship_requests_as_request_events_response,
 };
 
 use sqlx::{Connection, Executor, PgConnection, PgPool};
@@ -139,11 +142,17 @@ pub async fn create_friendship(
     address_1: &str,
     address_2: &str,
     is_active: bool,
-) -> Uuid {
+) -> Option<Friendship> {
     let synapse_room_id = format!("room_id_{address_1}_{address_2}");
     dbrepos
         .friendships
         .create_new_friendships((address_1, address_2), is_active, &synapse_room_id, None)
+        .await
+        .0
+        .unwrap();
+    dbrepos
+        .friendships
+        .get_friendship((address_1, address_2), None)
         .await
         .0
         .unwrap()
@@ -163,4 +172,16 @@ pub async fn create_friendship_event(
         .await
         .0
         .unwrap();
+}
+
+pub async fn get_requests_from(dbrepos: &DBRepositories, user_id: &str) -> RequestEventsResponse {
+    let requests = dbrepos
+        .friendship_history
+        .get_user_pending_request_events(user_id)
+        .await
+        .unwrap();
+
+    println!("Reuqests: {:?}", requests.len());
+
+    friendship_requests_as_request_events_response(requests, user_id.to_string())
 }
