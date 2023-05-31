@@ -22,12 +22,12 @@ impl Default for Metrics {
 impl Metrics {
     pub fn new() -> Self {
         let opts = Opts::new(
-            "dcl_social_service_rpc_procedure_call",
+            "dcl_social_service_rpc_procedure_call_total",
             "Social Service RPC Websocket Procedure Calls",
         );
 
         let procedure_call_collector = IntCounterVec::new(opts, &["code", "procedure"])
-            .expect("dcl_social_service_rpc_procedure_call metric can be created");
+            .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_total metric should be created successfully");
 
         let registry = Registry::new();
 
