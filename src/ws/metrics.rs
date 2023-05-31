@@ -84,7 +84,7 @@ pub async fn record_procedure_call(
 }
 
 pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
-    log::info!("Registering PROCEDURE_CALL_COLLECTOR");
+    log::info!("[RPC] Registering PROCEDURE_CALL_COLLECTOR");
 
     let metrics = metrics.lock().await;
 
