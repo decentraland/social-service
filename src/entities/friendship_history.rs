@@ -150,7 +150,7 @@ impl FriendshipHistoryRepository {
     ) -> Result<Vec<FriendshipRequestEvent>, sqlx::Error> {
         let query = USER_REQUESTS_QUERY.to_string();
 
-        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
+        let query = sqlx::query(&query).bind(address);
 
         let executor = self.get_executor(None);
 

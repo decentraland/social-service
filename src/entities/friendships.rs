@@ -158,14 +158,12 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         Option<Transaction<'static, Postgres>>,
     ) {
         let (address1, address2) = addresses;
-        let address1_lowercase = address1.to_ascii_lowercase();
-        let address2_lowercase = address2.to_ascii_lowercase();
 
         let query = sqlx::query(
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 AND LOWER(address_2) = $2) OR (LOWER(address_1) = $2 AND LOWER(address_2) = $1)"
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) AND LOWER(address_2) = LOWER($2)) OR (LOWER(address_1) = LOWER($2) AND LOWER(address_2) = LOWER($1))"
         )
-        .bind(address1_lowercase)
-        .bind(address2_lowercase);
+        .bind(address1)
+        .bind(address2);
 
         let executor = self.get_executor(transaction);
 
@@ -201,14 +199,14 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let active_only_clause = " AND is_active";
 
         let mut query =
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)"
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1))"
                 .to_owned();
 
         if only_active {
             query.push_str(active_only_clause);
         }
 
-        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
+        let query = sqlx::query(&query).bind(address);
 
         let executor = self.get_executor(transaction);
 
@@ -250,7 +248,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
 
         let query = if only_active { active } else { inactive };
 
-        let query = sqlx::query(query).bind(address.to_ascii_lowercase());
+        let query = sqlx::query(query).bind(address.to_string());
 
         let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
 
@@ -282,9 +280,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     ) {
         let query = MUTUALS_FRIENDS_QUERY.to_string();
 
-        let query = sqlx::query(&query)
-            .bind(address_1.to_ascii_lowercase())
-            .bind(address_2.to_ascii_lowercase());
+        let query = sqlx::query(&query).bind(address_1).bind(address_2);
 
         let executor = self.get_executor(transaction);
 
