@@ -97,7 +97,7 @@ pub async fn run_ws_transport(
     ctx: SocialContext,
 ) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
     if env_logger::try_init().is_err() {
-        log::debug!("Logger already init")
+        log::debug!("[RPC] Logger already init")
     }
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
@@ -175,7 +175,7 @@ pub async fn run_ws_transport(
     let routes = warp::get().and(rpc_route.or(rest_routes).or(metrics_route));
 
     let http_server_handle = tokio::spawn(async move {
-        log::info!("Running RPC WebSocket Server at 0.0.0.:{}", port);
+        log::info!("[RPC] Running RPC WebSocket Server at 0.0.0.:{}", port);
         warp::serve(routes).run(([0, 0, 0, 0], port)).await;
     });
 
@@ -207,7 +207,7 @@ fn subscribe_to_event_updates(
     >,
 ) {
     event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
-        log::debug!("User Update received > event_update: {event_update:?}");
+        log::debug!("[RPC] User Update received > event_update: {event_update:?}");
         let generators = client_generators.clone();
         async move {
             send_update_to_corresponding_generator(generators, event_update).await;

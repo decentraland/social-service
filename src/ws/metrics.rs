@@ -91,9 +91,9 @@ pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
     metrics
         .registry
         .register(Box::new(metrics.procedure_call_collector.clone()))
-        .expect("PROCEDURE_CALL_COLLECTOR can be registered");
+        .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
 
-    log::info!("Registered PROCEDURE_CALL_COLLECTOR");
+    log::info!("[RPC] Registered PROCEDURE_CALL_COLLECTOR");
 }
 
 pub async fn metrics_handler(metrics: Arc<Mutex<Metrics>>) -> Result<impl Reply, Rejection> {
@@ -104,7 +104,7 @@ pub async fn metrics_handler(metrics: Arc<Mutex<Metrics>>) -> Result<impl Reply,
     let mut buffer = Vec::new();
     if let Err(err) = encoder.encode(&metrics.registry.gather(), &mut buffer) {
         log::debug!(
-            "metrics_handler > Could not encode metrics for RPC WebSocket Server: {}",
+            "[RPC] metrics_handler > Could not encode metrics for RPC WebSocket Server: {}",
             err
         );
     };
@@ -113,7 +113,7 @@ pub async fn metrics_handler(metrics: Arc<Mutex<Metrics>>) -> Result<impl Reply,
         Ok(v) => v,
         Err(err) => {
             log::debug!(
-                "metrics_handler > Metrics could not be from_utf8'd: {}",
+                "[RPC] metrics_handler > Metrics could not be from_utf8'd: {}",
                 err
             );
             String::default()
