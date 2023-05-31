@@ -162,7 +162,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         };
                     }
                 });
-                log::info!("[RPC] Returning generator for all friends for user {}", social_id);
+                log::info!(
+                    "[RPC] Returning generator for all friends for user {}",
+                    social_id
+                );
             }
         }
         record_procedure_call(metrics, None, Procedure::GetFriends).await;
