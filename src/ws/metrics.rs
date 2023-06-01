@@ -1,9 +1,42 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
-use lazy_static::lazy_static;
 use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
 
 use super::service::mapper::error::WsServiceError;
+
+#[derive(Clone)]
+pub struct Metrics {
+    pub procedure_call_collector: IntCounterVec,
+    pub registry: Registry,
+}
+
+impl Default for Metrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Metrics {
+    pub fn new() -> Self {
+        let opts = Opts::new(
+            "dcl_social_service_rpc_procedure_call_total",
+            "Social Service RPC Websocket Procedure Calls",
+        );
+
+        let procedure_call_collector = IntCounterVec::new(opts, &["code", "procedure"])
+            .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_total metric should be created successfully");
+
+        let registry = Registry::new();
+
+        Metrics {
+            procedure_call_collector,
+            registry,
+        }
+    }
+}
 
 #[derive(Debug)]
 struct InvalidHeader;
@@ -28,37 +61,50 @@ impl Procedure {
     }
 }
 
-pub fn record_error_response_code(error: WsServiceError, procedure: Procedure) {
-    let label = match error {
-        WsServiceError::Unauthorized(_) => "UNAUTHORIZED",
-        WsServiceError::InternalServer(_) => "INTERNAL_SERVER",
-        WsServiceError::BadRequest(_) => "BAD_REQUEST",
-        WsServiceError::Forbidden(_) => "FORBIDDEN",
-        WsServiceError::TooManyRequests(_) => "TOO_MANY_REQUESTS",
+pub async fn record_procedure_call(
+    metrics: Arc<Mutex<Metrics>>,
+    code: Option<WsServiceError>,
+    procedure: Procedure,
+) {
+    let code = match code {
+        Some(WsServiceError::Unauthorized(_)) => "UNAUTHORIZED_ERROR",
+        Some(WsServiceError::InternalServer(_)) => "INTERNAL_SERVER_ERROR",
+        Some(WsServiceError::BadRequest(_)) => "BAD_REQUEST_ERROR",
+        Some(WsServiceError::Forbidden(_)) => "FORBIDDEN_ERROR",
+        Some(WsServiceError::TooManyRequests(_)) => "TOO_MANY_REQUESTS_ERROR",
+        None => "OK",
     };
-    ERROR_RESPONSE_CODE_COLLECTOR
-        .with_label_values(&[label, procedure.as_str()])
+
+    let metrics = metrics.lock().await;
+
+    metrics
+        .procedure_call_collector
+        .with_label_values(&[code, procedure.as_str()])
         .inc();
 }
 
-pub fn register_metrics() {
-    log::info!("Registering ERROR_RESPONSE_CODE_COLLECTOR");
-    let collector = ERROR_RESPONSE_CODE_COLLECTOR.clone();
+pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
+    log::info!("[RPC] Registering PROCEDURE_CALL_COLLECTOR");
 
-    REGISTRY
-        .register(Box::new(collector))
-        .expect("Collector can be registered");
+    let metrics = metrics.lock().await;
 
-    log::info!("Registered ERROR_RESPONSE_CODE_COLLECTOR");
+    metrics
+        .registry
+        .register(Box::new(metrics.procedure_call_collector.clone()))
+        .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
+
+    log::info!("[RPC] Registered PROCEDURE_CALL_COLLECTOR");
 }
 
-pub async fn metrics_handler() -> Result<impl Reply, Rejection> {
+pub async fn metrics_handler(metrics: Arc<Mutex<Metrics>>) -> Result<impl Reply, Rejection> {
     let encoder = prometheus::TextEncoder::new();
 
+    let metrics = metrics.lock().await;
+
     let mut buffer = Vec::new();
-    if let Err(err) = encoder.encode(&REGISTRY.gather(), &mut buffer) {
+    if let Err(err) = encoder.encode(&metrics.registry.gather(), &mut buffer) {
         log::debug!(
-            "metrics_handler > Could not encode metrics for RPC WebSocket Server: {}",
+            "[RPC] metrics_handler > Could not encode metrics for RPC WebSocket Server: {}",
             err
         );
     };
@@ -67,7 +113,7 @@ pub async fn metrics_handler() -> Result<impl Reply, Rejection> {
         Ok(v) => v,
         Err(err) => {
             log::debug!(
-                "metrics_handler > Metrics could not be from_utf8'd: {}",
+                "[RPC] metrics_handler > Metrics could not be from_utf8'd: {}",
                 err
             );
             String::default()
@@ -96,17 +142,4 @@ pub async fn validate_bearer_token(
                 Err(warp::reject::custom(InvalidHeader))
             }
         })
-}
-
-lazy_static! {
-    pub static ref ERROR_RESPONSE_CODE_COLLECTOR: IntCounterVec = {
-        let opts = Opts::new(
-            "dcl_social_service_rpc_error_response_code",
-            "Social Service RPC Websocket Error Response Codes",
-        );
-
-        IntCounterVec::new(opts, &["status_code", "procedure"])
-            .expect("dcl_social_service_rpc_error_response_code metric can be created")
-    };
-    pub static ref REGISTRY: Registry = Registry::new();
 }
