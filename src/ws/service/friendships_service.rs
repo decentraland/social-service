@@ -312,6 +312,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                 return Ok(err.into());
                             }
                             Ok(token) => {
+                                // All the inserts are done here, no changes in the database after that call
                                 let friendship_update_response = handle_friendship_update(
                                     token,
                                     event_payload,

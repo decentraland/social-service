@@ -36,8 +36,7 @@ pub async fn handle_friendship_update(
     })?;
 
     // Get the friendship info
-    let friendships_repository = &db_repos.friendships;
-    let friendship = get_friendship(friendships_repository, &acting_user, &second_user).await?;
+    let friendship = get_friendship(&db_repos.friendships, &acting_user, &second_user).await?;
 
     let synapse_room_id = get_or_create_synapse_room_id(
         friendship.as_ref(),
@@ -58,17 +57,14 @@ pub async fn handle_friendship_update(
     )
     .await?;
 
-    //  Get the last status from the database to later validate if the current action is valid.
-    let friendship_history_repository = &db_repos.friendship_history;
+    //  Get the last status from the database to later validate if the current action is valid
+    let last_recorded_history = get_last_history(&db_repos.friendship_history, &friendship).await?;
 
-    let last_recorded_history =
-        get_last_history(friendship_history_repository, &friendship).await?;
+    // Validate the transition is valid and acting user has permission to perform it
+    validate_new_event(&acting_user, &last_recorded_history, new_event)?;
 
-    // Validate the new event is valid and different from the last recorded.
-    validate_new_event(&last_recorded_history, new_event)?;
-
-    // Get new friendship status.
-    let new_status = get_new_friendship_status(&acting_user, &last_recorded_history, new_event)?;
+    // Get new friendship status
+    let new_status = get_new_friendship_status(&acting_user, new_event);
 
     // Start a database transaction.
     let friendship_ports = FriendshipDbRepositories {

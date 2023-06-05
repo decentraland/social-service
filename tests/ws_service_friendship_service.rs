@@ -179,7 +179,7 @@ mod tests {
         // Case 1: No previous history
         let last_recorded_history = None;
         let new_event = FriendshipEvent::REQUEST;
-        assert!(validate_new_event(&last_recorded_history, new_event).is_ok());
+        assert!(validate_new_event("Sussana", &last_recorded_history, new_event).is_ok());
 
         // Case 2: Previous history exists, new event is valid
         let last_recorded_history = Some(generate_friendship_history(
@@ -188,7 +188,7 @@ mod tests {
             "2022-04-12 09:30:00",
         ));
         let new_event = FriendshipEvent::ACCEPT;
-        assert!(validate_new_event(&last_recorded_history, new_event).is_ok());
+        assert!(validate_new_event("Juana", &last_recorded_history, new_event).is_ok());
 
         // Case 3: Previous history exists, new event is not valid
         let last_recorded_history = Some(generate_friendship_history(
@@ -197,7 +197,7 @@ mod tests {
             "2022-04-12 09:30:00",
         ));
         let new_event = FriendshipEvent::REQUEST;
-        assert!(validate_new_event(&last_recorded_history, new_event).is_err());
+        assert!(validate_new_event("Juana", &last_recorded_history, new_event).is_err());
 
         // Case 4: Previous history exists, new event is not different from the last recorded (aka invalid)
         let last_recorded_history = Some(generate_friendship_history(
@@ -206,43 +206,39 @@ mod tests {
             "2022-04-12 09:30:00",
         ));
         let new_event = FriendshipEvent::REQUEST;
-        assert!(validate_new_event(&last_recorded_history, new_event).is_err());
+        assert!(validate_new_event("Sussana", &last_recorded_history, new_event).is_err());
     }
 
     #[test]
-    fn test_get_new_friendship_status() {
+    fn test_validate_and_get_new_friendship_status() {
         let acting_user = "Pizarnik";
-        let last_recorded_history = None;
 
         // Case 1: Requesting friendship when no history exists
-        let result = get_new_friendship_status(
-            acting_user,
-            &last_recorded_history,
-            FriendshipEvent::REQUEST,
-        )
-        .unwrap();
+        let event = FriendshipEvent::REQUEST;
+        validate_new_event(acting_user, &None, event).unwrap();
+        let result = get_new_friendship_status(acting_user, event);
         assert_eq!(result, FriendshipStatus::Requested(acting_user.to_string()));
 
         // Case 2: Accepting friendship after a request was sent
+        let event = FriendshipEvent::ACCEPT;
         let last_recorded_history = Some(generate_friendship_history(
             FriendshipEvent::REQUEST,
             "OtherUser",
             "2022-04-12 09:30:00",
         ));
-        let result =
-            get_new_friendship_status(acting_user, &last_recorded_history, FriendshipEvent::ACCEPT)
-                .unwrap();
+        validate_new_event(acting_user, &last_recorded_history, event).unwrap();
+        let result = get_new_friendship_status(acting_user, event);
         assert_eq!(result, FriendshipStatus::Friends);
 
         // Case 3: Deleting friendship
+        let event = FriendshipEvent::DELETE;
         let last_recorded_history = Some(generate_friendship_history(
             FriendshipEvent::ACCEPT,
             "OtherUser",
             "2022-04-12 09:30:00",
         ));
-        let result =
-            get_new_friendship_status(acting_user, &last_recorded_history, FriendshipEvent::DELETE)
-                .unwrap();
+        validate_new_event(acting_user, &last_recorded_history, event).unwrap();
+        let result = get_new_friendship_status(acting_user, event);
         assert_eq!(result, FriendshipStatus::NotFriends);
     }
 
