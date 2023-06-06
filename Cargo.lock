@@ -309,15 +309,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "autotools"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aef8da1805e028a172334c3b680f93e71126f2327622faef2ec3d893c0a4ad77"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -677,9 +668,9 @@ dependencies = [
 
 [[package]]
 name = "dcl-rpc"
-version = "2.3.3"
+version = "2.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "958d28a304a6e8a6246cb2dd566cb80c4b4364659ca8dcb862ba0975fb7745db"
+checksum = "f9dcef99269dbf4186fc0936f03cf7496f0401ffeacf3784211c065710321d8d"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -690,7 +681,6 @@ dependencies = [
  "proc-macro2",
  "prost",
  "prost-build",
- "protobuf-src",
  "quote",
  "tokio",
  "tokio-util",
@@ -2140,15 +2130,6 @@ name = "protobuf"
 version = "2.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
-
-[[package]]
-name = "protobuf-src"
-version = "1.1.0+21.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7ac8852baeb3cc6fb83b93646fb93c0ffe5d14bf138c945ceb4b9948ee0e3c1"
-dependencies = [
- "autotools",
-]
 
 [[package]]
 name = "qstring"
