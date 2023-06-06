@@ -683,7 +683,9 @@ dependencies = [
  "prost-build",
  "quote",
  "tokio",
+ "tokio-tungstenite",
  "tokio-util",
+ "warp",
 ]
 
 [[package]]
@@ -2983,7 +2985,9 @@ checksum = "54319c93411147bced34cb5609a80e0a8e44c5999c93903a81cd866630ec0bfd"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
  "tokio",
+ "tokio-native-tls",
  "tungstenite",
 ]
 
@@ -3140,6 +3144,7 @@ dependencies = [
  "http",
  "httparse",
  "log",
+ "native-tls",
  "rand 0.8.5",
  "sha1",
  "thiserror",

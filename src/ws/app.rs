@@ -1,6 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
-use dcl_rpc::{server::RpcServer, stream_protocol::GeneratorYielder};
+use dcl_rpc::{
+    server::RpcServer,
+    stream_protocol::GeneratorYielder,
+    transports::web_sockets::{warp::WarpWebSocket, Message, WebSocket, WebSocketTransport},
+};
 
 use tokio::sync::{Mutex, RwLock};
 
@@ -30,7 +34,6 @@ use crate::{
 use super::{
     metrics::{metrics_handler, register_metrics, validate_bearer_token, Metrics},
     service::friendships_service,
-    transport::WarpWebSocketTransport,
 };
 
 pub struct ConfigRpcServer {
@@ -111,7 +114,7 @@ pub async fn run_ws_transport(
         subscribe_to_event_updates(subs, generators.clone());
     });
 
-    let mut rpc_server: RpcServer<SocialContext, WarpWebSocketTransport> =
+    let mut rpc_server: RpcServer<SocialContext, WebSocketTransport<WarpWebSocket, ()>> =
         dcl_rpc::server::RpcServer::create(ctx);
     rpc_server.set_module_registrator_handler(|port| {
         FriendshipsServiceRegistration::register_service(
@@ -145,9 +148,14 @@ pub async fn run_ws_transport(
         // Get the connection and set a callback to send the WebSocket Transport to the RpcServer once the connection is finally upgraded.
         .map(move |ws: warp::ws::Ws| {
             let server_events_sender = server_events_sender.clone();
-            ws.on_upgrade(|websocket| async move {
+            ws.on_upgrade(|ws| async move {
+                let websocket = WarpWebSocket::new(ws);
+                let websocket = Arc::new(websocket);
+                ping_every_30s(websocket.clone());
+                let transport = Arc::new(WebSocketTransport::new(websocket));
+
                 server_events_sender
-                    .send_attach_transport(Arc::new(WarpWebSocketTransport::new(websocket)))
+                    .send_attach_transport(transport)
                     .unwrap();
             })
         });
@@ -248,4 +256,15 @@ fn event_as_friendship_update_response(
                 ),
             ),
         })
+}
+
+fn ping_every_30s(websocket: Arc<WarpWebSocket>) {
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+            if websocket.send(Message::Ping).await.is_err() {
+                break;
+            }
+        }
+    });
 }
