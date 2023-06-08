@@ -16,7 +16,7 @@ use crate::{
         RedisChannelSubscriber,
     },
     components::{
-        configuration::{Config, Server},
+        configuration::{Config, RpcServerConfig},
         database::DatabaseComponent,
         notifications::{ChannelSubscriber, EVENT_UPDATES_CHANNEL_NAME},
         redis::Redis,
@@ -37,7 +37,7 @@ use super::{
 };
 
 pub struct ConfigRpcServer {
-    pub rpc_server: Server,
+    pub rpc_server: RpcServerConfig,
     pub wkc_metrics_bearer_token: String,
 }
 
@@ -109,6 +109,7 @@ pub async fn run_ws_transport(
     let generators_clone = ctx.friendships_events_generators.clone();
     let transport_contexts = ctx.transport_context.clone();
     let metrics = ctx.metrics.clone();
+    let rpc_config = ctx.config.rpc_server.clone();
 
     tokio::spawn(async move {
         subscribe_to_event_updates(subs, generators.clone());
@@ -147,11 +148,12 @@ pub async fn run_ws_transport(
         .and(warp::ws())
         // Get the connection and set a callback to send the WebSocket Transport to the RpcServer once the connection is finally upgraded.
         .map(move |ws: warp::ws::Ws| {
+            let rpc_config = rpc_config.clone();
             let server_events_sender = server_events_sender.clone();
             ws.on_upgrade(|ws| async move {
                 let websocket = WarpWebSocket::new(ws);
                 let websocket = Arc::new(websocket);
-                ping_every_30s(websocket.clone());
+                ping_every_30s(rpc_config, websocket.clone());
                 let transport = Arc::new(WebSocketTransport::new(websocket));
 
                 server_events_sender
@@ -258,12 +260,16 @@ fn event_as_friendship_update_response(
         })
 }
 
-fn ping_every_30s(websocket: Arc<WarpWebSocket>) {
+fn ping_every_30s(config: RpcServerConfig, websocket: Arc<WarpWebSocket>) {
     tokio::spawn(async move {
         loop {
-            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-            if websocket.send(Message::Ping).await.is_err() {
-                break;
+            tokio::time::sleep(std::time::Duration::from_secs(config.ping_interval_seconds)).await;
+            match websocket.send(Message::Ping).await {
+                Ok(_) => {}
+                Err(e) => {
+                    log::error!("[RPC] Failed to send ping: {:?}", e);
+                    break;
+                }
             }
         }
     });

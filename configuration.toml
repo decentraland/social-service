@@ -3,3 +3,4 @@ port = 5000
 
 [rpc_server]
 port = 8085
+ping_interval_seconds = 30

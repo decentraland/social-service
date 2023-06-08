@@ -20,11 +20,21 @@ pub struct Args {
     /// RPC WS Port to expose the server
     #[clap(long, value_parser)]
     rpc_port: Option<i16>,
+
+    /// RPC WS Ping interval in seconds
+    #[clap(long, value_parser)]
+    rpc_ping_interval_seconds: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Server {
+pub struct ServerConfig {
     pub port: u16,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RpcServerConfig {
+    pub port: u16,
+    pub ping_interval_seconds: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -47,8 +57,8 @@ pub struct Database {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
-    pub server: Server,
-    pub rpc_server: Server,
+    pub server: ServerConfig,
+    pub rpc_server: RpcServerConfig,
     pub synapse: Synapse,
     pub db: Database,
     pub env: String, // prd / stg / dev / biz
@@ -100,6 +110,11 @@ impl Config {
             )
             .set_override_option("server.port", args.port)?
             .set_override_option("rpc_server.port", args.rpc_port)?
+            .set_override_option(
+                "rpc_server.ping_interval_seconds",
+                args.rpc_ping_interval_seconds,
+            )?
+            .set_default("rpc_server.ping_interval_seconds", 30)?
             .set_default("synapse.url", "https://synapse.decentraland.zone")?
             .set_default("env", "dev")?
             .set_default("wkc_metrics_bearer_token", "")?
