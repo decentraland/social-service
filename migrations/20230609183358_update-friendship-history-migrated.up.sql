@@ -4,8 +4,8 @@ UPDATE
   SET
     metadata = '{"migrated_from_synapse":  true}',
     timestamp = CURRENT_TIMESTAMP
-WHERE
-    event = 'accept'
+WHERE 
+    (event = 'accept' OR event = '"accept"')
   AND
     timestamp < timestamp '2023-02-06 16:55:16.208386'
   AND
