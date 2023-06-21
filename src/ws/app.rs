@@ -128,10 +128,13 @@ pub async fn run_ws_transport(
         )
     });
 
+    let metrics_clone = Arc::clone(&metrics);
     rpc_server.set_on_transport_closes_handler(move |_, transport_id| {
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
+        let metrics_clone = metrics_clone.clone();
         tokio::spawn(async move {
+            decrement_connected_clients(metrics_clone).await;
             remove_transport_id_from_context(
                 transport_id,
                 transport_contexts_clone,
