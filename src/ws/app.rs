@@ -32,7 +32,10 @@ use crate::{
 };
 
 use super::{
-    metrics::{metrics_handler, register_metrics, validate_bearer_token, Metrics},
+    metrics::{
+        decrement_connected_clients, increment_connected_clients, metrics_handler,
+        register_metrics, validate_bearer_token, Metrics,
+    },
     service::friendships_service,
 };
 
@@ -102,6 +105,7 @@ pub async fn run_ws_transport(
     if env_logger::try_init().is_err() {
         log::debug!("[RPC] Logger already init")
     }
+
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
@@ -123,6 +127,7 @@ pub async fn run_ws_transport(
             friendships_service::MyFriendshipsService {},
         )
     });
+
     rpc_server.set_on_transport_closes_handler(move |_, transport_id| {
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
@@ -143,6 +148,9 @@ pub async fn run_ws_transport(
         rpc_server.run().await;
     });
 
+    // Register metrics
+    register_metrics(metrics.clone()).await;
+
     let rpc_route = warp::path::end()
         // Check if the connection wants to be upgraded to have a WebSocket Connection.
         .and(warp::ws())
@@ -153,7 +161,7 @@ pub async fn run_ws_transport(
             ws.on_upgrade(|ws| async move {
                 let websocket = WarpWebSocket::new(ws);
                 let websocket = Arc::new(websocket);
-                ping_every_30s(rpc_config, websocket.clone());
+                ping_every_s(rpc_config, websocket.clone());
                 let transport = Arc::new(WebSocketTransport::new(websocket));
 
                 server_events_sender
@@ -166,9 +174,6 @@ pub async fn run_ws_transport(
         .and(warp::path("live"))
         .and(warp::path::end())
         .map(|| "\"alive\"".to_string());
-
-    // Register metrics
-    register_metrics(metrics.clone()).await;
 
     // Metrics route
     let metrics_route = warp::path!("metrics")
@@ -260,7 +265,7 @@ fn event_as_friendship_update_response(
         })
 }
 
-fn ping_every_30s(config: RpcServerConfig, websocket: Arc<WarpWebSocket>) {
+fn ping_every_s(config: RpcServerConfig, websocket: Arc<WarpWebSocket>) {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(config.ping_interval_seconds)).await;

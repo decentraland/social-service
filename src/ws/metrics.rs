@@ -3,13 +3,14 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
-use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
+use prometheus::{self, Encoder, IntCounterVec, IntGauge, Opts, Registry};
 
 use super::service::mapper::error::WsServiceError;
 
 #[derive(Clone)]
 pub struct Metrics {
-    pub procedure_call_collector: IntCounterVec,
+    pub procedure_call_total_collector: IntCounterVec,
+    pub connected_clients_total_collector: IntGauge,
     pub registry: Registry,
 }
 
@@ -26,13 +27,17 @@ impl Metrics {
             "Social Service RPC Websocket Procedure Calls",
         );
 
-        let procedure_call_collector = IntCounterVec::new(opts, &["code", "procedure"])
+        let procedure_call_total_collector = IntCounterVec::new(opts, &["code", "procedure"])
             .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_total metric should be created successfully");
+
+        let connected_clients_total_collector = IntGauge::new("dcl_social_service_rpc_connected_clients_total", "Social Service RPC Websocket Connected Clients")
+            .expect("Metrics definition is correct, so dcl_social_service_rpc_connected_clients_total metric should be created successfully");
 
         let registry = Registry::new();
 
         Metrics {
-            procedure_call_collector,
+            procedure_call_total_collector,
+            connected_clients_total_collector,
             registry,
         }
     }
@@ -78,22 +83,37 @@ pub async fn record_procedure_call(
     let metrics = metrics.lock().await;
 
     metrics
-        .procedure_call_collector
+        .procedure_call_total_collector
         .with_label_values(&[code, procedure.as_str()])
         .inc();
 }
 
+pub async fn increment_connected_clients(metrics: Arc<Mutex<Metrics>>) {
+    let metrics = metrics.lock().await;
+    metrics.connected_clients_total_collector.inc();
+}
+
+pub async fn decrement_connected_clients(metrics: Arc<Mutex<Metrics>>) {
+    let metrics = metrics.lock().await;
+    metrics.connected_clients_total_collector.dec();
+}
+
 pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
-    log::info!("[RPC] Registering PROCEDURE_CALL_COLLECTOR");
+    log::info!("[RPC] Registering Social Service RPC Websocket metrics");
 
     let metrics = metrics.lock().await;
 
     metrics
         .registry
-        .register(Box::new(metrics.procedure_call_collector.clone()))
+        .register(Box::new(metrics.procedure_call_total_collector.clone()))
         .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
 
-    log::info!("[RPC] Registered PROCEDURE_CALL_COLLECTOR");
+    metrics
+        .registry
+        .register(Box::new(metrics.connected_clients_total_collector.clone()))
+        .expect("Connection Total Collector metrics should be correct, so CONNECTED_CLIENTS_COLLECTOR can be registered successfully");
+
+    log::info!("[RPC] Registered Social Service RPC Websocket metrics");
 }
 
 pub async fn metrics_handler(metrics: Arc<Mutex<Metrics>>) -> Result<impl Reply, Rejection> {
