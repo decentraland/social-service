@@ -151,6 +151,11 @@ pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
         .register(Box::new(metrics.connected_clients_total_collector.clone()))
         .expect("Connection Total Collector metrics should be correct, so CONNECTED_CLIENTS_COLLECTOR can be registered successfully");
 
+    metrics
+        .registry
+        .register(Box::new(metrics.updates_sent_on_subscription_total_collector.clone()))
+            .expect("Updates Sent On Subscription Total Collector metrics should be correct, so UPDATES_SENT_ON_SUBSCRIPTION_TOTAL_COLLECTOR can be registered successfully");
+
     log::info!("[RPC] Registered Social Service RPC Websocket metrics");
 }
 
