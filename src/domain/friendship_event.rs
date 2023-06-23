@@ -16,6 +16,18 @@ pub enum FriendshipEvent {
     DELETE, // Delete an existing friendship
 }
 
+impl FriendshipEvent {
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            FriendshipEvent::REQUEST => "request",
+            FriendshipEvent::CANCEL => "cancel",
+            FriendshipEvent::ACCEPT => "accept",
+            FriendshipEvent::REJECT => "reject",
+            FriendshipEvent::DELETE => "delete",
+        }
+    }
+}
+
 lazy_static::lazy_static! {
     static ref VALID_FRIENDSHIP_EVENT_TRANSITIONS: HashMap<FriendshipEvent, Vec<Option<FriendshipEvent>>> = {
         let mut m = HashMap::new();
