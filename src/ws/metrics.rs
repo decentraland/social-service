@@ -3,7 +3,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
-use prometheus::{self, Encoder, IntCounterVec, IntGauge, Opts, Registry};
+use prometheus::{
+    self, Encoder, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, Opts, Registry,
+};
 
 use crate::domain::friendship_event::FriendshipEvent;
 
@@ -14,6 +16,7 @@ pub struct Metrics {
     pub procedure_call_total_collector: IntCounterVec,
     pub connected_clients_total_collector: IntGauge,
     pub updates_sent_on_subscription_total_collector: IntCounterVec,
+    pub procedure_call_size_bytes_histogram_collector: HistogramVec,
     pub registry: Registry,
 }
 
@@ -36,6 +39,11 @@ const UPDATES_SENT_METRIC: (&str, &str) = (
     "Social Service RPC Websocket Updates Sent On Subscription",
 );
 
+const PROCEDURE_CALL_SIZE: (&str, &str) = (
+    "dcl_social_service_rpc_procedure_call_size_bytes_histogram",
+    "Social Service RPC Websocket Procedure Call Size",
+);
+
 impl Metrics {
     pub fn new() -> Self {
         let procedure_call_total_collector =
@@ -50,12 +58,17 @@ impl Metrics {
           Self::create_int_counter_vec(UPDATES_SENT_METRIC, &["event"])
           .expect("Metrics definition is correct, so dcl_social_service_rpc_updates_sent_on_subscription_total metric should be created successfully");
 
+        let procedure_call_size_bytes_histogram_collector =
+          Self::create_histogram_vec(PROCEDURE_CALL_SIZE, &["procedure"])
+          .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_size_bytes_histogram metric should be created successfully");
+
         let registry = Registry::new();
 
         Metrics {
             procedure_call_total_collector,
             connected_clients_total_collector,
             updates_sent_on_subscription_total_collector,
+            procedure_call_size_bytes_histogram_collector,
             registry,
         }
     }
@@ -70,6 +83,14 @@ impl Metrics {
 
     fn create_int_gauge(metric: (&str, &str)) -> Result<IntGauge, prometheus::Error> {
         IntGauge::new(metric.0, metric.1)
+    }
+
+    fn create_histogram_vec(
+        metric: (&str, &str),
+        labels: &[&str],
+    ) -> Result<HistogramVec, prometheus::Error> {
+        let opts = HistogramOpts::new(metric.0, metric.1);
+        HistogramVec::new(opts, labels)
     }
 }
 
@@ -96,19 +117,14 @@ impl Procedure {
     }
 }
 
+/// Records a procedure call. This increments the counter of procedure calls
+/// based on the response code and the specific procedure.
 pub async fn record_procedure_call(
     metrics: Arc<Mutex<Metrics>>,
     code: Option<WsServiceError>,
     procedure: Procedure,
 ) {
-    let code = match code {
-        Some(WsServiceError::Unauthorized(_)) => "UNAUTHORIZED_ERROR",
-        Some(WsServiceError::InternalServer(_)) => "INTERNAL_SERVER_ERROR",
-        Some(WsServiceError::BadRequest(_)) => "BAD_REQUEST_ERROR",
-        Some(WsServiceError::Forbidden(_)) => "FORBIDDEN_ERROR",
-        Some(WsServiceError::TooManyRequests(_)) => "TOO_MANY_REQUESTS_ERROR",
-        None => "OK",
-    };
+    let code = map_error_code(code);
 
     let metrics = metrics.lock().await;
 
@@ -118,22 +134,56 @@ pub async fn record_procedure_call(
         .inc();
 }
 
+/// Increments the count of connected clients.
 pub async fn increment_connected_clients(metrics: Arc<Mutex<Metrics>>) {
     let metrics = metrics.lock().await;
     metrics.connected_clients_total_collector.inc();
 }
 
+/// Decrements the count of connected clients.
 pub async fn decrement_connected_clients(metrics: Arc<Mutex<Metrics>>) {
     let metrics = metrics.lock().await;
     metrics.connected_clients_total_collector.dec();
 }
 
+/// Records updates sent on subscription. This increments the counter of updates sent
+/// on subscription based on the event type.
 pub async fn record_updates_sent(metrics: Arc<Mutex<Metrics>>, event: FriendshipEvent) {
     let metrics = metrics.lock().await;
     metrics
         .updates_sent_on_subscription_total_collector
         .with_label_values(&[event.as_str()])
         .inc();
+}
+
+/// Records the size of a procedure call. This adds the size of the procedure call to the
+/// histogram for the specified procedure.
+pub async fn record_procedure_call_size(
+    metrics: Arc<Mutex<Metrics>>,
+    code: Option<WsServiceError>,
+    procedure: Procedure,
+    size: f64,
+) {
+    let metrics = metrics.lock().await;
+
+    let code = map_error_code(code);
+
+    metrics
+        .procedure_call_size_bytes_histogram_collector
+        .with_label_values(&[procedure.as_str(), code])
+        .observe(size);
+}
+
+/// Maps a `WsServiceError` variant to a corresponding string representation.
+fn map_error_code(code: Option<WsServiceError>) -> &'static str {
+    match code {
+        Some(WsServiceError::Unauthorized(_)) => "UNAUTHORIZED_ERROR",
+        Some(WsServiceError::InternalServer(_)) => "INTERNAL_SERVER_ERROR",
+        Some(WsServiceError::BadRequest(_)) => "BAD_REQUEST_ERROR",
+        Some(WsServiceError::Forbidden(_)) => "FORBIDDEN_ERROR",
+        Some(WsServiceError::TooManyRequests(_)) => "TOO_MANY_REQUESTS_ERROR",
+        None => "OK",
+    }
 }
 
 pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
@@ -155,6 +205,11 @@ pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
         .registry
         .register(Box::new(metrics.updates_sent_on_subscription_total_collector.clone()))
             .expect("Updates Sent On Subscription Total Collector metrics should be correct, so UPDATES_SENT_ON_SUBSCRIPTION_TOTAL_COLLECTOR can be registered successfully");
+
+    metrics
+        .registry
+        .register(Box::new(metrics.procedure_call_size_bytes_histogram_collector.clone()))
+        .expect("Procedure Call Size Bytes Histogram Collector metrics should be correct, so PROCEDURE_CALL_SIZE_BYTES_HISTOGRAM_COLLECTOR can be registered successfully");
 
     log::info!("[RPC] Registered Social Service RPC Websocket metrics");
 }
