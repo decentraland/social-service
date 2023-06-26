@@ -17,6 +17,7 @@ pub struct Metrics {
     pub connected_clients_total_collector: IntGauge,
     pub updates_sent_on_subscription_total_collector: IntCounterVec,
     pub procedure_call_size_bytes_histogram_collector: HistogramVec,
+    pub procedure_call_duration_seconds_histogram_collector: HistogramVec,
     pub registry: Registry,
 }
 
@@ -44,6 +45,11 @@ const PROCEDURE_CALL_SIZE: (&str, &str) = (
     "Social Service RPC Websocket Procedure Call Size",
 );
 
+const PROCEDURE_CALL_DURATION: (&str, &str) = (
+    "dcl_social_service_rpc_procedure_call_duration_seconds_histogram",
+    "Social Service RPC Websocket Procedure Call Duration in Seconds",
+);
+
 impl Metrics {
     pub fn new() -> Self {
         let procedure_call_total_collector =
@@ -62,6 +68,10 @@ impl Metrics {
           Self::create_histogram_vec(PROCEDURE_CALL_SIZE, &["procedure"])
           .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_size_bytes_histogram metric should be created successfully");
 
+        let procedure_call_duration_seconds_histogram_collector =
+          Self::create_histogram_vec(PROCEDURE_CALL_DURATION, &["code", "procedure"])
+          .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_duration_seconds_histogram metric should be created successfully");
+
         let registry = Registry::new();
 
         Metrics {
@@ -69,6 +79,7 @@ impl Metrics {
             connected_clients_total_collector,
             updates_sent_on_subscription_total_collector,
             procedure_call_size_bytes_histogram_collector,
+            procedure_call_duration_seconds_histogram_collector,
             registry,
         }
     }
