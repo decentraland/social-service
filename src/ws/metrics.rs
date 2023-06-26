@@ -125,9 +125,7 @@ pub async fn record_procedure_call(
     procedure: Procedure,
 ) {
     let code = map_error_code(code);
-
     let metrics = metrics.lock().await;
-
     metrics
         .procedure_call_total_collector
         .with_label_values(&[code, procedure.as_str()])
@@ -164,9 +162,7 @@ pub async fn record_procedure_call_size<T: prost::Message>(
     msg: &T,
 ) {
     let metrics = metrics.lock().await;
-
     let size = calculate_message_size(msg);
-
     metrics
         .procedure_call_size_bytes_histogram_collector
         .with_label_values(&[procedure.as_str()])
