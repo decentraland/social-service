@@ -86,7 +86,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         let Some(repos) = context.server_context.db.db_repos.clone() else {
             log::error!("[RPC] Get friends > Db repositories > `repos` is None.");
             let error = InternalServerError{ message: "An error occurred while getting the friendships".to_owned() };
-            record_procedure_call(metrics.clone(),Some(error.clone().into()), Procedure::GetFriends).await;
+            record_procedure_call(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends).await;
             let result = friendships_yielder
             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
                 error)))
