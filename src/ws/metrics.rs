@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
 use prometheus::{self, Encoder, IntCounterVec, Opts, Registry};
@@ -30,6 +29,10 @@ impl Metrics {
             .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_total metric should be created successfully");
 
         let registry = Registry::new();
+
+        registry
+            .register(Box::new(procedure_call_collector.clone()))
+            .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
 
         Metrics {
             procedure_call_collector,
@@ -62,7 +65,7 @@ impl Procedure {
 }
 
 pub async fn record_procedure_call(
-    metrics: Arc<Mutex<Metrics>>,
+    metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
 ) {
@@ -75,31 +78,14 @@ pub async fn record_procedure_call(
         None => "OK",
     };
 
-    let metrics = metrics.lock().await;
-
     metrics
         .procedure_call_collector
         .with_label_values(&[code, procedure.as_str()])
         .inc();
 }
 
-pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
-    log::info!("[RPC] Registering PROCEDURE_CALL_COLLECTOR");
-
-    let metrics = metrics.lock().await;
-
-    metrics
-        .registry
-        .register(Box::new(metrics.procedure_call_collector.clone()))
-        .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
-
-    log::info!("[RPC] Registered PROCEDURE_CALL_COLLECTOR");
-}
-
-pub async fn metrics_handler(metrics: Arc<Mutex<Metrics>>) -> Result<impl Reply, Rejection> {
+pub async fn metrics_handler(metrics: Arc<Metrics>) -> Result<impl Reply, Rejection> {
     let encoder = prometheus::TextEncoder::new();
-
-    let metrics = metrics.lock().await;
 
     let mut buffer = Vec::new();
     if let Err(err) = encoder.encode(&metrics.registry.gather(), &mut buffer) {

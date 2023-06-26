@@ -32,7 +32,7 @@ use crate::{
 };
 
 use super::{
-    metrics::{metrics_handler, register_metrics, validate_bearer_token, Metrics},
+    metrics::{metrics_handler, validate_bearer_token, Metrics},
     service::friendships_service,
 };
 
@@ -58,7 +58,7 @@ pub struct SocialContext {
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
     pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
     pub friends_stream_page_size: u16,
-    pub metrics: Arc<Mutex<Metrics>>,
+    pub metrics: Arc<Metrics>,
 }
 
 pub struct WsComponents {
@@ -67,13 +67,13 @@ pub struct WsComponents {
     pub friendships_events_generators:
         Arc<RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>>,
     pub transport_context: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
-    pub metrics: Arc<Mutex<Metrics>>,
+    pub metrics: Arc<Metrics>,
 }
 
 pub async fn init_ws_components(config: Config) -> WsComponents {
     let redis = Redis::new_and_run(&config.redis).await;
 
-    let metrics = Arc::new(Mutex::new(Metrics::new()));
+    let metrics = Arc::new(Metrics::new());
 
     match redis {
         Ok(redis) => {
@@ -166,9 +166,6 @@ pub async fn run_ws_transport(
         .and(warp::path("live"))
         .and(warp::path::end())
         .map(|| "\"alive\"".to_string());
-
-    // Register metrics
-    register_metrics(metrics.clone()).await;
 
     // Metrics route
     let metrics_route = warp::path!("metrics")
