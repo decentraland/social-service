@@ -26,7 +26,9 @@ use crate::{
     },
     ws::{
         app::{SocialContext, SocialTransportContext},
-        metrics::{record_procedure_call, record_updates_sent, Procedure},
+        metrics::{
+            record_procedure_call, record_procedure_call_size, record_updates_sent, Procedure,
+        },
     },
 };
 
@@ -68,6 +70,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
+        let metrics = context.server_context.metrics.clone();
+
+        record_procedure_call_size(metrics.clone(), Procedure::GetFriends, &request).await;
+
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
@@ -75,14 +81,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         )
         .await;
 
-        let metrics = context.server_context.metrics.clone();
-
         let (friendships_generator, friendships_yielder) = Generator::create();
 
         let Some(repos) = context.server_context.db.db_repos.clone() else {
             log::error!("[RPC] Get friends > Db repositories > `repos` is None.");
             let error = InternalServerError{ message: "An error occurred while getting the friendships".to_owned() };
-            record_procedure_call(metrics,Some(error.clone().into()), Procedure::GetFriends).await;
+            record_procedure_call(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends).await;
             let result = friendships_yielder
             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
                 error)))
@@ -179,14 +183,16 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<RequestEventsResponse, RPCFriendshipsServiceError> {
+        let metrics = context.server_context.metrics.clone();
+
+        record_procedure_call_size(metrics.clone(), Procedure::GetRequestEvents, &request).await;
+
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
             context.server_context.users_cache.clone(),
         )
         .await;
-
-        let metrics = context.server_context.metrics.clone();
 
         match request_user_id {
             Err(err) => {
@@ -254,9 +260,13 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: UpdateFriendshipPayload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
+        let metrics = context.server_context.metrics.clone();
+
+        record_procedure_call_size(metrics.clone(), Procedure::UpdateFriendshipEvent, &request)
+            .await;
+
         let Some(auth_token) = request.clone().auth_token.take() else {
             let error = UnauthorizedError{ message: "`auth_token` was not provided".to_owned() };
-            let metrics = context.server_context.metrics.clone();
             record_procedure_call( metrics,Some(error.clone().into()), Procedure::UpdateFriendshipEvent).await;
 
             return Ok(UpdateFriendshipResponse::from_response(
@@ -273,8 +283,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             context.server_context.users_cache.clone(),
         )
         .await;
-
-        let metrics = context.server_context.metrics.clone();
 
         match request_user_id {
             Err(err) => {
@@ -418,6 +426,15 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
         RPCFriendshipsServiceError,
     > {
+        let metrics = context.server_context.metrics.clone();
+
+        record_procedure_call_size(
+            metrics.clone(),
+            Procedure::SubscribeFriendshipEventsUpdates,
+            &request,
+        )
+        .await;
+
         let request_user_id = get_user_id_from_request(
             &request,
             context.server_context.synapse.clone(),
@@ -426,8 +443,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         .await;
 
         let (friendships_generator, friendships_yielder) = Generator::create();
-
-        let metrics = context.server_context.metrics.clone();
 
         match request_user_id {
             Err(err) => {
