@@ -158,20 +158,24 @@ pub async fn record_updates_sent(metrics: Arc<Mutex<Metrics>>, event: Friendship
 
 /// Records the size of a procedure call. This adds the size of the procedure call to the
 /// histogram for the specified procedure.
-pub async fn record_procedure_call_size(
+pub async fn record_procedure_call_size<T: prost::Message>(
     metrics: Arc<Mutex<Metrics>>,
-    code: Option<WsServiceError>,
     procedure: Procedure,
-    size: f64,
+    msg: &T,
 ) {
     let metrics = metrics.lock().await;
 
-    let code = map_error_code(code);
+    let size = calculate_message_size(msg);
 
     metrics
         .procedure_call_size_bytes_histogram_collector
-        .with_label_values(&[procedure.as_str(), code])
-        .observe(size);
+        .with_label_values(&[procedure.as_str()])
+        .observe(size as f64);
+}
+
+/// Calculates the size of the encoded message in bytes.
+fn calculate_message_size<T: prost::Message>(msg: &T) -> usize {
+    msg.encoded_len()
 }
 
 /// Maps a `WsServiceError` variant to a corresponding string representation.
