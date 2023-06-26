@@ -26,7 +26,7 @@ use crate::{
     },
     ws::{
         app::{SocialContext, SocialTransportContext},
-        metrics::{record_procedure_call, Procedure},
+        metrics::{record_procedure_call, record_updates_sent, Procedure},
     },
 };
 
@@ -35,7 +35,8 @@ use super::{
     mapper::{
         event::{
             event_response_as_update_response, friendship_requests_as_request_events_response,
-            update_friendship_payload_as_event, update_request_as_event_payload,
+            parse_event_payload_to_friendship_event, update_friendship_payload_as_event,
+            update_request_as_event_payload,
         },
         payload::get_synapse_token,
     },
@@ -343,6 +344,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                             created_at,
                                         );
 
+                                        let metrics_clone = Arc::clone(&metrics);
                                         match update_response {
                                             Err(err) => {
                                                 record_procedure_call(
@@ -361,13 +363,25 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                         if let Ok(
                                                             update_friendship_payload_as_event,
                                                         ) = update_friendship_payload_as_event(
-                                                            event,
+                                                            event.clone(),
                                                             user_id.social_id.as_str(),
                                                             created_at,
                                                         ) {
                                                             publisher
                                                                 .publish(update_friendship_payload_as_event)
                                                                 .await;
+
+                                                            if let Some(event) =
+                                                                parse_event_payload_to_friendship_event(
+                                                                    event,
+                                                                )
+                                                            {
+                                                                record_updates_sent(
+                                                                    metrics_clone,
+                                                                    event,
+                                                                )
+                                                                .await;
+                                                            }
                                                         } else {
                                                             log::error!("[RPC] There was an error parsing from friendship payload to event")
                                                         }
