@@ -89,6 +89,10 @@ impl Metrics {
             .register(Box::new(procedure_call_size_bytes_histogram_collector.clone()))
             .expect("Procedure Call Size Bytes Histogram Collector metrics should be correct, so PROCEDURE_CALL_SIZE_BYTES_HISTOGRAM_COLLECTOR can be registered successfully");
 
+        registry
+            .register(Box::new(procedure_call_duration_seconds_histogram_collector.clone()))
+            .expect("Procedure Call Duration Seconds Histogram Collector metrics should be correct, so PROCEDURE_CALL_DURATION_SECONDS_HISTOGRAM_COLLECTOR can be registered successfully");
+
         Metrics {
             procedure_call_total_collector,
             connected_clients_total_collector,
@@ -188,6 +192,21 @@ pub async fn record_procedure_call_size<T: prost::Message>(
         .procedure_call_size_bytes_histogram_collector
         .with_label_values(&[procedure.as_str()])
         .observe(size as f64);
+}
+
+/// Records the duration of a procedure call. This adds the duration of the procedure call to the
+/// histogram for the specified procedure.
+pub async fn record_procedure_call_duration(
+    metrics: Arc<Metrics>,
+    code: Option<WsServiceError>,
+    procedure: Procedure,
+    duration: f64,
+) {
+    let code = map_error_code(code);
+    metrics
+        .procedure_call_duration_seconds_histogram_collector
+        .with_label_values(&[code, procedure.as_str()])
+        .observe(duration);
 }
 
 /// Calculates the size of the encoded message in bytes.
