@@ -8,6 +8,7 @@ use crate::{
     },
 };
 
+#[derive(Clone)]
 pub enum WsServiceError {
     Unauthorized(UnauthorizedError),
     InternalServer(InternalServerError),

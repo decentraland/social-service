@@ -129,6 +129,7 @@ struct InvalidHeader;
 
 impl Reject for InvalidHeader {}
 
+#[derive(Clone)]
 pub enum Procedure {
     GetFriends,
     GetRequestEvents,
@@ -149,7 +150,7 @@ impl Procedure {
 
 /// Records a procedure call. This increments the counter of procedure calls
 /// based on the response code and the specific procedure.
-pub async fn record_procedure_call(
+async fn record_procedure_call(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
@@ -196,7 +197,7 @@ pub async fn record_procedure_call_size<T: prost::Message>(
 
 /// Records the duration of a procedure call. This adds the duration of the procedure call to the
 /// histogram for the specified procedure and response code.
-pub async fn record_procedure_call_duration(
+async fn record_procedure_call_duration(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
@@ -208,6 +209,17 @@ pub async fn record_procedure_call_duration(
         .procedure_call_duration_seconds_histogram_collector
         .with_label_values(&[code, procedure.as_str()])
         .observe(duration);
+}
+
+/// Records a procedure call and its duration.
+pub async fn record_procedure_call_and_duration(
+    metrics: Arc<Metrics>,
+    code: Option<WsServiceError>,
+    procedure: Procedure,
+    start_time: Instant,
+) {
+    record_procedure_call(metrics.clone(), code.clone(), procedure.clone()).await;
+    record_procedure_call_duration(metrics, code, procedure, start_time).await;
 }
 
 /// Calculates the size of the encoded message in bytes.
