@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
@@ -16,6 +16,7 @@ pub struct Metrics {
     pub connected_clients_total_collector: IntGauge,
     pub updates_sent_on_subscription_total_collector: IntCounterVec,
     pub procedure_call_size_bytes_histogram_collector: HistogramVec,
+    pub procedure_call_duration_seconds_histogram_collector: HistogramVec,
     pub registry: Registry,
 }
 
@@ -43,6 +44,11 @@ const PROCEDURE_CALL_SIZE: (&str, &str) = (
     "Social Service RPC Websocket Procedure Call Size",
 );
 
+const PROCEDURE_CALL_DURATION: (&str, &str) = (
+    "dcl_social_service_rpc_procedure_call_duration_seconds_histogram",
+    "Social Service RPC Websocket Procedure Call Duration in Seconds",
+);
+
 impl Metrics {
     pub fn new() -> Self {
         let procedure_call_total_collector =
@@ -60,6 +66,10 @@ impl Metrics {
         let procedure_call_size_bytes_histogram_collector =
           Self::create_histogram_vec(PROCEDURE_CALL_SIZE, &["procedure"])
           .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_size_bytes_histogram metric should be created successfully");
+
+        let procedure_call_duration_seconds_histogram_collector =
+          Self::create_histogram_vec(PROCEDURE_CALL_DURATION, &["code", "procedure"])
+          .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_duration_seconds_histogram metric should be created successfully");
 
         let registry = Registry::new();
 
@@ -79,11 +89,16 @@ impl Metrics {
             .register(Box::new(procedure_call_size_bytes_histogram_collector.clone()))
             .expect("Procedure Call Size Bytes Histogram Collector metrics should be correct, so PROCEDURE_CALL_SIZE_BYTES_HISTOGRAM_COLLECTOR can be registered successfully");
 
+        registry
+            .register(Box::new(procedure_call_duration_seconds_histogram_collector.clone()))
+            .expect("Procedure Call Duration Seconds Histogram Collector metrics should be correct, so PROCEDURE_CALL_DURATION_SECONDS_HISTOGRAM_COLLECTOR can be registered successfully");
+
         Metrics {
             procedure_call_total_collector,
             connected_clients_total_collector,
             updates_sent_on_subscription_total_collector,
             procedure_call_size_bytes_histogram_collector,
+            procedure_call_duration_seconds_histogram_collector,
             registry,
         }
     }
@@ -114,6 +129,7 @@ struct InvalidHeader;
 
 impl Reject for InvalidHeader {}
 
+#[derive(Clone)]
 pub enum Procedure {
     GetFriends,
     GetRequestEvents,
@@ -134,7 +150,7 @@ impl Procedure {
 
 /// Records a procedure call. This increments the counter of procedure calls
 /// based on the response code and the specific procedure.
-pub async fn record_procedure_call(
+async fn record_procedure_call(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
@@ -177,6 +193,33 @@ pub async fn record_procedure_call_size<T: prost::Message>(
         .procedure_call_size_bytes_histogram_collector
         .with_label_values(&[procedure.as_str()])
         .observe(size as f64);
+}
+
+/// Records the duration of a procedure call. This adds the duration of the procedure call to the
+/// histogram for the specified procedure and response code.
+async fn record_procedure_call_duration(
+    metrics: Arc<Metrics>,
+    code: Option<WsServiceError>,
+    procedure: Procedure,
+    start_time: Instant,
+) {
+    let code = map_error_code(code);
+    let duration = Instant::now().duration_since(start_time).as_secs_f64();
+    metrics
+        .procedure_call_duration_seconds_histogram_collector
+        .with_label_values(&[code, procedure.as_str()])
+        .observe(duration);
+}
+
+/// Records a procedure call and its duration.
+pub async fn record_procedure_call_and_duration(
+    metrics: Arc<Metrics>,
+    code: Option<WsServiceError>,
+    procedure: Procedure,
+    start_time: Instant,
+) {
+    record_procedure_call(metrics.clone(), code.clone(), procedure.clone()).await;
+    record_procedure_call_duration(metrics, code, procedure, start_time).await;
 }
 
 /// Calculates the size of the encoded message in bytes.
