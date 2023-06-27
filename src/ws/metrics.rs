@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
 use prometheus::{
@@ -64,6 +63,22 @@ impl Metrics {
 
         let registry = Registry::new();
 
+        registry
+            .register(Box::new(procedure_call_total_collector.clone()))
+            .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
+
+        registry
+            .register(Box::new(connected_clients_total_collector.clone()))
+            .expect("Connection Total Collector metrics should be correct, so CONNECTED_CLIENTS_COLLECTOR can be registered successfully");
+
+        registry
+            .register(Box::new(updates_sent_on_subscription_total_collector.clone()))
+                .expect("Updates Sent On Subscription Total Collector metrics should be correct, so UPDATES_SENT_ON_SUBSCRIPTION_TOTAL_COLLECTOR can be registered successfully");
+
+        registry
+            .register(Box::new(procedure_call_size_bytes_histogram_collector.clone()))
+            .expect("Procedure Call Size Bytes Histogram Collector metrics should be correct, so PROCEDURE_CALL_SIZE_BYTES_HISTOGRAM_COLLECTOR can be registered successfully");
+
         Metrics {
             procedure_call_total_collector,
             connected_clients_total_collector,
@@ -120,12 +135,11 @@ impl Procedure {
 /// Records a procedure call. This increments the counter of procedure calls
 /// based on the response code and the specific procedure.
 pub async fn record_procedure_call(
-    metrics: Arc<Mutex<Metrics>>,
+    metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
 ) {
     let code = map_error_code(code);
-    let metrics = metrics.lock().await;
     metrics
         .procedure_call_total_collector
         .with_label_values(&[code, procedure.as_str()])
@@ -133,21 +147,18 @@ pub async fn record_procedure_call(
 }
 
 /// Increments the count of connected clients.
-pub async fn increment_connected_clients(metrics: Arc<Mutex<Metrics>>) {
-    let metrics = metrics.lock().await;
+pub async fn increment_connected_clients(metrics: Arc<Metrics>) {
     metrics.connected_clients_total_collector.inc();
 }
 
 /// Decrements the count of connected clients.
-pub async fn decrement_connected_clients(metrics: Arc<Mutex<Metrics>>) {
-    let metrics = metrics.lock().await;
+pub async fn decrement_connected_clients(metrics: Arc<Metrics>) {
     metrics.connected_clients_total_collector.dec();
 }
 
 /// Records updates sent on subscription. This increments the counter of updates sent
 /// on subscription based on the event type.
-pub async fn record_updates_sent(metrics: Arc<Mutex<Metrics>>, event: FriendshipEvent) {
-    let metrics = metrics.lock().await;
+pub async fn record_updates_sent(metrics: Arc<Metrics>, event: FriendshipEvent) {
     metrics
         .updates_sent_on_subscription_total_collector
         .with_label_values(&[event.as_str()])
@@ -157,11 +168,10 @@ pub async fn record_updates_sent(metrics: Arc<Mutex<Metrics>>, event: Friendship
 /// Records the size of a procedure call. This adds the size of the procedure call to the
 /// histogram for the specified procedure.
 pub async fn record_procedure_call_size<T: prost::Message>(
-    metrics: Arc<Mutex<Metrics>>,
+    metrics: Arc<Metrics>,
     procedure: Procedure,
     msg: &T,
 ) {
-    let metrics = metrics.lock().await;
     let size = calculate_message_size(msg);
     metrics
         .procedure_call_size_bytes_histogram_collector
@@ -186,38 +196,8 @@ fn map_error_code(code: Option<WsServiceError>) -> &'static str {
     }
 }
 
-pub async fn register_metrics(metrics: Arc<Mutex<Metrics>>) {
-    log::info!("[RPC] Registering Social Service RPC Websocket metrics");
-
-    let metrics = metrics.lock().await;
-
-    metrics
-        .registry
-        .register(Box::new(metrics.procedure_call_total_collector.clone()))
-        .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
-
-    metrics
-        .registry
-        .register(Box::new(metrics.connected_clients_total_collector.clone()))
-        .expect("Connection Total Collector metrics should be correct, so CONNECTED_CLIENTS_COLLECTOR can be registered successfully");
-
-    metrics
-        .registry
-        .register(Box::new(metrics.updates_sent_on_subscription_total_collector.clone()))
-            .expect("Updates Sent On Subscription Total Collector metrics should be correct, so UPDATES_SENT_ON_SUBSCRIPTION_TOTAL_COLLECTOR can be registered successfully");
-
-    metrics
-        .registry
-        .register(Box::new(metrics.procedure_call_size_bytes_histogram_collector.clone()))
-        .expect("Procedure Call Size Bytes Histogram Collector metrics should be correct, so PROCEDURE_CALL_SIZE_BYTES_HISTOGRAM_COLLECTOR can be registered successfully");
-
-    log::info!("[RPC] Registered Social Service RPC Websocket metrics");
-}
-
-pub async fn metrics_handler(metrics: Arc<Mutex<Metrics>>) -> Result<impl Reply, Rejection> {
+pub async fn metrics_handler(metrics: Arc<Metrics>) -> Result<impl Reply, Rejection> {
     let encoder = prometheus::TextEncoder::new();
-
-    let metrics = metrics.lock().await;
 
     let mut buffer = Vec::new();
     if let Err(err) = encoder.encode(&metrics.registry.gather(), &mut buffer) {
