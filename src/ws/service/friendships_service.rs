@@ -72,9 +72,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
         let start = Instant::now();
-
         let metrics = context.server_context.metrics.clone();
-
         record_procedure_call_size(metrics.clone(), Procedure::GetFriends, &request).await;
 
         let request_user_id = get_user_id_from_request(
@@ -91,8 +89,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
             let error = InternalServerError{ message: "An error occurred while getting the friendships".to_owned() };
             record_procedure_call(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends).await;
-            let duration = Instant::now().duration_since(start).as_secs_f64();
-            record_procedure_call_duration(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends, duration).await;
+            record_procedure_call_duration(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends, start).await;
 
             let result = friendships_yielder
             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
@@ -113,12 +110,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     Procedure::GetFriends,
                 )
                 .await;
-                let duration = Instant::now().duration_since(start).as_secs_f64();
                 record_procedure_call_duration(
                     metrics.clone(),
                     Some(err.clone().into()),
                     Procedure::GetFriends,
-                    duration,
+                    start,
                 )
                 .await;
 
@@ -143,8 +139,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         );
                         let error = InternalServerError{ message: "An error occurred while sending the response to the stream".to_owned() };
                         record_procedure_call(metrics.clone(),Some(error.clone().into()), Procedure::GetFriends).await;
-                        let duration = Instant::now().duration_since(start).as_secs_f64();
-                        record_procedure_call_duration(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends, duration).await;
+                        record_procedure_call_duration(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends, start).await;
 
                         let result = friendships_yielder
                             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
@@ -194,8 +189,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             }
         }
         record_procedure_call(metrics.clone(), None, Procedure::GetFriends).await;
-        let duration = Instant::now().duration_since(start).as_secs_f64();
-        record_procedure_call_duration(metrics, None, Procedure::GetFriends, duration).await;
+        record_procedure_call_duration(metrics, None, Procedure::GetFriends, start).await;
 
         Ok(friendships_generator)
     }
@@ -206,8 +200,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<RequestEventsResponse, RPCFriendshipsServiceError> {
+        let start = Instant::now();
         let metrics = context.server_context.metrics.clone();
-
         record_procedure_call_size(metrics.clone(), Procedure::GetRequestEvents, &request).await;
 
         let request_user_id = get_user_id_from_request(
@@ -225,6 +219,14 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     Procedure::GetRequestEvents,
                 )
                 .await;
+                record_procedure_call_duration(
+                    metrics.clone(),
+                    Some(err.clone().into()),
+                    Procedure::GetRequestEvents,
+                    start,
+                )
+                .await;
+
                 return Ok(err.into());
             }
             Ok(user_id) => {
@@ -234,7 +236,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 let Some(repos) = context.server_context.db.db_repos.clone() else {
                     log::error!("[RPC] Get request events > Db repositories > `repos` is None.");
                     let error = InternalServerError { message: "".to_owned() };
-                    record_procedure_call( metrics,Some(error.clone().into()), Procedure::GetRequestEvents).await;
+                    record_procedure_call( metrics.clone(),Some(error.clone().into()), Procedure::GetRequestEvents).await;
+                    record_procedure_call_duration(metrics, Some(error.clone().into()), Procedure::GetRequestEvents, start).await;
 
                     return Ok(RequestEventsResponse::from_response(
                         request_events_response::Response::InternalServerError(error)));
@@ -254,9 +257,16 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             message: "".to_owned(),
                         };
                         record_procedure_call(
+                            metrics.clone(),
+                            Some(error.clone().into()),
+                            Procedure::GetRequestEvents,
+                        )
+                        .await;
+                        record_procedure_call_duration(
                             metrics,
                             Some(error.clone().into()),
                             Procedure::GetRequestEvents,
+                            start,
                         )
                         .await;
 
@@ -266,7 +276,16 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     }
                     Ok(requests) => {
                         log::info!("Returning requests events for user {}", social_id);
-                        record_procedure_call(metrics, None, Procedure::GetRequestEvents).await;
+                        record_procedure_call(metrics.clone(), None, Procedure::GetRequestEvents)
+                            .await;
+                        record_procedure_call_duration(
+                            metrics,
+                            None,
+                            Procedure::GetRequestEvents,
+                            start,
+                        )
+                        .await;
+
                         Ok(friendship_requests_as_request_events_response(
                             requests,
                             user_id.social_id,
@@ -283,14 +302,15 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: UpdateFriendshipPayload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<UpdateFriendshipResponse, RPCFriendshipsServiceError> {
+        let start = Instant::now();
         let metrics = context.server_context.metrics.clone();
-
         record_procedure_call_size(metrics.clone(), Procedure::UpdateFriendshipEvent, &request)
             .await;
 
         let Some(auth_token) = request.clone().auth_token.take() else {
             let error = UnauthorizedError{ message: "`auth_token` was not provided".to_owned() };
-            record_procedure_call( metrics,Some(error.clone().into()), Procedure::UpdateFriendshipEvent).await;
+            record_procedure_call(metrics.clone(),Some(error.clone().into()), Procedure::UpdateFriendshipEvent).await;
+            record_procedure_call_duration(metrics, Some(error.clone().into()), Procedure::UpdateFriendshipEvent, start).await;
 
             return Ok(UpdateFriendshipResponse::from_response(
                 update_friendship_response::Response::UnauthorizedError(
@@ -310,11 +330,19 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         match request_user_id {
             Err(err) => {
                 record_procedure_call(
-                    metrics,
+                    metrics.clone(),
                     Some(err.clone().into()),
                     Procedure::UpdateFriendshipEvent,
                 )
                 .await;
+                record_procedure_call_duration(
+                    metrics,
+                    Some(err.clone().into()),
+                    Procedure::UpdateFriendshipEvent,
+                    start,
+                )
+                .await;
+
                 return Ok(err.into());
             }
             Ok(user_id) => {
@@ -323,11 +351,19 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 match event_payload {
                     Err(err) => {
                         record_procedure_call(
-                            metrics,
+                            metrics.clone(),
                             Some(err.clone().into()),
                             Procedure::UpdateFriendshipEvent,
                         )
                         .await;
+                        record_procedure_call_duration(
+                            metrics,
+                            Some(err.clone().into()),
+                            Procedure::UpdateFriendshipEvent,
+                            start,
+                        )
+                        .await;
+
                         return Ok(err.into());
                     }
                     Ok(event_payload) => {
@@ -336,11 +372,19 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         match token {
                             Err(err) => {
                                 record_procedure_call(
-                                    metrics,
+                                    metrics.clone(),
                                     Some(err.clone().into()),
                                     Procedure::UpdateFriendshipEvent,
                                 )
                                 .await;
+                                record_procedure_call_duration(
+                                    metrics,
+                                    Some(err.clone().into()),
+                                    Procedure::UpdateFriendshipEvent,
+                                    start,
+                                )
+                                .await;
+
                                 return Ok(err.into());
                             }
                             Ok(token) => {
@@ -356,11 +400,19 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                 match friendship_update_response {
                                     Err(err) => {
                                         record_procedure_call(
-                                            metrics,
+                                            metrics.clone(),
                                             Some(err.clone().into()),
                                             Procedure::UpdateFriendshipEvent,
                                         )
                                         .await;
+                                        record_procedure_call_duration(
+                                            metrics,
+                                            Some(err.clone().into()),
+                                            Procedure::UpdateFriendshipEvent,
+                                            start,
+                                        )
+                                        .await;
+
                                         return Ok(err.into());
                                     }
                                     Ok(friendship_update_response) => {
@@ -379,11 +431,19 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                         match update_response {
                                             Err(err) => {
                                                 record_procedure_call(
-                                                    metrics,
+                                                    metrics.clone(),
                                                     Some(err.clone().into()),
                                                     Procedure::UpdateFriendshipEvent,
                                                 )
                                                 .await;
+                                                record_procedure_call_duration(
+                                                    metrics,
+                                                    Some(err.clone().into()),
+                                                    Procedure::UpdateFriendshipEvent,
+                                                    start,
+                                                )
+                                                .await;
+
                                                 return Ok(err.into());
                                             }
                                             Ok(update_response) => {
@@ -419,11 +479,19 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                     });
                                                 };
                                                 record_procedure_call(
-                                                    metrics,
+                                                    metrics.clone(),
                                                     None,
                                                     Procedure::UpdateFriendshipEvent,
                                                 )
                                                 .await;
+                                                record_procedure_call_duration(
+                                                    metrics,
+                                                    None,
+                                                    Procedure::UpdateFriendshipEvent,
+                                                    start,
+                                                )
+                                                .await;
+
                                                 Ok(update_response)
                                             }
                                         }
@@ -449,8 +517,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         ServerStreamResponse<SubscribeFriendshipEventsUpdatesResponse>,
         RPCFriendshipsServiceError,
     > {
+        let start = Instant::now();
         let metrics = context.server_context.metrics.clone();
-
         record_procedure_call_size(
             metrics.clone(),
             Procedure::SubscribeFriendshipEventsUpdates,
@@ -473,6 +541,13 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     metrics.clone(),
                     Some(err.clone().into()),
                     Procedure::SubscribeFriendshipEventsUpdates,
+                )
+                .await;
+                record_procedure_call_duration(
+                    metrics.clone(),
+                    Some(err.clone().into()),
+                    Procedure::SubscribeFriendshipEventsUpdates,
+                    start,
                 )
                 .await;
 
@@ -504,7 +579,19 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     .insert(Address(user_id.social_id), friendships_yielder.clone());
             }
         }
-        record_procedure_call(metrics, None, Procedure::SubscribeFriendshipEventsUpdates).await;
+        record_procedure_call(
+            metrics.clone(),
+            None,
+            Procedure::SubscribeFriendshipEventsUpdates,
+        )
+        .await;
+        record_procedure_call_duration(
+            metrics,
+            None,
+            Procedure::SubscribeFriendshipEventsUpdates,
+            start,
+        )
+        .await;
         Ok(friendships_generator)
     }
 }

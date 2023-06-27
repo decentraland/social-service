@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
@@ -195,14 +195,15 @@ pub async fn record_procedure_call_size<T: prost::Message>(
 }
 
 /// Records the duration of a procedure call. This adds the duration of the procedure call to the
-/// histogram for the specified procedure.
+/// histogram for the specified procedure and response code.
 pub async fn record_procedure_call_duration(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
-    duration: f64,
+    start_time: Instant,
 ) {
     let code = map_error_code(code);
+    let duration = Instant::now().duration_since(start_time).as_secs_f64();
     metrics
         .procedure_call_duration_seconds_histogram_collector
         .with_label_values(&[code, procedure.as_str()])
