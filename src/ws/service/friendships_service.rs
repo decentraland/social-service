@@ -1,6 +1,6 @@
 use std::{
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use dcl_rpc::{
@@ -27,7 +27,8 @@ use crate::{
     ws::{
         app::{SocialContext, SocialTransportContext},
         metrics::{
-            record_procedure_call, record_procedure_call_size, record_updates_sent, Procedure,
+            record_procedure_call, record_procedure_call_duration, record_procedure_call_size,
+            record_updates_sent, Procedure,
         },
     },
 };
@@ -70,6 +71,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         request: Payload,
         context: ProcedureContext<SocialContext>,
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
+        let start = Instant::now();
+
         let metrics = context.server_context.metrics.clone();
 
         record_procedure_call_size(metrics.clone(), Procedure::GetFriends, &request).await;
@@ -85,12 +88,17 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         let Some(repos) = context.server_context.db.db_repos.clone() else {
             log::error!("[RPC] Get friends > Db repositories > `repos` is None.");
+
             let error = InternalServerError{ message: "An error occurred while getting the friendships".to_owned() };
             record_procedure_call(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends).await;
+            let duration = Instant::now().duration_since(start).as_secs_f64();
+            record_procedure_call_duration(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends, duration).await;
+
             let result = friendships_yielder
             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
                 error)))
             .await;
+
             if let Err(err) = result {
                 log::error!("[RPC] There was an error yielding the error to the friendships generator: {:?}", err);
             };
@@ -105,6 +113,15 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     Procedure::GetFriends,
                 )
                 .await;
+                let duration = Instant::now().duration_since(start).as_secs_f64();
+                record_procedure_call_duration(
+                    metrics.clone(),
+                    Some(err.clone().into()),
+                    Procedure::GetFriends,
+                    duration,
+                )
+                .await;
+
                 let result = friendships_yielder.r#yield(err.into()).await;
                 if let Err(err) = result {
                     log::error!(
@@ -125,7 +142,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             "[RPC] Get friends > Get user friends stream > Error: There was an error accessing to the friendships repository."
                         );
                         let error = InternalServerError{ message: "An error occurred while sending the response to the stream".to_owned() };
-                        record_procedure_call(metrics,Some(error.clone().into()), Procedure::GetFriends).await;
+                        record_procedure_call(metrics.clone(),Some(error.clone().into()), Procedure::GetFriends).await;
+                        let duration = Instant::now().duration_since(start).as_secs_f64();
+                        record_procedure_call_duration(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends, duration).await;
+
                         let result = friendships_yielder
                             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
                                 error)))
@@ -173,7 +193,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 );
             }
         }
-        record_procedure_call(metrics, None, Procedure::GetFriends).await;
+        record_procedure_call(metrics.clone(), None, Procedure::GetFriends).await;
+        let duration = Instant::now().duration_since(start).as_secs_f64();
+        record_procedure_call_duration(metrics, None, Procedure::GetFriends, duration).await;
+
         Ok(friendships_generator)
     }
 
