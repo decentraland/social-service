@@ -532,15 +532,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     .write()
                     .await
                     .insert(Address(user_id.social_id), friendships_yielder.clone());
-
-                record_procedure_call_and_duration_and_size(
-                    metrics,
-                    None,
-                    Procedure::SubscribeFriendshipEventsUpdates,
-                    start_time,
-                    0,
-                )
-                .await;
             }
         }
         Ok(friendships_generator)
