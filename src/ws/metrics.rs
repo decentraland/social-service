@@ -15,7 +15,8 @@ pub struct Metrics {
     pub procedure_call_total_collector: IntCounterVec,
     pub connected_clients_total_collector: IntGauge,
     pub updates_sent_on_subscription_total_collector: IntCounterVec,
-    pub procedure_call_size_bytes_histogram_collector: HistogramVec,
+    pub in_procedure_call_size_bytes_histogram_collector: HistogramVec,
+    pub out_procedure_call_size_bytes_histogram_collector: HistogramVec,
     pub procedure_call_duration_seconds_histogram_collector: HistogramVec,
     pub registry: Registry,
 }
@@ -26,22 +27,27 @@ impl Default for Metrics {
     }
 }
 
-const PROCEDURE_CALL_METRIC: (&str, &str) = (
+const PROCEDURE_CALL: (&str, &str) = (
     "dcl_social_service_rpc_procedure_call_total",
     "Social Service RPC Websocket Procedure Calls",
 );
-const CONNECTED_CLIENTS_METRIC: (&str, &str) = (
+const CONNECTED_CLIENTS: (&str, &str) = (
     "dcl_social_service_rpc_connected_clients_total",
     "Social Service RPC Websocket Connected Clients",
 );
-const UPDATES_SENT_METRIC: (&str, &str) = (
+const UPDATES_SENT_ON_SUBSCRIPTION: (&str, &str) = (
     "dcl_social_service_rpc_updates_sent_on_subscription_total",
-    "Social Service RPC Websocket Updates Sent On Subscription",
+    "Social Service RPC Websocket Event Updates Sent On Subscription",
 );
 
-const PROCEDURE_CALL_SIZE: (&str, &str) = (
-    "dcl_social_service_rpc_procedure_call_size_bytes_histogram",
-    "Social Service RPC Websocket Procedure Call Size",
+const IN_PROCEDURE_CALL_SIZE: (&str, &str) = (
+    "dcl_social_service_rpc_in_procedure_call_size_bytes_histogram",
+    "Social Service RPC Websocket Procedure Incoming Payload Call Size",
+);
+
+const OUT_PROCEDURE_CALL_SIZE: (&str, &str) = (
+    "dcl_social_service_rpc_out_procedure_call_size_bytes_histogram",
+    "Social Service RPC Websocket Procedure Outgoing Payload Call Size",
 );
 
 const PROCEDURE_CALL_DURATION: (&str, &str) = (
@@ -52,20 +58,24 @@ const PROCEDURE_CALL_DURATION: (&str, &str) = (
 impl Metrics {
     pub fn new() -> Self {
         let procedure_call_total_collector =
-          Self::create_int_counter_vec(PROCEDURE_CALL_METRIC, &["code", "procedure"])
+          Self::create_int_counter_vec(PROCEDURE_CALL, &["code", "procedure"])
           .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_total metric should be created successfully");
 
         let connected_clients_total_collector =
-          Self::create_int_gauge(CONNECTED_CLIENTS_METRIC)
+          Self::create_int_gauge(CONNECTED_CLIENTS)
           .expect("Metrics definition is correct, so dcl_social_service_rpc_connected_clients_total metric should be created successfully");
 
         let updates_sent_on_subscription_total_collector =
-          Self::create_int_counter_vec(UPDATES_SENT_METRIC, &["event"])
+          Self::create_int_counter_vec(UPDATES_SENT_ON_SUBSCRIPTION, &["event"])
           .expect("Metrics definition is correct, so dcl_social_service_rpc_updates_sent_on_subscription_total metric should be created successfully");
 
-        let procedure_call_size_bytes_histogram_collector =
-          Self::create_histogram_vec(PROCEDURE_CALL_SIZE, &["procedure"])
-          .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_size_bytes_histogram metric should be created successfully");
+        let in_procedure_call_size_bytes_histogram_collector =
+          Self::create_histogram_vec(IN_PROCEDURE_CALL_SIZE, &["procedure"])
+          .expect("Metrics definition is correct, so dcl_social_service_rpc_in_procedure_call_size_bytes_histogram metric should be created successfully");
+
+        let out_procedure_call_size_bytes_histogram_collector =
+          Self::create_histogram_vec(OUT_PROCEDURE_CALL_SIZE, &["code","procedure"])
+          .expect("Metrics definition is correct, so dcl_social_service_rpc_out_procedure_call_size_bytes_histogram metric should be created successfully");
 
         let procedure_call_duration_seconds_histogram_collector =
           Self::create_histogram_vec(PROCEDURE_CALL_DURATION, &["code", "procedure"])
@@ -75,29 +85,34 @@ impl Metrics {
 
         registry
             .register(Box::new(procedure_call_total_collector.clone()))
-            .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL_COLLECTOR can be registered successfully");
+            .expect("Procedure Call Collector metrics should be correct, so PROCEDURE_CALL can be registered successfully");
 
         registry
             .register(Box::new(connected_clients_total_collector.clone()))
-            .expect("Connection Total Collector metrics should be correct, so CONNECTED_CLIENTS_COLLECTOR can be registered successfully");
+            .expect("Connection Total Collector metrics should be correct, so CONNECTED_CLIENTS can be registered successfully");
 
         registry
             .register(Box::new(updates_sent_on_subscription_total_collector.clone()))
-                .expect("Updates Sent On Subscription Total Collector metrics should be correct, so UPDATES_SENT_ON_SUBSCRIPTION_TOTAL_COLLECTOR can be registered successfully");
+                .expect("Updates Sent On Subscription Total Collector metrics should be correct, so UPDATES_SENT_ON_SUBSCRIPTION can be registered successfully");
 
         registry
-            .register(Box::new(procedure_call_size_bytes_histogram_collector.clone()))
-            .expect("Procedure Call Size Bytes Histogram Collector metrics should be correct, so PROCEDURE_CALL_SIZE_BYTES_HISTOGRAM_COLLECTOR can be registered successfully");
+            .register(Box::new(in_procedure_call_size_bytes_histogram_collector.clone()))
+            .expect("Procedure Request Payload Call Size Bytes Histogram Collector metrics should be correct, so IN_PROCEDURE_CALL_SIZE can be registered successfully");
+
+        registry
+            .register(Box::new(out_procedure_call_size_bytes_histogram_collector.clone()))
+            .expect("Procedure Response Payload Call Size Bytes Histogram Collector metrics should be correct, so OUT_PROCEDURE_CALL_SIZE can be registered successfully");
 
         registry
             .register(Box::new(procedure_call_duration_seconds_histogram_collector.clone()))
-            .expect("Procedure Call Duration Seconds Histogram Collector metrics should be correct, so PROCEDURE_CALL_DURATION_SECONDS_HISTOGRAM_COLLECTOR can be registered successfully");
+            .expect("Procedure Call Duration Seconds Histogram Collector metrics should be correct, so PROCEDURE_CALL_DURATION can be registered successfully");
 
         Metrics {
             procedure_call_total_collector,
             connected_clients_total_collector,
             updates_sent_on_subscription_total_collector,
-            procedure_call_size_bytes_histogram_collector,
+            in_procedure_call_size_bytes_histogram_collector,
+            out_procedure_call_size_bytes_histogram_collector,
             procedure_call_duration_seconds_histogram_collector,
             registry,
         }
@@ -181,23 +196,40 @@ pub async fn record_friendship_event_updates_sent(metrics: Arc<Metrics>, event: 
         .inc();
 }
 
-/// Records the size of a procedure call. This adds the size of the procedure call to the
+/// Records the size of the incoming payload of a procedure call.
+/// This adds the size of the procedure call incoming payload to the
 /// histogram for the specified procedure.
-pub async fn record_procedure_call_size<T: prost::Message>(
+pub async fn record_in_procedure_call_size<T: prost::Message>(
     metrics: Arc<Metrics>,
     procedure: Procedure,
     msg: &T,
 ) {
     let size = calculate_message_size(msg);
     metrics
-        .procedure_call_size_bytes_histogram_collector
+        .in_procedure_call_size_bytes_histogram_collector
         .with_label_values(&[procedure.as_str()])
+        .observe(size as f64);
+}
+
+/// Records the size of the outgoing payload of a procedure call.
+/// This adds the size of the procedure call outgoing payload to the
+/// histogram for the specified procedure and response code.
+async fn record_out_procedure_call_size(
+    metrics: Arc<Metrics>,
+    code: Option<WsServiceError>,
+    procedure: Procedure,
+    size: usize,
+) {
+    let code = map_error_code(code);
+    metrics
+        .out_procedure_call_size_bytes_histogram_collector
+        .with_label_values(&[code, procedure.as_str()])
         .observe(size as f64);
 }
 
 /// Records the duration of a procedure call. This adds the duration of the procedure call to the
 /// histogram for the specified procedure and response code.
-async fn record_procedure_call_duration(
+async fn record_request_procedure_call_duration(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
@@ -211,7 +243,7 @@ async fn record_procedure_call_duration(
         .observe(duration);
 }
 
-/// Records a procedure call and its duration.
+/// Records a procedure call, its duration and its response size.
 pub async fn record_procedure_call_and_duration(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
@@ -219,7 +251,14 @@ pub async fn record_procedure_call_and_duration(
     start_time: Instant,
 ) {
     record_procedure_call(metrics.clone(), code.clone(), procedure.clone()).await;
-    record_procedure_call_duration(metrics, code, procedure, start_time).await;
+    record_request_procedure_call_duration(
+        metrics.clone(),
+        code.clone(),
+        procedure.clone(),
+        start_time,
+    )
+    .await;
+    // TODO Juli: call record_out_procedure_call_size
 }
 
 /// Calculates the size of the encoded message in bytes.
