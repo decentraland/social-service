@@ -232,8 +232,13 @@ pub async fn set_account_data(
                 user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
             if let Some(room_ids) = direct_room_map.get_mut(&second_user_as_synapse_id) {
                 if room_ids.contains(&room_id.to_string()) {
+                    println!("[AGUS] Room already exists in account data");
                     return Ok(());
                 } else {
+                    println!(
+                        "[AGUS] Room does not exist in account data, adding room id {}",
+                        room_id
+                    );
                     direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
                     synapse
                         .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)

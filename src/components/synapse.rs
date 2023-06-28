@@ -201,6 +201,8 @@ impl SynapseComponent {
                 .as_millis()
         );
 
+        println!("[AGUS] Que onda acaaa");
+
         let path = format!("/_matrix/client/r0/rooms/{room_id}/send/m.room.message/{txn_id}");
 
         Self::authenticated_put_request(
