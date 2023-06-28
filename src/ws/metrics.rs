@@ -17,6 +17,7 @@ pub struct Metrics {
     pub updates_sent_on_subscription_total_collector: IntCounterVec,
     pub procedure_call_size_bytes_histogram_collector: HistogramVec,
     pub procedure_call_duration_seconds_histogram_collector: HistogramVec,
+    pub connection_duration_histogram_collector: HistogramVec,
     pub registry: Registry,
 }
 
@@ -49,6 +50,11 @@ const PROCEDURE_CALL_DURATION: (&str, &str) = (
     "Social Service RPC Websocket Procedure Call Duration in Seconds",
 );
 
+const CONNECTION_DURATION_METRIC: (&str, &str) = (
+    "dcl_social_service_rpc_connection_duration_seconds_histogram",
+    "Social Service RPC WebSocket Connection Duration",
+);
+
 impl Metrics {
     pub fn new() -> Self {
         let procedure_call_total_collector =
@@ -70,6 +76,10 @@ impl Metrics {
         let procedure_call_duration_seconds_histogram_collector =
           Self::create_histogram_vec(PROCEDURE_CALL_DURATION, &["code", "procedure"])
           .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_duration_seconds_histogram metric should be created successfully");
+
+        let connection_duration_histogram_collector =
+          Self::create_histogram_vec(CONNECTION_DURATION_METRIC, &["transport_id"])
+          .expect("Metrics definition is correct, so dcl_social_service_rpc_connection_duration_seconds_histogram metric should be created successfully");
 
         let registry = Registry::new();
 
@@ -93,12 +103,17 @@ impl Metrics {
             .register(Box::new(procedure_call_duration_seconds_histogram_collector.clone()))
             .expect("Procedure Call Duration Seconds Histogram Collector metrics should be correct, so PROCEDURE_CALL_DURATION_SECONDS_HISTOGRAM_COLLECTOR can be registered successfully");
 
+        registry
+            .register(Box::new(connection_duration_histogram_collector.clone()))
+            .expect("Connection Duration Histogram Collector metrics should be correct, so CONNECTION_DURATION_HISTOGRAM_COLLECTOR can be registered successfully");
+
         Metrics {
             procedure_call_total_collector,
             connected_clients_total_collector,
             updates_sent_on_subscription_total_collector,
             procedure_call_size_bytes_histogram_collector,
             procedure_call_duration_seconds_histogram_collector,
+            connection_duration_histogram_collector,
             registry,
         }
     }
