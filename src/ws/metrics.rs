@@ -187,7 +187,8 @@ pub async fn decrement_connected_clients(metrics: Arc<Metrics>) {
     metrics.connected_clients_total_collector.dec();
 }
 
-/// Records updates sent on subscription. This increments the counter of updates sent
+/// Records updates sent on subscription.
+/// This increments the counter of updates sent
 /// on subscription based on the event type.
 pub async fn record_friendship_event_updates_sent(metrics: Arc<Metrics>, event: FriendshipEvent) {
     metrics
@@ -227,7 +228,8 @@ async fn record_out_procedure_call_size(
         .observe(size as f64);
 }
 
-/// Records the duration of a procedure call. This adds the duration of the procedure call to the
+/// Records the duration of a procedure call.
+/// This adds the duration of the procedure call to the
 /// histogram for the specified procedure and response code.
 async fn record_request_procedure_call_duration(
     metrics: Arc<Metrics>,
@@ -243,12 +245,13 @@ async fn record_request_procedure_call_duration(
         .observe(duration);
 }
 
-/// Records a procedure call, its duration and its response size.
-pub async fn record_procedure_call_and_duration(
+/// Records a procedure call, its duration and its outgoing payload size.
+pub async fn record_procedure_call_and_duration_and_size(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
     start_time: Instant,
+    size: usize,
 ) {
     record_procedure_call(metrics.clone(), code.clone(), procedure.clone()).await;
     record_request_procedure_call_duration(
@@ -258,7 +261,7 @@ pub async fn record_procedure_call_and_duration(
         start_time,
     )
     .await;
-    // TODO Juli: call record_out_procedure_call_size
+    record_out_procedure_call_size(metrics, code, procedure, size).await;
 }
 
 /// Calculates the size of the encoded message in bytes.
