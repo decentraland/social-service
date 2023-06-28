@@ -174,7 +174,7 @@ pub async fn decrement_connected_clients(metrics: Arc<Metrics>) {
 
 /// Records updates sent on subscription. This increments the counter of updates sent
 /// on subscription based on the event type.
-pub async fn record_updates_sent(metrics: Arc<Metrics>, event: FriendshipEvent) {
+pub async fn record_friendship_event_updates_sent(metrics: Arc<Metrics>, event: FriendshipEvent) {
     metrics
         .updates_sent_on_subscription_total_collector
         .with_label_values(&[event.as_str()])

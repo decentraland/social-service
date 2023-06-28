@@ -27,8 +27,8 @@ use crate::{
     ws::{
         app::{SocialContext, SocialTransportContext},
         metrics::{
-            record_procedure_call_and_duration, record_procedure_call_size, record_updates_sent,
-            Procedure,
+            record_friendship_event_updates_sent, record_procedure_call_and_duration,
+            record_procedure_call_size, Procedure,
         },
     },
 };
@@ -411,7 +411,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                                     event,
                                                                 )
                                                             {
-                                                                record_updates_sent(
+                                                                record_friendship_event_updates_sent(
                                                                     metrics_clone,
                                                                     event,
                                                                 )
