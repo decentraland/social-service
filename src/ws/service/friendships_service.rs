@@ -87,7 +87,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         let Some(repos) = context.server_context.db.db_repos.clone() else {
             log::error!("[RPC] Get friends > Db repositories > `repos` is None.");
-
             let error = InternalServerError{ message: "An error occurred while getting the friendships".to_owned() };
             record_procedure_call_and_duration_and_size(metrics.clone(), Some(error.clone().into()), Procedure::GetFriends, start_time, error.encoded_len()).await;
 
@@ -95,10 +94,10 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
                 error)))
             .await;
-
             if let Err(err) = result {
                 log::error!("[RPC] There was an error yielding the error to the friendships generator: {:?}", err);
             };
+
             return Ok(friendships_generator);
         };
 
@@ -143,6 +142,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         if let Err(err) = result {
                             log::error!("[RPC] There was an error yielding the error to the friendships generator: {:?}", err);
                         };
+
                         return Ok(friendships_generator);
                     };
                 tokio::spawn(async move {
@@ -167,11 +167,17 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         }
                     }
                     if !users.users.is_empty() {
-                        let result = friendships_yielder
-                            .r#yield(UsersResponse::from_response(
-                                users_response::Response::Users(users),
-                            ))
-                            .await;
+                        let response =
+                            UsersResponse::from_response(users_response::Response::Users(users));
+                        record_procedure_call_and_duration_and_size(
+                            metrics,
+                            None,
+                            Procedure::GetFriends,
+                            start_time,
+                            response.encoded_len(),
+                        )
+                        .await;
+                        let result = friendships_yielder.r#yield(response).await;
                         if let Err(err) = result {
                             log::error!("[RPC] There was an error yielding the response to the friendships generator: {:?}", err);
                         };
@@ -214,7 +220,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     error_response.encoded_len(),
                 )
                 .await;
-
                 return Ok(error_response);
             }
             Ok(user_id) => {
@@ -320,7 +325,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     error_response.encoded_len(),
                 )
                 .await;
-
                 return Ok(error_response);
             }
             Ok(user_id) => {
@@ -337,7 +341,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             error_response.encoded_len(),
                         )
                         .await;
-
                         return Ok(error_response);
                     }
                     Ok(event_payload) => {
@@ -354,7 +357,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                     error_response.encoded_len(),
                                 )
                                 .await;
-
                                 return Ok(error_response);
                             }
                             Ok(token) => {
@@ -379,7 +381,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                             error_response.encoded_len(),
                                         )
                                         .await;
-
                                         return Ok(error_response);
                                     }
                                     Ok(friendship_update_response) => {
@@ -407,7 +408,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                                                     error_response.encoded_len(),
                                                 )
                                                 .await;
-
                                                 return Ok(error_response);
                                             }
                                             Ok(update_response) => {
@@ -532,9 +532,17 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     .write()
                     .await
                     .insert(Address(user_id.social_id), friendships_yielder.clone());
+
+                record_procedure_call_and_duration_and_size(
+                    metrics,
+                    None,
+                    Procedure::SubscribeFriendshipEventsUpdates,
+                    start_time,
+                    0,
+                )
+                .await;
             }
         }
-
         Ok(friendships_generator)
     }
 }
