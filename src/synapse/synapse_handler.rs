@@ -179,6 +179,7 @@ pub async fn get_or_create_synapse_room_id(
                         Ok(room_id)
                     }
                     Err(_) => {
+                        log::error!("[AGUS] get_room_result: ERROR");
                         let second_user_as_synapse_id =
                             user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
                         let create_room_result = create_private_room_in_synapse(

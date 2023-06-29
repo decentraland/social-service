@@ -1,3 +1,4 @@
+use actix_http::error;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, time::SystemTime};
 
@@ -336,6 +337,10 @@ impl SynapseComponent {
     ) -> Result<RoomIdResponse, CommonError> {
         let path = format!("/_matrix/client/r0/directory/room/{alias}");
 
+        log::error!("[AGUS] path: {:?}", path);
+        log::error!("[AGUS] url: {:?}", &self.synapse_url);
+        log::error!("[AGUS] token: {:?}", token);
+
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
 
@@ -392,6 +397,7 @@ impl SynapseComponent {
         synapse_url: &str,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
+        log::error!("url: {:?}", url);
         let client = reqwest::Client::new();
         let response = client
             .get(url)
@@ -414,6 +420,7 @@ impl SynapseComponent {
                 }
 
                 let text = text.unwrap();
+                log::error!("[JULIETA] text: {:?}", text);
                 let response = serde_json::from_str::<T>(&text);
 
                 response.map_err(|err| {
