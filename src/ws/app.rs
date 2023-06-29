@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Instant};
 
 use dcl_rpc::{
     server::RpcServer,
@@ -9,6 +9,8 @@ use dcl_rpc::{
 use tokio::sync::{Mutex, RwLock};
 
 use warp::{http::header::HeaderValue, Filter};
+
+use prost::Message as ProstMessage;
 
 use crate::{
     components::notifications::{
@@ -34,7 +36,7 @@ use crate::{
 use super::{
     metrics::{
         decrement_connected_clients, increment_connected_clients, metrics_handler,
-        validate_bearer_token, Metrics,
+        record_procedure_call_and_duration_and_size, validate_bearer_token, Metrics, Procedure,
     },
     service::friendships_service,
 };
@@ -115,8 +117,9 @@ pub async fn run_ws_transport(
     let metrics = ctx.metrics.clone();
     let rpc_config = ctx.config.rpc_server.clone();
 
+    let metrics_clone = Arc::clone(&metrics);
     tokio::spawn(async move {
-        subscribe_to_event_updates(subs, generators.clone());
+        subscribe_to_event_updates(subs, generators.clone(), metrics_clone);
     });
 
     let mut rpc_server: RpcServer<SocialContext, WebSocketTransport<WarpWebSocket, ()>> =
@@ -224,12 +227,14 @@ fn subscribe_to_event_updates(
     client_generators: Arc<
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
+    metrics: Arc<Metrics>,
 ) {
     event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
         log::debug!("[RPC] User Update received > event_update: {event_update:?}");
         let generators = client_generators.clone();
+        let metrics_clone = Arc::clone(&metrics);
         async move {
-            send_update_to_corresponding_generator(generators, event_update).await;
+            send_update_to_corresponding_generator(generators, event_update, metrics_clone).await;
         }
     });
 }
@@ -239,9 +244,19 @@ async fn send_update_to_corresponding_generator(
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
     event_update: Event,
+    metrics: Arc<Metrics>,
 ) {
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
         let corresponding_user_id = Address(event_update.to.to_lowercase());
+
+        record_procedure_call_and_duration_and_size(
+            metrics,
+            None,
+            Procedure::SubscribeFriendshipEventsUpdates,
+            Instant::now(),
+            response.encoded_len(),
+        )
+        .await;
 
         let generators_lock = generators.read().await;
 
