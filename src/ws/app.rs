@@ -174,7 +174,6 @@ pub async fn run_ws_transport(
     });
 
     let metrics_clone = Arc::clone(&metrics);
-    let connection_start_times_clone = connection_start_times.clone();
     let rpc_route = warp::path::end()
         // Check if the connection wants to be upgraded to have a WebSocket Connection.
         .and(warp::ws())
@@ -183,7 +182,7 @@ pub async fn run_ws_transport(
             let rpc_config = rpc_config.clone();
             let server_events_sender = server_events_sender.clone();
             let metrics_clone = metrics_clone.clone();
-            let connection_start_times_clone = connection_start_times_clone.clone();
+            let connection_start_times_clone = connection_start_times.clone();
             ws.on_upgrade(|ws| async move {
                 let connection_start = Instant::now();
                 let websocket = WarpWebSocket::new(ws);
