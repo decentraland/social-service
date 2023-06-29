@@ -168,12 +168,16 @@ pub async fn get_or_create_synapse_room_id(
             if new_event == &FriendshipEvent::REQUEST {
                 let room_alias_name: String =
                     build_room_alias_name(acting_user, second_user, &synapse.synapse_url);
+                log::error!("[AGUS] room_alias_name: {room_alias_name}");
 
                 let get_room_result =
                     get_room_id_for_alias_in_synapse(token, &room_alias_name, synapse).await;
 
                 match get_room_result {
-                    Ok(room_id) => Ok(room_id),
+                    Ok(room_id) => {
+                        log::error!("[AGUS] get_room_result: {room_id}");
+                        Ok(room_id)
+                    }
                     Err(_) => {
                         let second_user_as_synapse_id =
                             user_id_as_synapse_user_id(second_user, &synapse.synapse_url);

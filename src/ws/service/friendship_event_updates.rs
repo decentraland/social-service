@@ -50,6 +50,12 @@ pub async fn handle_friendship_update(
 
     println!("[AGUS] synapse_room_id: {:?}", synapse_room_id);
 
+    log::debug!(
+        "[AGUS] about to set_account_data with acting_user: {:?}, second_user: {:?}, room_id: {:?}",
+        acting_user,
+        second_user,
+        synapse_room_id
+    );
     set_account_data(
         &synapse_token,
         &acting_user,
