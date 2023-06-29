@@ -117,6 +117,9 @@ pub async fn run_ws_transport(
     let metrics = ctx.metrics.clone();
     let rpc_config = ctx.config.rpc_server.clone();
 
+    let connection_start_times: Arc<Mutex<HashMap<String, Instant>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+
     let metrics_clone = Arc::clone(&metrics);
     tokio::spawn(async move {
         subscribe_to_event_updates(subs, generators.clone(), metrics_clone);
@@ -132,11 +135,27 @@ pub async fn run_ws_transport(
     });
 
     let metrics_clone = Arc::clone(&metrics);
+    let connection_start_times_clone = Arc::clone(&connection_start_times);
     rpc_server.set_on_transport_closes_handler(move |_, transport_id| {
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
         let metrics_clone = metrics_clone.clone();
+
+        let connection_start_times_clone = Arc::clone(&connection_start_times_clone);
+        let transport_id_metric = transport_id.to_string();
+
         tokio::spawn(async move {
+            let mut connection_start_times = connection_start_times_clone.lock().await;
+            if let Some(connection_start) = connection_start_times.remove(&transport_id_metric) {
+                let duration = Instant::now()
+                    .duration_since(connection_start)
+                    .as_secs_f64();
+                metrics_clone
+                    .connection_duration_histogram_collector
+                    .with_label_values(&[&transport_id_metric])
+                    .observe(duration);
+            }
+
             decrement_connected_clients(metrics_clone).await;
             remove_transport_id_from_context(
                 transport_id,
@@ -155,6 +174,7 @@ pub async fn run_ws_transport(
     });
 
     let metrics_clone = Arc::clone(&metrics);
+    let connection_start_times_clone = connection_start_times.clone();
     let rpc_route = warp::path::end()
         // Check if the connection wants to be upgraded to have a WebSocket Connection.
         .and(warp::ws())
@@ -163,13 +183,19 @@ pub async fn run_ws_transport(
             let rpc_config = rpc_config.clone();
             let server_events_sender = server_events_sender.clone();
             let metrics_clone = metrics_clone.clone();
+            let connection_start_times_clone = connection_start_times_clone.clone();
             ws.on_upgrade(|ws| async move {
+                let connection_start = Instant::now();
                 let websocket = WarpWebSocket::new(ws);
                 let websocket = Arc::new(websocket);
                 ping_every_s(rpc_config, websocket.clone());
                 let transport = Arc::new(WebSocketTransport::new(websocket));
 
                 increment_connected_clients(metrics_clone.clone()).await;
+                let mut connection_start_times = connection_start_times_clone.lock().await;
+
+                connection_start_times
+                    .insert("unique_connection_identifier".to_owned(), connection_start);
 
                 server_events_sender
                     .send_attach_transport(transport)
