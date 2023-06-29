@@ -97,7 +97,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             if let Err(err) = result {
                 log::error!("[RPC] There was an error yielding the error to the friendships generator: {:?}", err);
             };
-
             return Ok(friendships_generator);
         };
 
@@ -112,7 +111,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     error_response.encoded_len(),
                 )
                 .await;
-
                 let result = friendships_yielder.r#yield(error_response).await;
                 if let Err(err) = result {
                     log::error!(
@@ -142,7 +140,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         if let Err(err) = result {
                             log::error!("[RPC] There was an error yielding the error to the friendships generator: {:?}", err);
                         };
-
                         return Ok(friendships_generator);
                     };
                 tokio::spawn(async move {
@@ -256,14 +253,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             error.encoded_len(),
                         )
                         .await;
-
                         Ok(RequestEventsResponse::from_response(
                             request_events_response::Response::InternalServerError(error),
                         ))
                     }
                     Ok(requests) => {
                         log::info!("Returning requests events for user {}", social_id);
-
                         let response = friendship_requests_as_request_events_response(
                             requests,
                             user_id.social_id,
@@ -276,7 +271,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             response.encoded_len(),
                         )
                         .await;
-
                         Ok(response)
                     }
                 }
@@ -505,7 +499,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     error_response.encoded_len(),
                 )
                 .await;
-
                 let result = friendships_yielder.r#yield(error_response).await;
                 if let Err(err) = result {
                     log::error!("[RPC] There was an error yielding the error to the subscribe friendships generator: {:?}", err);
