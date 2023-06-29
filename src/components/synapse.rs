@@ -190,6 +190,10 @@ impl SynapseComponent {
         room_event: FriendshipEvent,
         room_message_body: &str,
     ) -> Result<RoomEventResponse, CommonError> {
+        log::error!(
+            "[JULIETA] send_message_event_given_room > room_id: {}",
+            room_id
+        );
         // The transaction ID for this event.
         // Clients should generate an ID unique across requests with the same access token;
         // it will be used by the server to ensure idempotency of requests.
@@ -201,11 +205,14 @@ impl SynapseComponent {
                 .as_millis()
         );
 
-        println!("[AGUS] Que onda acaaa");
+        log::error!(
+            "[JULIETA] send_message_event_given_room > txn_id: {}",
+            txn_id
+        );
 
         let path = format!("/_matrix/client/r0/rooms/{room_id}/send/m.room.message/{txn_id}");
 
-        Self::authenticated_put_request(
+        let response: Result<RoomEventResponse, CommonError> = Self::authenticated_put_request(
             &path,
             token,
             &self.synapse_url,
@@ -214,7 +221,21 @@ impl SynapseComponent {
                 body: room_message_body.to_string(),
             },
         )
-        .await
+        .await;
+
+        match response {
+            Ok(r) => {
+                log::error!(
+                    "[JULIETA] send_message_event_given_room > ok: {}",
+                    r.event_id
+                );
+                Ok(r)
+            }
+            Err(e) => {
+                log::error!("[JULIETA] send_message_event_given_room > error: {}", e);
+                Err(e)
+            }
+        }
     }
 
     #[tracing::instrument(name = "get_room_members > Synapse components")]
@@ -380,7 +401,6 @@ impl SynapseComponent {
 
         Self::process_synapse_response::<T>(response).await
     }
-
     async fn process_synapse_response<T: DeserializeOwned>(
         response: Result<reqwest::Response, reqwest::Error>,
     ) -> Result<T, CommonError> {
@@ -389,13 +409,17 @@ impl SynapseComponent {
                 let text = response.text().await;
                 if let Err(err) = text {
                     log::warn!("[Synapse] error reading synapse response {}", err);
+                    log::error!("[JULIETA] error reading synapse response {}", err);
                     return Err(CommonError::Unknown("".to_owned()));
                 }
 
                 let text = text.unwrap();
                 let response = serde_json::from_str::<T>(&text);
 
-                response.map_err(|_| Self::parse_and_return_error(&text))
+                response.map_err(|err| {
+                    log::error!("[JULIETA] error parsing synapse response {}", err);
+                    Self::parse_and_return_error(&text)
+                })
             }
             Err(err) => {
                 log::warn!("[Synapse] error connecting to synapse {}", err);
