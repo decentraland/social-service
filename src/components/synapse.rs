@@ -16,7 +16,8 @@ pub struct AccountDataContentResponse {
 #[derive(Debug, Deserialize)]
 pub struct RoomIdResponse {
     pub room_id: String,
-    _servers: Vec<String>,
+    #[allow(dead_code)]
+    servers: Vec<String>, // PLEASE DONT MODIFY! If using `_servers` fails to parse synapse response
 }
 
 #[derive(Debug, Clone)]
