@@ -16,7 +16,7 @@ pub struct AccountDataContentResponse {
 #[derive(Debug, Deserialize)]
 pub struct RoomIdResponse {
     pub room_id: String,
-    _servers: Vec<String>,
+    servers: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
