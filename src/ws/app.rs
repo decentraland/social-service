@@ -36,7 +36,7 @@ use crate::{
 use super::{
     metrics::{
         decrement_connected_clients, increment_connected_clients, metrics_handler,
-        record_procedure_call_and_duration_and_size, validate_bearer_token, Metrics, Procedure,
+        record_procedure_call_and_duration_and_out_size, validate_bearer_token, Metrics, Procedure,
     },
     service::friendships_service,
 };
@@ -249,7 +249,7 @@ async fn send_update_to_corresponding_generator(
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
         let corresponding_user_id = Address(event_update.to.to_lowercase());
 
-        record_procedure_call_and_duration_and_size(
+        record_procedure_call_and_duration_and_out_size(
             metrics,
             None,
             Procedure::SubscribeFriendshipEventsUpdates,

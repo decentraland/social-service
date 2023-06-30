@@ -246,7 +246,7 @@ async fn record_request_procedure_call_duration(
 }
 
 /// Records a procedure call, its duration and its outgoing payload size.
-pub async fn record_procedure_call_and_duration_and_size(
+pub async fn record_procedure_call_and_duration_and_out_size(
     metrics: Arc<Metrics>,
     code: Option<WsServiceError>,
     procedure: Procedure,
