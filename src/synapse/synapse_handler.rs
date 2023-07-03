@@ -11,14 +11,6 @@ use crate::{
 ///
 /// * `acting_user` - The address of the acting user.
 /// * `second_user` - The address of the second user.
-/// * `synapse_url` -
-///
-/// Returns the encoded room alias name as a string, created from the sorted and joined user addresses.
-///
-/// We need to build the room alias in this way because we're leveraging the room creation process from Matrix + SDK.
-/// It follows the pattern:
-/// `#{sorted and joined addresses}:decentraland.{domain}`
-/// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted, and `domain` is the domain of the Synapse server.
 fn build_room_alias_name(acting_user: &str, second_user: &str) -> String {
     let act_user_parsed = acting_user.to_ascii_lowercase();
     let sec_user_parsed: String = second_user.to_ascii_lowercase();

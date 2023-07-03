@@ -1,8 +1,8 @@
 ERROR=echo "\033[0;31m"
 SUCCESS=echo "\033[0;32m"
 
-CARGO_RUN_WATCH = RUST_LOG=debug cargo watch -x 'run --bin social-service -- --port 8081'
-CARGO_RUN = RUST_LOG=debug cargo run -- --port 8081
+CARGO_RUN_WATCH = RUST_LOG=debug cargo watch -x 'run --bin social-service -- --port 8080'
+CARGO_RUN = RUST_LOG=debug cargo run -- --port 8080
 RUN_LOCAL_DB = docker-compose up -d && docker exec social_service_db bash -c "until pg_isready; do sleep 1; done" && sleep 5
 LOCAL_DB = $(shell docker ps | grep social_service_db > /dev/null && echo 1 || echo 0)
 

@@ -1,12 +1,7 @@
-use actix_http::error;
 use urlencoding::encode;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    thread,
-    time::{self, SystemTime},
-};
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     api::routes::synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
@@ -210,7 +205,7 @@ impl SynapseComponent {
 
         let path = format!("/_matrix/client/r0/rooms/{room_id}/send/m.room.message/{txn_id}");
 
-        let response: Result<RoomEventResponse, CommonError> = Self::authenticated_put_request(
+        Self::authenticated_put_request(
             &path,
             token,
             &self.synapse_url,
@@ -219,12 +214,7 @@ impl SynapseComponent {
                 body: room_message_body.to_string(),
             },
         )
-        .await;
-
-        match response {
-            Ok(r) => Ok(r),
-            Err(e) => Err(e),
-        }
+        .await
     }
 
     #[tracing::instrument(name = "get_room_members > Synapse components")]
@@ -324,16 +314,8 @@ impl SynapseComponent {
         alias: &str,
         synapse: &SynapseComponent,
     ) -> Result<RoomIdResponse, CommonError> {
-        let full_alias = format!(
-            "#{}:decentraland.{}",
-            alias,
-            extract_domain(&synapse.synapse_url)
-        );
-        let encoded_alias = encode(&full_alias).to_owned();
+        full_encoded_alias(alias, synapse);
         let path = format!("/_matrix/client/r0/directory/room/{encoded_alias}");
-
-        let ten_millis = time::Duration::from_millis(10);
-        thread::sleep(ten_millis);
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
@@ -374,7 +356,6 @@ impl SynapseComponent {
         body: S,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
-        log::debug!("url: {:?}", url);
         let client = reqwest::Client::new();
         let response = client
             .post(url)
@@ -392,7 +373,6 @@ impl SynapseComponent {
         synapse_url: &str,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
-        log::info!("url: {:?}", url);
         let client = reqwest::Client::new();
         let response = client
             .get(url)
@@ -444,6 +424,22 @@ impl SynapseComponent {
             }
         }
     }
+}
+
+/// Returns the encoded room alias name as a string, created from the sorted and joined user addresses in `joined_addresses`.
+///
+/// We need to build the room alias in this way because we're leveraging the room creation process from Matrix + SDK.
+/// It follows the pattern:
+/// `#{sorted and joined addresses}:decentraland.{domain}`
+/// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted,
+/// and `domain` is the domain of the Synapse server.
+fn full_encoded_alias(joined_addresses: &str, synapse: &SynapseComponent) {
+    let full_alias = format!(
+        "#{}:decentraland.{}",
+        joined_addresses,
+        extract_domain(&synapse.synapse_url)
+    );
+    let encoded_alias = encode(&full_alias).to_owned();
 }
 
 /// Get the local part of the userId from matrixUserId

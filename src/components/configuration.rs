@@ -115,7 +115,7 @@ impl Config {
                 args.rpc_ping_interval_seconds,
             )?
             .set_default("rpc_server.ping_interval_seconds", 30)?
-            .set_default("synapse.url", "https://synapse.decentraland.org")?
+            .set_default("synapse.url", "https://synapse.decentraland.zone")?
             .set_default("env", "dev")?
             .set_default("wkc_metrics_bearer_token", "")?
             .set_default("db.host", "0.0.0.0:3500")? // docker-compose -> local env
