@@ -469,28 +469,21 @@ async fn store_message_in_synapse_room<'a>(
     room_message_body: Option<&str>,
     synapse: &SynapseComponent,
 ) -> Result<(), SynapseError> {
-    log::error!("[JULIETA] the event entered to store_message_in_synapse_room");
-
     // Check if it's a `request` event.
     if room_event != FriendshipEvent::REQUEST {
         return Ok(());
     }
 
-    log::error!("[JULIETA] the event is REQUEST");
-
     // Check if there is a message, if any, send the message event to the given room.
     if let Some(val) = room_message_body {
-        log::error!("[JULIETA] there is a room_message_body");
         // Check if the message body is not empty
         if !val.is_empty() {
-            log::error!("[JULIETA] the message body is not empty");
             for retry_count in 0..3 {
                 match synapse
                     .send_message_event_given_room(token, room_id, room_event, val)
                     .await
                 {
                     Ok(_) => {
-                        log::error!("[JULIETA] the message was sent");
                         return Ok(());
                     }
                     Err(err) => {

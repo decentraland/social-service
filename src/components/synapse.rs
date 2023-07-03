@@ -1,6 +1,12 @@
 use actix_http::error;
+use urlencoding::encode;
+
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{collections::HashMap, time::SystemTime};
+use std::{
+    collections::HashMap,
+    thread,
+    time::{self, SystemTime},
+};
 
 use crate::{
     api::routes::synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
@@ -191,10 +197,6 @@ impl SynapseComponent {
         room_event: FriendshipEvent,
         room_message_body: &str,
     ) -> Result<RoomEventResponse, CommonError> {
-        log::error!(
-            "[JULIETA] send_message_event_given_room > room_id: {}",
-            room_id
-        );
         // The transaction ID for this event.
         // Clients should generate an ID unique across requests with the same access token;
         // it will be used by the server to ensure idempotency of requests.
@@ -204,11 +206,6 @@ impl SynapseComponent {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_millis()
-        );
-
-        log::error!(
-            "[JULIETA] send_message_event_given_room > txn_id: {}",
-            txn_id
         );
 
         let path = format!("/_matrix/client/r0/rooms/{room_id}/send/m.room.message/{txn_id}");
@@ -225,17 +222,8 @@ impl SynapseComponent {
         .await;
 
         match response {
-            Ok(r) => {
-                log::error!(
-                    "[JULIETA] send_message_event_given_room > ok: {}",
-                    r.event_id
-                );
-                Ok(r)
-            }
-            Err(e) => {
-                log::error!("[JULIETA] send_message_event_given_room > error: {}", e);
-                Err(e)
-            }
+            Ok(r) => Ok(r),
+            Err(e) => Err(e),
         }
     }
 
@@ -334,12 +322,18 @@ impl SynapseComponent {
         &self,
         token: &str,
         alias: &str,
+        synapse: &SynapseComponent,
     ) -> Result<RoomIdResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/directory/room/{alias}");
+        let full_alias = format!(
+            "#{}:decentraland.{}",
+            alias,
+            extract_domain(&synapse.synapse_url)
+        );
+        let encoded_alias = encode(&full_alias).to_owned();
+        let path = format!("/_matrix/client/r0/directory/room/{encoded_alias}");
 
-        log::error!("[AGUS] path: {:?}", path);
-        log::error!("[AGUS] url: {:?}", &self.synapse_url);
-        log::error!("[AGUS] token: {:?}", token);
+        let ten_millis = time::Duration::from_millis(10);
+        thread::sleep(ten_millis);
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
@@ -380,6 +374,7 @@ impl SynapseComponent {
         body: S,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
+        log::debug!("url: {:?}", url);
         let client = reqwest::Client::new();
         let response = client
             .post(url)
@@ -397,7 +392,7 @@ impl SynapseComponent {
         synapse_url: &str,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
-        log::error!("url: {:?}", url);
+        log::info!("url: {:?}", url);
         let client = reqwest::Client::new();
         let response = client
             .get(url)
@@ -415,18 +410,13 @@ impl SynapseComponent {
                 let text = response.text().await;
                 if let Err(err) = text {
                     log::warn!("[Synapse] error reading synapse response {}", err);
-                    log::error!("[JULIETA] error reading synapse response {}", err);
                     return Err(CommonError::Unknown("".to_owned()));
                 }
 
                 let text = text.unwrap();
-                log::error!("[JULIETA] text: {:?}", text);
                 let response = serde_json::from_str::<T>(&text);
 
-                response.map_err(|err| {
-                    log::error!("[JULIETA] error parsing synapse response {}", err);
-                    Self::parse_and_return_error(&text)
-                })
+                response.map_err(|_err| Self::parse_and_return_error(&text))
             }
             Err(err) => {
                 log::warn!("[Synapse] error connecting to synapse {}", err);

@@ -48,14 +48,6 @@ pub async fn handle_friendship_update(
     )
     .await?;
 
-    println!("[AGUS] synapse_room_id: {:?}", synapse_room_id);
-
-    log::debug!(
-        "[AGUS] about to set_account_data with acting_user: {:?}, second_user: {:?}, room_id: {:?}",
-        acting_user,
-        second_user,
-        synapse_room_id
-    );
     set_account_data(
         &synapse_token,
         &acting_user,
@@ -73,8 +65,6 @@ pub async fn handle_friendship_update(
 
     // Get new friendship status
     let new_status = get_new_friendship_status(&acting_user, new_event);
-
-    println!("[AGUS] new_status: {:?}", new_status);
 
     // Start a database transaction.
     let friendship_ports = FriendshipDbRepositories {
@@ -108,12 +98,6 @@ pub async fn handle_friendship_update(
     )
     .await?;
 
-    println!(
-        "[AGUS] update_friendship_status > store_message_in_synapse_room: {:?} {:?}",
-        synapse_room_id.as_str(),
-        room_message_body
-    );
-
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
     store_message_in_synapse_room(
         &synapse_token,
@@ -123,12 +107,6 @@ pub async fn handle_friendship_update(
         &context.synapse,
     )
     .await?;
-
-    println!(
-        "[AGUS] update_friendship_status > store_room_event_in_synapse_room: {:?} {:?}",
-        synapse_room_id.as_str(),
-        room_message_body
-    );
 
     // Store the friendship event in the given room.
     // We'll continue storing the event in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates

@@ -1,11 +1,8 @@
 // Responsible for managing Synapse rooms and storing events in these rooms.
 use std::collections::HashMap;
-use urlencoding::encode;
 
 use crate::{
-    components::synapse::{
-        extract_domain, user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent,
-    },
+    components::synapse::{user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent},
     domain::{error::CommonError, friendship_event::FriendshipEvent},
     entities::friendships::Friendship,
 };
@@ -22,21 +19,14 @@ use crate::{
 /// It follows the pattern:
 /// `#{sorted and joined addresses}:decentraland.{domain}`
 /// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted, and `domain` is the domain of the Synapse server.
-fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str) -> String {
+fn build_room_alias_name(acting_user: &str, second_user: &str) -> String {
     let act_user_parsed = acting_user.to_ascii_lowercase();
     let sec_user_parsed: String = second_user.to_ascii_lowercase();
 
     let mut addresses = vec![act_user_parsed, sec_user_parsed];
     addresses.sort();
 
-    let joined_addresses = addresses.join("+");
-
-    encode(&format!(
-        "#{}:decentraland.{}",
-        joined_addresses,
-        extract_domain(synapse_url)
-    ))
-    .into_owned()
+    addresses.join("+")
 }
 
 /// Stores a message event in a Synapse room if it's a friendship request event and the request contains a message.
@@ -134,7 +124,9 @@ async fn get_room_id_for_alias_in_synapse(
     room_alias_name: &str,
     synapse: &SynapseComponent,
 ) -> Result<String, CommonError> {
-    let res = synapse.get_room_id_for_alias(token, room_alias_name).await;
+    let res = synapse
+        .get_room_id_for_alias(token, room_alias_name, synapse)
+        .await;
 
     match res {
         Ok(response) => Ok(response.room_id),
@@ -166,20 +158,14 @@ pub async fn get_or_create_synapse_room_id(
         Some(friendship) => Ok(friendship.synapse_room_id.clone()),
         None => {
             if new_event == &FriendshipEvent::REQUEST {
-                let room_alias_name: String =
-                    build_room_alias_name(acting_user, second_user, &synapse.synapse_url);
-                log::error!("[AGUS] room_alias_name: {room_alias_name}");
+                let room_alias_name: String = build_room_alias_name(acting_user, second_user);
 
                 let get_room_result =
                     get_room_id_for_alias_in_synapse(token, &room_alias_name, synapse).await;
 
                 match get_room_result {
-                    Ok(room_id) => {
-                        log::error!("[AGUS] get_room_result: {room_id}");
-                        Ok(room_id)
-                    }
+                    Ok(room_id) => Ok(room_id),
                     Err(_) => {
-                        log::error!("[AGUS] get_room_result: ERROR");
                         let second_user_as_synapse_id =
                             user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
                         let create_room_result = create_private_room_in_synapse(
@@ -237,13 +223,8 @@ pub async fn set_account_data(
                 user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
             if let Some(room_ids) = direct_room_map.get_mut(&second_user_as_synapse_id) {
                 if room_ids.contains(&room_id.to_string()) {
-                    println!("[AGUS] Room already exists in account data");
                     return Ok(());
                 } else {
-                    println!(
-                        "[AGUS] Room does not exist in account data, adding room id {}",
-                        room_id
-                    );
                     direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
                     synapse
                         .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
@@ -272,11 +253,8 @@ mod tests {
 
     #[test]
     fn build_room_alias_name_for_users() {
-        let res = build_room_alias_name("0x1111ada11111", "0x1111ada11112", "zone");
+        let res = build_room_alias_name("0x1111ada11111", "0x1111ada11112");
 
-        assert_eq!(
-            res,
-            "%230x1111ada11111%2B0x1111ada11112%3Adecentraland.zone"
-        );
+        assert_eq!(res, "0x1111ada11111+0x1111ada11112");
     }
 }
