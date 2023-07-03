@@ -34,10 +34,7 @@ use crate::{
 };
 
 use super::{
-    metrics::{
-        decrement_connected_clients, increment_connected_clients, metrics_handler,
-        record_procedure_call_and_duration_and_out_size, validate_bearer_token, Metrics, Procedure,
-    },
+    metrics::{metrics_handler, validate_bearer_token, Metrics, Procedure},
     service::friendships_service,
 };
 
@@ -137,7 +134,7 @@ pub async fn run_ws_transport(
         let generators_clone = generators_clone.clone();
         let metrics_clone = metrics_clone.clone();
         tokio::spawn(async move {
-            decrement_connected_clients(metrics_clone).await;
+            metrics_clone.decrement_connected_clients();
             remove_transport_id_from_context(
                 transport_id,
                 transport_contexts_clone,
@@ -169,7 +166,7 @@ pub async fn run_ws_transport(
                 ping_every_s(rpc_config, websocket.clone());
                 let transport = Arc::new(WebSocketTransport::new(websocket));
 
-                increment_connected_clients(metrics_clone.clone()).await;
+                metrics_clone.increment_connected_clients();
 
                 server_events_sender
                     .send_attach_transport(transport)
@@ -249,14 +246,12 @@ async fn send_update_to_corresponding_generator(
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
         let corresponding_user_id = Address(event_update.to.to_lowercase());
 
-        record_procedure_call_and_duration_and_out_size(
-            metrics,
+        metrics.record_procedure_call_and_duration_and_out_size(
             None,
             Procedure::SubscribeFriendshipEventsUpdates,
             Instant::now(),
             response.encoded_len(),
-        )
-        .await;
+        );
 
         let generators_lock = generators.read().await;
 
