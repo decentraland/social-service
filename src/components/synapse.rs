@@ -314,7 +314,7 @@ impl SynapseComponent {
         alias: &str,
         synapse: &SynapseComponent,
     ) -> Result<RoomIdResponse, CommonError> {
-        full_encoded_alias(alias, synapse);
+        let encoded_alias = full_encoded_alias(alias, synapse);
         let path = format!("/_matrix/client/r0/directory/room/{encoded_alias}");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
@@ -433,13 +433,13 @@ impl SynapseComponent {
 /// `#{sorted and joined addresses}:decentraland.{domain}`
 /// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted,
 /// and `domain` is the domain of the Synapse server.
-fn full_encoded_alias(joined_addresses: &str, synapse: &SynapseComponent) {
+fn full_encoded_alias(joined_addresses: &str, synapse: &SynapseComponent) -> String {
     let full_alias = format!(
         "#{}:decentraland.{}",
         joined_addresses,
         extract_domain(&synapse.synapse_url)
     );
-    let encoded_alias = encode(&full_alias).to_owned();
+    encode(&full_alias).to_string()
 }
 
 /// Get the local part of the userId from matrixUserId
