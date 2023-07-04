@@ -7,11 +7,14 @@ use crate::{
     entities::friendships::Friendship,
 };
 
+/// Function used when creating a room and setting an alias,
+/// when setting the alias as body of the POST request the alias must be ony the local part: — 'wombat', not '#wombat:example.com'
+///
 /// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
 ///
 /// * `acting_user` - The address of the acting user.
 /// * `second_user` - The address of the second user.
-fn build_room_alias_name(acting_user: &str, second_user: &str) -> String {
+fn build_room_local_alias(acting_user: &str, second_user: &str) -> String {
     let act_user_parsed = acting_user.to_ascii_lowercase();
     let sec_user_parsed: String = second_user.to_ascii_lowercase();
 
@@ -150,7 +153,7 @@ pub async fn get_or_create_synapse_room_id(
         Some(friendship) => Ok(friendship.synapse_room_id.clone()),
         None => {
             if new_event == &FriendshipEvent::REQUEST {
-                let room_alias_name: String = build_room_alias_name(acting_user, second_user);
+                let room_alias_name: String = build_room_local_alias(acting_user, second_user);
 
                 let get_room_result =
                     get_room_id_for_alias_in_synapse(token, &room_alias_name, synapse).await;
@@ -241,11 +244,11 @@ pub async fn set_account_data(
 
 #[cfg(test)]
 mod tests {
-    use super::build_room_alias_name;
+    use super::build_room_local_alias;
 
     #[test]
     fn build_room_alias_name_for_users() {
-        let res = build_room_alias_name("0x1111ada11111", "0x1111ada11112");
+        let res = build_room_local_alias("0x1111ada11111", "0x1111ada11112");
 
         assert_eq!(res, "0x1111ada11111+0x1111ada11112");
     }

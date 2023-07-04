@@ -426,6 +426,9 @@ impl SynapseComponent {
     }
 }
 
+/// This function is used when getting the room by alias (full alias: like '#wombat:example.com')
+/// and as it's part of the query parameter it must be encoded
+///
 /// Returns the encoded room alias name as a string, created from the sorted and joined user addresses in `joined_addresses`.
 ///
 /// We need to build the room alias in this way because we're leveraging the room creation process from Matrix + SDK.
