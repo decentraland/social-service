@@ -488,6 +488,7 @@ async fn store_message_in_synapse_room<'a>(
                     }
                     Err(err) => {
                         if retry_count == 2 {
+                            log::error!("[RPC] Store message in synapse room > Error {err}");
                             return Err(SynapseError::CommonError(err));
                         }
                     }
