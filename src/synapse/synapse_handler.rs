@@ -1,42 +1,27 @@
 // Responsible for managing Synapse rooms and storing events in these rooms.
 use std::collections::HashMap;
-use urlencoding::encode;
 
 use crate::{
-    components::synapse::{
-        extract_domain, user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent,
-    },
+    components::synapse::{user_id_as_synapse_user_id, CreateRoomResponse, SynapseComponent},
     domain::{error::CommonError, friendship_event::FriendshipEvent},
     entities::friendships::Friendship,
 };
 
+/// Function used when creating a room and setting an alias,
+/// when setting the alias as body of the POST request the alias must be ony the local part: — 'wombat', not '#wombat:example.com'
+///
 /// Builds a room alias name from a vector of user addresses by sorting them and joining them with a "+" separator.
 ///
 /// * `acting_user` - The address of the acting user.
 /// * `second_user` - The address of the second user.
-/// * `synapse_url` -
-///
-/// Returns the encoded room alias name as a string, created from the sorted and joined user addresses.
-///
-/// We need to build the room alias in this way because we're leveraging the room creation process from Matrix + SDK.
-/// It follows the pattern:
-/// `#{sorted and joined addresses}:decentraland.{domain}`
-/// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted, and `domain` is the domain of the Synapse server.
-fn build_room_alias_name(acting_user: &str, second_user: &str, synapse_url: &str) -> String {
+fn build_room_local_alias(acting_user: &str, second_user: &str) -> String {
     let act_user_parsed = acting_user.to_ascii_lowercase();
     let sec_user_parsed: String = second_user.to_ascii_lowercase();
 
     let mut addresses = vec![act_user_parsed, sec_user_parsed];
     addresses.sort();
 
-    let joined_addresses = addresses.join("+");
-
-    encode(&format!(
-        "#{}:decentraland.{}",
-        joined_addresses,
-        extract_domain(synapse_url)
-    ))
-    .into_owned()
+    addresses.join("+")
 }
 
 /// Stores a message event in a Synapse room if it's a friendship request event and the request contains a message.
@@ -134,7 +119,9 @@ async fn get_room_id_for_alias_in_synapse(
     room_alias_name: &str,
     synapse: &SynapseComponent,
 ) -> Result<String, CommonError> {
-    let res = synapse.get_room_id_for_alias(token, room_alias_name).await;
+    let res = synapse
+        .get_room_id_for_alias(token, room_alias_name, synapse)
+        .await;
 
     match res {
         Ok(response) => Ok(response.room_id),
@@ -166,8 +153,7 @@ pub async fn get_or_create_synapse_room_id(
         Some(friendship) => Ok(friendship.synapse_room_id.clone()),
         None => {
             if new_event == &FriendshipEvent::REQUEST {
-                let room_alias_name: String =
-                    build_room_alias_name(acting_user, second_user, &synapse.synapse_url);
+                let room_alias_name: String = build_room_local_alias(acting_user, second_user);
 
                 let get_room_result =
                     get_room_id_for_alias_in_synapse(token, &room_alias_name, synapse).await;
@@ -258,15 +244,12 @@ pub async fn set_account_data(
 
 #[cfg(test)]
 mod tests {
-    use super::build_room_alias_name;
+    use super::build_room_local_alias;
 
     #[test]
     fn build_room_alias_name_for_users() {
-        let res = build_room_alias_name("0x1111ada11111", "0x1111ada11112", "zone");
+        let res = build_room_local_alias("0x1111ada11111", "0x1111ada11112");
 
-        assert_eq!(
-            res,
-            "%230x1111ada11111%2B0x1111ada11112%3Adecentraland.zone"
-        );
+        assert_eq!(res, "0x1111ada11111+0x1111ada11112");
     }
 }
