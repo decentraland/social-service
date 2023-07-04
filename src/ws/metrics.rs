@@ -152,6 +152,88 @@ impl Metrics {
         let opts = HistogramOpts::new(metric.0, metric.1);
         HistogramVec::new(opts, labels)
     }
+
+    /// Records a procedure call. This increments the counter of procedure calls
+    /// based on the response code and the specific procedure.
+    fn record_procedure_call(&self, code: Option<WsServiceError>, procedure: Procedure) {
+        let code = map_error_code(code);
+        self.procedure_call_total_collector
+            .with_label_values(&[code, procedure.as_str()])
+            .inc();
+    }
+
+    /// Increments the count of connected clients.
+    pub fn increment_connected_clients(&self) {
+        self.connected_clients_total_collector.inc();
+    }
+
+    /// Decrements the count of connected clients.
+    pub fn decrement_connected_clients(&self) {
+        self.connected_clients_total_collector.dec();
+    }
+
+    /// Records updates sent on subscription.
+    /// This increments the counter of updates sent
+    /// on subscription based on the event type.
+    pub fn record_friendship_event_updates_sent(&self, event: FriendshipEvent) {
+        self.updates_sent_on_subscription_total_collector
+            .with_label_values(&[event.as_str()])
+            .inc();
+    }
+
+    /// Records the size of the incoming payload of a procedure call.
+    /// This adds the size of the procedure call incoming payload to the
+    /// histogram for the specified procedure.
+    pub fn record_in_procedure_call_size<T: prost::Message>(&self, procedure: Procedure, msg: &T) {
+        let size = calculate_message_size(msg);
+        self.in_procedure_call_size_bytes_histogram_collector
+            .with_label_values(&[procedure.as_str()])
+            .observe(size as f64);
+    }
+
+    /// Records the size of the outgoing payload of a procedure call.
+    /// This adds the size of the procedure call outgoing payload to the
+    /// histogram for the specified procedure and response code.
+    fn record_out_procedure_call_size(
+        &self,
+        code: Option<WsServiceError>,
+        procedure: Procedure,
+        size: usize,
+    ) {
+        let code = map_error_code(code);
+        self.out_procedure_call_size_bytes_histogram_collector
+            .with_label_values(&[code, procedure.as_str()])
+            .observe(size as f64);
+    }
+
+    /// Records the duration of a procedure call.
+    /// This adds the duration of the procedure call to the
+    /// histogram for the specified procedure and response code.
+    fn record_request_procedure_call_duration(
+        &self,
+        code: Option<WsServiceError>,
+        procedure: Procedure,
+        start_time: Instant,
+    ) {
+        let code = map_error_code(code);
+        let duration = Instant::now().duration_since(start_time).as_secs_f64();
+        self.procedure_call_duration_seconds_histogram_collector
+            .with_label_values(&[code, procedure.as_str()])
+            .observe(duration);
+    }
+
+    /// Records a procedure call, its duration and its outgoing payload size.
+    pub fn record_procedure_call_and_duration_and_out_size(
+        &self,
+        code: Option<WsServiceError>,
+        procedure: Procedure,
+        start_time: Instant,
+        size: usize,
+    ) {
+        self.record_procedure_call(code.clone(), procedure.clone());
+        self.record_request_procedure_call_duration(code.clone(), procedure.clone(), start_time);
+        self.record_out_procedure_call_size(code, procedure, size);
+    }
 }
 
 #[derive(Debug)]
@@ -176,107 +258,6 @@ impl Procedure {
             Procedure::SubscribeFriendshipEventsUpdates => "SubscribeFriendshipEventsUpdates",
         }
     }
-}
-
-/// Records a procedure call. This increments the counter of procedure calls
-/// based on the response code and the specific procedure.
-async fn record_procedure_call(
-    metrics: Arc<Metrics>,
-    code: Option<WsServiceError>,
-    procedure: Procedure,
-) {
-    let code = map_error_code(code);
-    metrics
-        .procedure_call_total_collector
-        .with_label_values(&[code, procedure.as_str()])
-        .inc();
-}
-
-/// Increments the count of connected clients.
-pub async fn increment_connected_clients(metrics: Arc<Metrics>) {
-    metrics.connected_clients_total_collector.inc();
-}
-
-/// Decrements the count of connected clients.
-pub async fn decrement_connected_clients(metrics: Arc<Metrics>) {
-    metrics.connected_clients_total_collector.dec();
-}
-
-/// Records updates sent on subscription.
-/// This increments the counter of updates sent
-/// on subscription based on the event type.
-pub async fn record_friendship_event_updates_sent(metrics: Arc<Metrics>, event: FriendshipEvent) {
-    metrics
-        .updates_sent_on_subscription_total_collector
-        .with_label_values(&[event.as_str()])
-        .inc();
-}
-
-/// Records the size of the incoming payload of a procedure call.
-/// This adds the size of the procedure call incoming payload to the
-/// histogram for the specified procedure.
-pub async fn record_in_procedure_call_size<T: prost::Message>(
-    metrics: Arc<Metrics>,
-    procedure: Procedure,
-    msg: &T,
-) {
-    let size = calculate_message_size(msg);
-    metrics
-        .in_procedure_call_size_bytes_histogram_collector
-        .with_label_values(&[procedure.as_str()])
-        .observe(size as f64);
-}
-
-/// Records the size of the outgoing payload of a procedure call.
-/// This adds the size of the procedure call outgoing payload to the
-/// histogram for the specified procedure and response code.
-async fn record_out_procedure_call_size(
-    metrics: Arc<Metrics>,
-    code: Option<WsServiceError>,
-    procedure: Procedure,
-    size: usize,
-) {
-    let code = map_error_code(code);
-    metrics
-        .out_procedure_call_size_bytes_histogram_collector
-        .with_label_values(&[code, procedure.as_str()])
-        .observe(size as f64);
-}
-
-/// Records the duration of a procedure call.
-/// This adds the duration of the procedure call to the
-/// histogram for the specified procedure and response code.
-async fn record_request_procedure_call_duration(
-    metrics: Arc<Metrics>,
-    code: Option<WsServiceError>,
-    procedure: Procedure,
-    start_time: Instant,
-) {
-    let code = map_error_code(code);
-    let duration = Instant::now().duration_since(start_time).as_secs_f64();
-    metrics
-        .procedure_call_duration_seconds_histogram_collector
-        .with_label_values(&[code, procedure.as_str()])
-        .observe(duration);
-}
-
-/// Records a procedure call, its duration and its outgoing payload size.
-pub async fn record_procedure_call_and_duration_and_size(
-    metrics: Arc<Metrics>,
-    code: Option<WsServiceError>,
-    procedure: Procedure,
-    start_time: Instant,
-    size: usize,
-) {
-    record_procedure_call(metrics.clone(), code.clone(), procedure.clone()).await;
-    record_request_procedure_call_duration(
-        metrics.clone(),
-        code.clone(),
-        procedure.clone(),
-        start_time,
-    )
-    .await;
-    record_out_procedure_call_size(metrics, code, procedure, size).await;
 }
 
 /// Calculates the size of the encoded message in bytes.

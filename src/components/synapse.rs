@@ -1,3 +1,5 @@
+use urlencoding::encode;
+
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, time::SystemTime};
 
@@ -310,8 +312,10 @@ impl SynapseComponent {
         &self,
         token: &str,
         alias: &str,
+        synapse: &SynapseComponent,
     ) -> Result<RoomIdResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/directory/room/{alias}");
+        let encoded_alias = full_encoded_alias(alias, synapse);
+        let path = format!("/_matrix/client/r0/directory/room/{encoded_alias}");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
@@ -378,7 +382,6 @@ impl SynapseComponent {
 
         Self::process_synapse_response::<T>(response).await
     }
-
     async fn process_synapse_response<T: DeserializeOwned>(
         response: Result<reqwest::Response, reqwest::Error>,
     ) -> Result<T, CommonError> {
@@ -393,7 +396,7 @@ impl SynapseComponent {
                 let text = text.unwrap();
                 let response = serde_json::from_str::<T>(&text);
 
-                response.map_err(|_| Self::parse_and_return_error(&text))
+                response.map_err(|_err| Self::parse_and_return_error(&text))
             }
             Err(err) => {
                 log::warn!("[Synapse] error connecting to synapse {}", err);
@@ -421,6 +424,25 @@ impl SynapseComponent {
             }
         }
     }
+}
+
+/// This function is used when getting the room by alias (full alias: like '#wombat:example.com')
+/// and as it's part of the query parameter it must be encoded
+///
+/// Returns the encoded room alias name as a string, created from the sorted and joined user addresses in `joined_addresses`.
+///
+/// We need to build the room alias in this way because we're leveraging the room creation process from Matrix + SDK.
+/// It follows the pattern:
+/// `#{sorted and joined addresses}:decentraland.{domain}`
+/// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted,
+/// and `domain` is the domain of the Synapse server.
+fn full_encoded_alias(joined_addresses: &str, synapse: &SynapseComponent) -> String {
+    let full_alias = format!(
+        "#{}:decentraland.{}",
+        joined_addresses,
+        extract_domain(&synapse.synapse_url)
+    );
+    encode(&full_alias).to_string()
 }
 
 /// Get the local part of the userId from matrixUserId

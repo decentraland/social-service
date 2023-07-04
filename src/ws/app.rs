@@ -34,10 +34,7 @@ use crate::{
 };
 
 use super::{
-    metrics::{
-        decrement_connected_clients, increment_connected_clients, metrics_handler,
-        record_procedure_call_and_duration_and_size, validate_bearer_token, Metrics, Procedure,
-    },
+    metrics::{metrics_handler, validate_bearer_token, Metrics, Procedure},
     service::friendships_service,
 };
 
@@ -156,7 +153,7 @@ pub async fn run_ws_transport(
                     .observe(duration);
             }
 
-            decrement_connected_clients(metrics_clone).await;
+            metrics_clone.decrement_connected_clients();
             remove_transport_id_from_context(
                 transport_id,
                 transport_contexts_clone,
@@ -190,7 +187,7 @@ pub async fn run_ws_transport(
                 ping_every_s(rpc_config, websocket.clone());
                 let transport = Arc::new(WebSocketTransport::new(websocket));
 
-                increment_connected_clients(metrics_clone.clone()).await;
+                metrics_clone.increment_connected_clients();
                 let mut connection_start_times = connection_start_times_clone.lock().await;
 
                 connection_start_times
@@ -274,14 +271,12 @@ async fn send_update_to_corresponding_generator(
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
         let corresponding_user_id = Address(event_update.to.to_lowercase());
 
-        record_procedure_call_and_duration_and_size(
-            metrics,
+        metrics.record_procedure_call_and_duration_and_out_size(
             None,
             Procedure::SubscribeFriendshipEventsUpdates,
             Instant::now(),
             response.encoded_len(),
-        )
-        .await;
+        );
 
         let generators_lock = generators.read().await;
 
