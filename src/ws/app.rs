@@ -136,12 +136,9 @@ pub async fn run_ws_transport(
         let metrics_clone = metrics_clone.clone();
 
         tokio::spawn(async move {
-            let transport = transport_contexts_clone
-                .clone()
-                .write()
-                .await
-                .remove(&transport_id);
-            if let Some(transport) = transport {
+            let rw_lock = &transport_contexts_clone.clone();
+            let transports = &rw_lock.read().await;
+            if let Some(transport) = transports.get(&transport_id) {
                 metrics_clone
                     .connection_duration_histogram_collector
                     .observe(transport.connection_ts.elapsed().as_secs_f64());
