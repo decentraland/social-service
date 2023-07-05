@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
 use prometheus::{
-    self, Encoder, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, Opts, Registry,
+    self, Encoder, Histogram, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, Opts, Registry,
 };
 
 use crate::domain::friendship_event::FriendshipEvent;
@@ -18,7 +18,7 @@ pub struct Metrics {
     pub in_procedure_call_size_bytes_histogram_collector: HistogramVec,
     pub out_procedure_call_size_bytes_histogram_collector: HistogramVec,
     pub procedure_call_duration_seconds_histogram_collector: HistogramVec,
-    pub connection_duration_histogram_collector: HistogramVec,
+    pub connection_duration_histogram_collector: Histogram,
     pub registry: Registry,
 }
 
@@ -88,7 +88,7 @@ impl Metrics {
           .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_duration_seconds_histogram metric should be created successfully");
 
         let connection_duration_histogram_collector =
-          Self::create_histogram_vec(CONNECTION_DURATION_METRIC, &["transport_id"])
+          Self::create_histogram(CONNECTION_DURATION_METRIC)
           .expect("Metrics definition is correct, so dcl_social_service_rpc_connection_duration_seconds_histogram metric should be created successfully");
 
         let registry = Registry::new();
@@ -151,6 +151,11 @@ impl Metrics {
     ) -> Result<HistogramVec, prometheus::Error> {
         let opts = HistogramOpts::new(metric.0, metric.1);
         HistogramVec::new(opts, labels)
+    }
+
+    fn create_histogram(metric: (&str, &str)) -> Result<Histogram, prometheus::Error> {
+        let opts = HistogramOpts::new(metric.0, metric.1);
+        Histogram::with_opts(opts)
     }
 
     /// Records a procedure call. This increments the counter of procedure calls

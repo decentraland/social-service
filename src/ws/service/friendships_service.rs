@@ -481,6 +481,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         context.transport_id,
                         SocialTransportContext {
                             address: Address(user_id.social_id.to_string()),
+                            connection_ts: Instant::now(),
                         },
                     );
 
