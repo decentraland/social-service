@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use warp::{http::header::HeaderValue, reject::Reject, Rejection, Reply};
 
 use prometheus::{
-    self, Encoder, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, Opts, Registry,
+    self, Encoder, Histogram, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, Opts, Registry,
 };
 
 use crate::domain::friendship_event::FriendshipEvent;
@@ -18,6 +18,7 @@ pub struct Metrics {
     pub in_procedure_call_size_bytes_histogram_collector: HistogramVec,
     pub out_procedure_call_size_bytes_histogram_collector: HistogramVec,
     pub procedure_call_duration_seconds_histogram_collector: HistogramVec,
+    pub connection_duration_histogram_collector: Histogram,
     pub registry: Registry,
 }
 
@@ -55,6 +56,11 @@ const PROCEDURE_CALL_DURATION: (&str, &str) = (
     "Social Service RPC Websocket Procedure Call Duration in Seconds",
 );
 
+const CONNECTION_DURATION_METRIC: (&str, &str) = (
+    "dcl_social_service_rpc_connection_duration_seconds_histogram",
+    "Social Service RPC WebSocket Connection Duration",
+);
+
 impl Metrics {
     pub fn new() -> Self {
         let procedure_call_total_collector =
@@ -80,6 +86,10 @@ impl Metrics {
         let procedure_call_duration_seconds_histogram_collector =
           Self::create_histogram_vec(PROCEDURE_CALL_DURATION, &["code", "procedure"])
           .expect("Metrics definition is correct, so dcl_social_service_rpc_procedure_call_duration_seconds_histogram metric should be created successfully");
+
+        let connection_duration_histogram_collector =
+          Self::create_histogram(CONNECTION_DURATION_METRIC)
+          .expect("Metrics definition is correct, so dcl_social_service_rpc_connection_duration_seconds_histogram metric should be created successfully");
 
         let registry = Registry::new();
 
@@ -107,6 +117,10 @@ impl Metrics {
             .register(Box::new(procedure_call_duration_seconds_histogram_collector.clone()))
             .expect("Procedure Call Duration Seconds Histogram Collector metrics should be correct, so PROCEDURE_CALL_DURATION can be registered successfully");
 
+        registry
+            .register(Box::new(connection_duration_histogram_collector.clone()))
+            .expect("Connection Duration Histogram Collector metrics should be correct, so CONNECTION_DURATION_HISTOGRAM_COLLECTOR can be registered successfully");
+
         Metrics {
             procedure_call_total_collector,
             connected_clients_total_collector,
@@ -114,6 +128,7 @@ impl Metrics {
             in_procedure_call_size_bytes_histogram_collector,
             out_procedure_call_size_bytes_histogram_collector,
             procedure_call_duration_seconds_histogram_collector,
+            connection_duration_histogram_collector,
             registry,
         }
     }
@@ -136,6 +151,11 @@ impl Metrics {
     ) -> Result<HistogramVec, prometheus::Error> {
         let opts = HistogramOpts::new(metric.0, metric.1);
         HistogramVec::new(opts, labels)
+    }
+
+    fn create_histogram(metric: (&str, &str)) -> Result<Histogram, prometheus::Error> {
+        let opts = HistogramOpts::new(metric.0, metric.1);
+        Histogram::with_opts(opts)
     }
 
     /// Records a procedure call. This increments the counter of procedure calls

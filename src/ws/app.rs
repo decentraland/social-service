@@ -45,6 +45,7 @@ pub struct ConfigRpcServer {
 
 pub struct SocialTransportContext {
     pub address: Address,
+    pub connection_ts: Instant,
 }
 
 type TransportId = u32;
@@ -133,7 +134,15 @@ pub async fn run_ws_transport(
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
         let metrics_clone = metrics_clone.clone();
+
         tokio::spawn(async move {
+            let rw_lock = &transport_contexts_clone.clone();
+            let transports = &rw_lock.read().await;
+            if let Some(transport) = transports.get(&transport_id) {
+                metrics_clone
+                    .connection_duration_histogram_collector
+                    .observe(transport.connection_ts.elapsed().as_secs_f64());
+            }
             metrics_clone.decrement_connected_clients();
             remove_transport_id_from_context(
                 transport_id,
