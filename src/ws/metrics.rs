@@ -179,7 +179,7 @@ impl Metrics {
     /// Records the size of the outgoing payload of a procedure call.
     /// This adds the size of the procedure call outgoing payload to the
     /// histogram for the specified procedure and response code.
-    fn record_out_procedure_call_size(
+    pub fn record_out_procedure_call_size(
         &self,
         code: Option<WsServiceError>,
         procedure: Procedure,
@@ -205,6 +205,17 @@ impl Metrics {
         self.procedure_call_duration_seconds_histogram_collector
             .with_label_values(&[code, procedure.as_str()])
             .observe(duration);
+    }
+
+    /// Records a procedure call, its duration but not the size, useful for stream responses
+    pub fn record_procedure_call_and_duration(
+        &self,
+        code: Option<WsServiceError>,
+        procedure: Procedure,
+        start_time: Instant,
+    ) {
+        self.record_procedure_call(code.clone(), procedure.clone());
+        self.record_request_procedure_call_duration(code.clone(), procedure.clone(), start_time);
     }
 
     /// Records a procedure call, its duration and its outgoing payload size.

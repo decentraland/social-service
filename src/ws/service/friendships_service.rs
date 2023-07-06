@@ -71,7 +71,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
         let start_time = Instant::now();
         let metrics = context.server_context.metrics.clone();
-        metrics.record_in_procedure_call_size(Procedure::GetFriends, &request);
+        metrics
+            .clone()
+            .record_in_procedure_call_size(Procedure::GetFriends, &request);
 
         let request_user_id = get_user_id_from_request(
             &request,
@@ -137,6 +139,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         };
                         return Ok(friendships_generator);
                     };
+                let metrics_clone = metrics.clone();
                 tokio::spawn(async move {
                     let mut users = Users::default();
 
@@ -146,11 +149,15 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     while let Some(friendship) = friendship.next().await {
                         users.users.push(build_user(friendship, user_id.clone()));
                         if users.users.len() == friends_stream_page_size {
-                            let result = friendships_yielder
-                                .r#yield(UsersResponse::from_response(
-                                    users_response::Response::Users(users.clone()),
-                                ))
-                                .await;
+                            let response = UsersResponse::from_response(
+                                users_response::Response::Users(users.clone()),
+                            );
+                            metrics_clone.record_out_procedure_call_size(
+                                None,
+                                Procedure::GetFriends,
+                                response.encoded_len(),
+                            );
+                            let result = friendships_yielder.r#yield(response).await;
                             if let Err(err) = result {
                                 log::error!("[RPC] There was an error yielding the response to the friendships generator: {:?}", err);
                                 break;
@@ -161,10 +168,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     if !users.users.is_empty() {
                         let response =
                             UsersResponse::from_response(users_response::Response::Users(users));
-                        metrics.record_procedure_call_and_duration_and_out_size(
+                        metrics_clone.record_out_procedure_call_size(
                             None,
                             Procedure::GetFriends,
-                            start_time,
                             response.encoded_len(),
                         );
                         let result = friendships_yielder.r#yield(response).await;
@@ -173,6 +179,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         };
                     }
                 });
+
+                metrics.record_procedure_call_and_duration(None, Procedure::GetFriends, start_time);
+
                 log::info!(
                     "[RPC] Returning generator for all friends for user {}",
                     social_id
@@ -493,6 +502,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     .insert(Address(user_id.social_id), friendships_yielder.clone());
             }
         }
+
+        metrics.record_procedure_call_and_duration(
+            None,
+            Procedure::SubscribeFriendshipEventsUpdates,
+            start_time,
+        );
         Ok(friendships_generator)
     }
 }
@@ -503,7 +518,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 /// user id from the token and returns it as a `Result<UserId>`. If no
 /// authentication token was provided, returns a `Err(CommonError::Unauthorized)`
 /// error.
-pub async fn get_user_id_from_request(
+async fn get_user_id_from_request(
     request: &Payload,
     synapse: SynapseComponent,
     users_cache: Arc<Mutex<UsersCacheComponent>>,
