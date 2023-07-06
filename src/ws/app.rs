@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::Arc};
 
 use dcl_rpc::{
     server::RpcServer,
@@ -255,10 +255,9 @@ async fn send_update_to_corresponding_generator(
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
         let corresponding_user_id = Address(event_update.to.to_lowercase());
 
-        metrics.record_procedure_call_and_duration_and_out_size(
+        metrics.record_out_procedure_call_size(
             None,
             Procedure::SubscribeFriendshipEventsUpdates,
-            Instant::now(),
             response.encoded_len(),
         );
 
