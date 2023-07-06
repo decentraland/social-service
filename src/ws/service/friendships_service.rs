@@ -480,6 +480,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 };
             }
             Ok(user_id) => {
+                metrics.record_procedure_call_and_duration(
+                    None,
+                    Procedure::SubscribeFriendshipEventsUpdates,
+                    start_time,
+                );
+
                 // Attach transport_id to the context by transport
                 context
                     .server_context
@@ -503,11 +509,6 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
             }
         }
 
-        metrics.record_procedure_call_and_duration(
-            None,
-            Procedure::SubscribeFriendshipEventsUpdates,
-            start_time,
-        );
         Ok(friendships_generator)
     }
 }
