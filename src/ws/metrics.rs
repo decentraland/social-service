@@ -215,7 +215,7 @@ impl Metrics {
         start_time: Instant,
     ) {
         self.record_procedure_call(code.clone(), procedure.clone());
-        self.record_request_procedure_call_duration(code.clone(), procedure.clone(), start_time);
+        self.record_request_procedure_call_duration(code, procedure, start_time);
     }
 
     /// Records a procedure call, its duration and its outgoing payload size.
