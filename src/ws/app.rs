@@ -130,6 +130,22 @@ pub async fn run_ws_transport(
     });
 
     let metrics_clone = Arc::clone(&metrics);
+    let transport_contexts_clone = transport_contexts.clone();
+    rpc_server.set_on_transport_connected_handler(move |_transport, transport_id| {
+        metrics_clone.increment_connected_clients();
+        let transport_contexts_clone = transport_contexts_clone.clone();
+        tokio::spawn(async move {
+            transport_contexts_clone.write().await.insert(
+                transport_id,
+                SocialTransportContext {
+                    address: Address("".to_string()),
+                    connection_ts: Instant::now(),
+                },
+            )
+        });
+    });
+
+    let metrics_clone = Arc::clone(&metrics);
     rpc_server.set_on_transport_closes_handler(move |_, transport_id| {
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
@@ -160,7 +176,6 @@ pub async fn run_ws_transport(
         rpc_server.run().await;
     });
 
-    let metrics_clone = Arc::clone(&metrics);
     let rpc_route = warp::path::end()
         // Check if the connection wants to be upgraded to have a WebSocket Connection.
         .and(warp::ws())
@@ -168,14 +183,11 @@ pub async fn run_ws_transport(
         .map(move |ws: warp::ws::Ws| {
             let rpc_config = rpc_config.clone();
             let server_events_sender = server_events_sender.clone();
-            let metrics_clone = metrics_clone.clone();
             ws.on_upgrade(|ws| async move {
                 let websocket = WarpWebSocket::new(ws);
                 let websocket = Arc::new(websocket);
                 ping_every_s(rpc_config, websocket.clone());
                 let transport = Arc::new(WebSocketTransport::new(websocket));
-
-                metrics_clone.increment_connected_clients();
 
                 server_events_sender
                     .send_attach_transport(transport)
