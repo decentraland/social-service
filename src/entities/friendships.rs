@@ -21,6 +21,11 @@ pub struct Friendship {
     pub synapse_room_id: String,
 }
 
+#[derive(FromRow)]
+pub struct User {
+    pub address: String,
+}
+
 #[derive(Clone)]
 pub struct FriendshipsRepository {
     db_connection: Arc<Option<DBConnection>>,
@@ -82,6 +87,12 @@ pub trait FriendshipRepositoryImplementation {
         address: &str,
         only_active: bool,
     ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error>;
+
+    async fn get_mutual_friends_stream<'a>(
+        &'a self,
+        address_1: &'a str,
+        address_2: &'a str,
+    ) -> Result<Pin<Box<dyn Stream<Item = User> + Send + 'a>>, sqlx::Error>;
 
     async fn update_friendship_status(
         &self,
@@ -266,6 +277,75 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
             }
         });
         Ok(Box::pin(friends_stream))
+    }
+
+    #[tracing::instrument(name = "Get mutual friends from DB stream")]
+    async fn get_mutual_friends_stream<'a>(
+        &'a self,
+        address_1: &'a str,
+        address_2: &'a str,
+    ) -> Result<Pin<Box<dyn Stream<Item = User> + Send + 'a>>, sqlx::Error> {
+        let query = "WITH friendsA as (
+            SELECT
+              CASE
+                WHEN LOWER(address_1) = LOWER($1) then address_2
+                else address_1
+              end as address
+            FROM
+              (
+                SELECT
+                  f_a.*
+                from
+                  friendships f_a
+                where
+                  (
+                    LOWER(f_a.address_1) = LOWER($1)
+                    or LOWER(f_a.address_2) = LOWER($1)
+                  )
+              ) as friends_a
+          )
+          SELECT
+            address
+          FROM
+            friendsA f_b
+          WHERE
+            address IN (
+              SELECT
+                CASE
+                  WHEN LOWER(address_1) = LOWER($2) then address_2
+                  else address_1
+                end as address_a
+              FROM
+                (
+                  SELECT
+                    f_b.*
+                  from
+                    friendships f_b
+                  where
+                    (
+                      LOWER(f_b.address_1) = LOWER($2)
+                      or LOWER(f_b.address_2) = LOWER($2)
+                    )
+                ) as friends_b
+            );";
+        let query = sqlx::query(&query).bind(address_1).bind(address_2);
+
+        let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
+
+        let response = DatabaseComponent::fetch_stream(query, pool);
+        let mutual_friends_stream = response.filter_map(|row| async move {
+            match row {
+                Ok(row) => {
+                    let user = User::from_row(&row).expect("to be a user");
+                    Some(user)
+                }
+                Err(err) => {
+                    log::error!("Couldn't stream fetch mutual friends, {}", err);
+                    None
+                }
+            }
+        });
+        Ok(Box::pin(mutual_friends_stream))
     }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]
