@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Instant};
 
 use dcl_rpc::{
     server::RpcServer,
@@ -9,6 +9,8 @@ use dcl_rpc::{
 use tokio::sync::{Mutex, RwLock};
 
 use warp::{http::header::HeaderValue, Filter};
+
+use prost::Message as ProstMessage;
 
 use crate::{
     components::notifications::{
@@ -32,7 +34,7 @@ use crate::{
 };
 
 use super::{
-    metrics::{metrics_handler, validate_bearer_token, Metrics},
+    metrics::{metrics_handler, validate_bearer_token, Metrics, Procedure},
     service::friendships_service,
 };
 
@@ -43,6 +45,7 @@ pub struct ConfigRpcServer {
 
 pub struct SocialTransportContext {
     pub address: Address,
+    pub connection_ts: Instant,
 }
 
 type TransportId = u32;
@@ -102,6 +105,7 @@ pub async fn run_ws_transport(
     if env_logger::try_init().is_err() {
         log::debug!("[RPC] Logger already init")
     }
+
     let port = ctx.config.rpc_server.port;
     let subs = ctx.redis_subscriber.clone();
     let generators = ctx.friendships_events_generators.clone();
@@ -111,8 +115,9 @@ pub async fn run_ws_transport(
     let metrics = ctx.metrics.clone();
     let rpc_config = ctx.config.rpc_server.clone();
 
+    let metrics_clone = Arc::clone(&metrics);
     tokio::spawn(async move {
-        subscribe_to_event_updates(subs, generators.clone());
+        subscribe_to_event_updates(subs, generators.clone(), metrics_clone);
     });
 
     let mut rpc_server: RpcServer<SocialContext, WebSocketTransport<WarpWebSocket, ()>> =
@@ -123,10 +128,33 @@ pub async fn run_ws_transport(
             friendships_service::MyFriendshipsService {},
         )
     });
+
+    let metrics_clone = Arc::clone(&metrics);
+    let transport_contexts_clone = transport_contexts.clone();
+    rpc_server.set_on_transport_connected_handler(move |_transport, transport_id| {
+        metrics_clone.increment_connected_clients();
+        let transport_contexts_clone = transport_contexts_clone.clone();
+        tokio::spawn(async move {
+            transport_contexts_clone.write().await.insert(
+                transport_id,
+                SocialTransportContext {
+                    address: Address("".to_string()),
+                    connection_ts: Instant::now(),
+                },
+            )
+        });
+    });
+
+    let metrics_clone = Arc::clone(&metrics);
     rpc_server.set_on_transport_closes_handler(move |_, transport_id| {
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
+        let metrics_clone = metrics_clone.clone();
+        metrics_clone.decrement_connected_clients();
+
         tokio::spawn(async move {
+            observe_connection_duration(transport_id, &transport_contexts_clone, metrics_clone)
+                .await;
             remove_transport_id_from_context(
                 transport_id,
                 transport_contexts_clone,
@@ -153,7 +181,7 @@ pub async fn run_ws_transport(
             ws.on_upgrade(|ws| async move {
                 let websocket = WarpWebSocket::new(ws);
                 let websocket = Arc::new(websocket);
-                ping_every_30s(rpc_config, websocket.clone());
+                ping_every_s(rpc_config, websocket.clone());
                 let transport = Arc::new(WebSocketTransport::new(websocket));
 
                 server_events_sender
@@ -189,6 +217,19 @@ pub async fn run_ws_transport(
     (rpc_server_handle, http_server_handle)
 }
 
+async fn observe_connection_duration(
+    transport_id: u32,
+    transport_contexts_clone: &Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
+    metrics_clone: Arc<Metrics>,
+) {
+    let rw_lock = &transport_contexts_clone.clone();
+    if let Some(transport) = &rw_lock.read().await.get(&transport_id) {
+        metrics_clone
+            .connection_duration_histogram_collector
+            .observe(transport.connection_ts.elapsed().as_secs_f64());
+    };
+}
+
 async fn remove_transport_id_from_context(
     transport_id: TransportId,
     transport_contexts: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
@@ -196,14 +237,11 @@ async fn remove_transport_id_from_context(
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
 ) {
-    let transport_contexts_read_lock = transport_contexts.read().await;
-    if let Some(transport_ctx) = transport_contexts_read_lock.get(&transport_id) {
+    if let Some(transport_ctx) = transport_contexts.read().await.get(&transport_id) {
         // First remove the generators of the corresponding address
         generators.write().await.remove(&transport_ctx.address);
     };
-    drop(transport_contexts_read_lock);
-    let mut transport_contexts_write_lock = transport_contexts.write().await;
-    transport_contexts_write_lock.remove(&transport_id);
+    transport_contexts.write().await.remove(&transport_id);
 }
 
 // Subscribe to Redis Pub/Sub to listen on friendship events updates, so then can notify the affected users on their corresponding generators
@@ -212,12 +250,14 @@ fn subscribe_to_event_updates(
     client_generators: Arc<
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
+    metrics: Arc<Metrics>,
 ) {
     event_subscriptions.subscribe(EVENT_UPDATES_CHANNEL_NAME, move |event_update: Event| {
         log::debug!("[RPC] User Update received > event_update: {event_update:?}");
         let generators = client_generators.clone();
+        let metrics_clone = Arc::clone(&metrics);
         async move {
-            send_update_to_corresponding_generator(generators, event_update).await;
+            send_update_to_corresponding_generator(generators, event_update, metrics_clone).await;
         }
     });
 }
@@ -227,9 +267,16 @@ async fn send_update_to_corresponding_generator(
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
     event_update: Event,
+    metrics: Arc<Metrics>,
 ) {
     if let Some(response) = event_as_friendship_update_response(event_update.clone()) {
         let corresponding_user_id = Address(event_update.to.to_lowercase());
+
+        metrics.record_out_procedure_call_size(
+            None,
+            Procedure::SubscribeFriendshipEventsUpdates,
+            response.encoded_len(),
+        );
 
         let generators_lock = generators.read().await;
 
@@ -257,7 +304,7 @@ fn event_as_friendship_update_response(
         })
 }
 
-fn ping_every_30s(config: RpcServerConfig, websocket: Arc<WarpWebSocket>) {
+fn ping_every_s(config: RpcServerConfig, websocket: Arc<WarpWebSocket>) {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(config.ping_interval_seconds)).await;
