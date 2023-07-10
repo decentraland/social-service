@@ -150,16 +150,11 @@ pub async fn run_ws_transport(
         let transport_contexts_clone = transport_contexts.clone();
         let generators_clone = generators_clone.clone();
         let metrics_clone = metrics_clone.clone();
+        metrics_clone.decrement_connected_clients();
 
         tokio::spawn(async move {
-            let rw_lock = &transport_contexts_clone.clone();
-            let transports = &rw_lock.read().await;
-            if let Some(transport) = transports.get(&transport_id) {
-                metrics_clone
-                    .connection_duration_histogram_collector
-                    .observe(transport.connection_ts.elapsed().as_secs_f64());
-            }
-            metrics_clone.decrement_connected_clients();
+            observe_connection_duration(transport_id, &transport_contexts_clone, metrics_clone)
+                .await;
             remove_transport_id_from_context(
                 transport_id,
                 transport_contexts_clone,
@@ -222,6 +217,19 @@ pub async fn run_ws_transport(
     (rpc_server_handle, http_server_handle)
 }
 
+async fn observe_connection_duration(
+    transport_id: u32,
+    transport_contexts_clone: &Arc<RwLock<HashMap<u32, SocialTransportContext>>>,
+    metrics_clone: Arc<Metrics>,
+) {
+    let rw_lock = &transport_contexts_clone.clone();
+    if let Some(transport) = &rw_lock.read().await.get(&transport_id) {
+        metrics_clone
+            .connection_duration_histogram_collector
+            .observe(transport.connection_ts.elapsed().as_secs_f64());
+    };
+}
+
 async fn remove_transport_id_from_context(
     transport_id: TransportId,
     transport_contexts: Arc<RwLock<HashMap<TransportId, SocialTransportContext>>>,
@@ -229,14 +237,11 @@ async fn remove_transport_id_from_context(
         RwLock<HashMap<Address, GeneratorYielder<SubscribeFriendshipEventsUpdatesResponse>>>,
     >,
 ) {
-    let transport_contexts_read_lock = transport_contexts.read().await;
-    if let Some(transport_ctx) = transport_contexts_read_lock.get(&transport_id) {
+    if let Some(transport_ctx) = transport_contexts.read().await.get(&transport_id) {
         // First remove the generators of the corresponding address
         generators.write().await.remove(&transport_ctx.address);
     };
-    drop(transport_contexts_read_lock);
-    let mut transport_contexts_write_lock = transport_contexts.write().await;
-    transport_contexts_write_lock.remove(&transport_id);
+    transport_contexts.write().await.remove(&transport_id);
 }
 
 // Subscribe to Redis Pub/Sub to listen on friendship events updates, so then can notify the affected users on their corresponding generators

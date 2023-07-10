@@ -506,6 +506,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             );
                     }
                     None => {
+                        log::warn!("This code should be unreachable");
                         // This should never happen
                         context
                             .server_context
