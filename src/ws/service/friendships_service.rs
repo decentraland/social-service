@@ -287,7 +287,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
                 let Ok(mut friendship) = repos
                     .friendships
-                    .get_user_friends_stream(&user_id.social_id, true)
+                    .clone()
+                    .get_mutual_friends_stream(user_id.social_id.clone().to_string(), other_user.address.clone().to_string())
                     .await else {
                         log::error!(
                             "[RPC] Get mutual friends > Get user friends stream > Error: There was an error accessing to the friendships repository."
@@ -306,13 +307,16 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     };
                 let metrics_clone = metrics.clone();
                 tokio::spawn(async move {
-                    let mut users = Users::default();
+                    let mut users: Users = Users::default();
 
                     let friends_stream_page_size =
                         context.server_context.friends_stream_page_size as usize;
 
-                    while let Some(friendship) = friendship.next().await {
-                        users.users.push(build_user(friendship, user_id.clone()));
+                    while let Some(user_id) = friendship.next().await {
+                        let current_user = User {
+                            address: user_id.address,
+                        };
+                        users.users.push(current_user);
                         if users.users.len() == friends_stream_page_size {
                             let response = UsersResponse::from_response(
                                 users_response::Response::Users(users.clone()),
@@ -331,8 +335,9 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         }
                     }
                     if !users.users.is_empty() {
-                        let response =
-                            UsersResponse::from_response(users_response::Response::Users(users));
+                        let response = UsersResponse::from_response(
+                            users_response::Response::Users(users.clone()),
+                        );
                         metrics_clone.record_out_procedure_call_size(
                             None,
                             Procedure::GetMutualFriends,

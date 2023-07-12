@@ -22,7 +22,7 @@ pub struct Friendship {
 }
 
 #[derive(FromRow)]
-pub struct User {
+pub struct UserEntity {
     pub address: String,
 }
 
@@ -90,9 +90,9 @@ pub trait FriendshipRepositoryImplementation {
 
     async fn get_mutual_friends_stream<'a>(
         &'a self,
-        address_1: &'a str,
-        address_2: &'a str,
-    ) -> Result<Pin<Box<dyn Stream<Item = User> + Send + 'a>>, sqlx::Error>;
+        address_1: String,
+        address_2: String,
+    ) -> Result<Pin<Box<dyn Stream<Item = UserEntity> + Send>>, sqlx::Error>;
 
     async fn update_friendship_status(
         &self,
@@ -282,53 +282,29 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     #[tracing::instrument(name = "Get mutual friends from DB stream")]
     async fn get_mutual_friends_stream<'a>(
         &'a self,
-        address_1: &'a str,
-        address_2: &'a str,
-    ) -> Result<Pin<Box<dyn Stream<Item = User> + Send + 'a>>, sqlx::Error> {
-        let query = "WITH friendsA as (
-            SELECT
-              CASE
-                WHEN LOWER(address_1) = LOWER($1) then address_2
-                else address_1
-              end as address
-            FROM
-              (
-                SELECT
-                  f_a.*
-                from
-                  friendships f_a
-                where
-                  (
-                    LOWER(f_a.address_1) = LOWER($1)
-                    or LOWER(f_a.address_2) = LOWER($1)
-                  )
-              ) as friends_a
+        address_1: String,
+        address_2: String,
+    ) -> Result<Pin<Box<dyn Stream<Item = UserEntity> + Send>>, sqlx::Error> {
+        let query = "WITH friendsA AS (
+            SELECT CASE
+                     WHEN LOWER(address_1) = LOWER($1) THEN address_2
+                     ELSE address_1
+                   END AS address
+            FROM friendships
+            WHERE LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1)
+          ),
+          friendsB AS (
+            SELECT CASE
+                     WHEN LOWER(address_1) = LOWER($2) THEN address_2
+                     ELSE address_1
+                   END AS address
+            FROM friendships
+            WHERE LOWER(address_1) = LOWER($2) OR LOWER(address_2) = LOWER($2)
           )
-          SELECT
-            address
-          FROM
-            friendsA f_b
-          WHERE
-            address IN (
-              SELECT
-                CASE
-                  WHEN LOWER(address_1) = LOWER($2) then address_2
-                  else address_1
-                end as address_a
-              FROM
-                (
-                  SELECT
-                    f_b.*
-                  from
-                    friendships f_b
-                  where
-                    (
-                      LOWER(f_b.address_1) = LOWER($2)
-                      or LOWER(f_b.address_2) = LOWER($2)
-                    )
-                ) as friends_b
-            );";
-        let query = sqlx::query(&query).bind(address_1).bind(address_2);
+          SELECT address
+          FROM friendsA
+          WHERE address IN (SELECT address FROM friendsB);";
+        let query = sqlx::query(query).bind(address_1).bind(address_2);
 
         let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
 
@@ -336,7 +312,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let mutual_friends_stream = response.filter_map(|row| async move {
             match row {
                 Ok(row) => {
-                    let user = User::from_row(&row).expect("to be a user");
+                    let user = UserEntity::from_row(&row).expect("to be a user");
                     Some(user)
                 }
                 Err(err) => {
