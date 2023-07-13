@@ -487,39 +487,42 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 );
 
                 // Attach social_id to the context by transport_id
-                let read = context.server_context.transport_context.read().await;
-                let social_transport_context = read.get(&context.transport_id);
+                // Ensure to free lock
+                {
+                    let read = context.server_context.transport_context.read().await;
+                    let social_transport_context = read.get(&context.transport_id);
 
-                match social_transport_context {
-                    Some(ctx) => {
-                        context
-                            .server_context
-                            .transport_context
-                            .write()
-                            .await
-                            .insert(
-                                context.transport_id,
-                                SocialTransportContext {
-                                    address: Address(user_id.social_id.to_string()),
-                                    connection_ts: ctx.connection_ts,
-                                },
-                            );
-                    }
-                    None => {
-                        log::warn!("This code should be unreachable");
-                        // This should never happen
-                        context
-                            .server_context
-                            .transport_context
-                            .write()
-                            .await
-                            .insert(
-                                context.transport_id,
-                                SocialTransportContext {
-                                    address: Address(user_id.social_id.to_string()),
-                                    connection_ts: Instant::now(),
-                                },
-                            );
+                    match social_transport_context {
+                        Some(ctx) => {
+                            context
+                                .server_context
+                                .transport_context
+                                .write()
+                                .await
+                                .insert(
+                                    context.transport_id,
+                                    SocialTransportContext {
+                                        address: Address(user_id.social_id.to_string()),
+                                        connection_ts: ctx.connection_ts,
+                                    },
+                                );
+                        }
+                        None => {
+                            log::warn!("This code should be unreachable");
+                            // This should never happen
+                            context
+                                .server_context
+                                .transport_context
+                                .write()
+                                .await
+                                .insert(
+                                    context.transport_id,
+                                    SocialTransportContext {
+                                        address: Address(user_id.social_id.to_string()),
+                                        connection_ts: Instant::now(),
+                                    },
+                                );
+                        }
                     }
                 }
 
