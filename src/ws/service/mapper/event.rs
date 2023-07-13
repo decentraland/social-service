@@ -144,6 +144,7 @@ pub fn update_request_as_event_payload(
     Ok(event_payload)
 }
 
+///
 pub fn event_response_as_update_response(
     request: UpdateFriendshipPayload,
     result: EventResponse,
@@ -232,6 +233,7 @@ pub fn event_response_as_update_response(
     Ok(update_response)
 }
 
+/// Maps a `FriendshipEventPayload` to an `Event` struct.
 pub fn update_friendship_payload_as_event(
     payload: FriendshipEventPayload,
     from: &str,
@@ -245,5 +247,18 @@ pub fn update_friendship_payload_as_event(
         })
     } else {
         Err(CommonError::Unknown("".to_owned()))
+    }
+}
+
+/// Maps a `FriendshipEventPayload` to an `FriendshipEvent` struct.
+pub fn parse_event_payload_to_friendship_event(
+    payload: FriendshipEventPayload,
+) -> Option<FriendshipEvent> {
+    match payload.body? {
+        friendship_event_payload::Body::Request(_) => Some(FriendshipEvent::REQUEST),
+        friendship_event_payload::Body::Accept(_) => Some(FriendshipEvent::ACCEPT),
+        friendship_event_payload::Body::Reject(_) => Some(FriendshipEvent::REJECT),
+        friendship_event_payload::Body::Delete(_) => Some(FriendshipEvent::DELETE),
+        friendship_event_payload::Body::Cancel(_) => Some(FriendshipEvent::CANCEL),
     }
 }
