@@ -209,7 +209,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         let (friendships_generator, friendships_yielder) = Generator::create();
 
-        let Some(other_user) = request.other_user.clone() else {
+        let Some(other_user) = request.user.clone() else {
             let error = BadRequestError{ message: "`user` was not provided".to_owned() };
             metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
 

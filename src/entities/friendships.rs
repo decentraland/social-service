@@ -285,25 +285,8 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         address_1: String,
         address_2: String,
     ) -> Result<Pin<Box<dyn Stream<Item = UserEntity> + Send>>, sqlx::Error> {
-        let query = "WITH friendsA AS (
-            SELECT CASE
-                     WHEN LOWER(address_1) = LOWER($1) THEN address_2
-                     ELSE address_1
-                   END AS address
-            FROM friendships
-            WHERE LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1)
-          ),
-          friendsB AS (
-            SELECT CASE
-                     WHEN LOWER(address_1) = LOWER($2) THEN address_2
-                     ELSE address_1
-                   END AS address
-            FROM friendships
-            WHERE LOWER(address_1) = LOWER($2) OR LOWER(address_2) = LOWER($2)
-          )
-          SELECT address
-          FROM friendsA
-          WHERE address IN (SELECT address FROM friendsB);";
+        let query: &str = MUTUALS_FRIENDS_QUERY;
+
         let query = sqlx::query(query).bind(address_1).bind(address_2);
 
         let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
