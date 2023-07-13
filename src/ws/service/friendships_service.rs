@@ -487,8 +487,8 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 );
 
                 // Attach social_id to the context by transport_id
-                let mut read = context.server_context.transport_context.write().await;
-                read.entry(context.transport_id)
+                let mut transport_context = context.server_context.transport_context.write().await;
+                transport_context.entry(context.transport_id)
                     .and_modify(|e| e.address = Address(user_id.social_id.to_string()))
                     .or_insert_with(|| {
                         log::warn!("This code should be unreachable");
