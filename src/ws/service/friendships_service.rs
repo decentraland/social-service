@@ -487,14 +487,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 );
 
                 // Attach social_id to the context by transport_id
-                let transport_context_write_lock =
-                    context.server_context.transport_context.write().await;
-                let social_transport_context =
-                    transport_context_write_lock.get(&context.transport_id);
+                let mut write = context.server_context.transport_context.read().await;
+                let social_transport_context = write.get(&context.transport_id);
 
                 match social_transport_context {
                     Some(ctx) => {
-                        transport_context_write_lock.insert(
+                        write.insert(
                             context.transport_id,
                             SocialTransportContext {
                                 address: Address(user_id.social_id.to_string()),
@@ -505,7 +503,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     None => {
                         log::warn!("This code should be unreachable");
                         // This should never happen
-                        transport_context_write_lock.insert(
+                        write.insert(
                             context.transport_id,
                             SocialTransportContext {
                                 address: Address(user_id.social_id.to_string()),
