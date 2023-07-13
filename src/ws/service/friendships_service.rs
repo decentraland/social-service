@@ -487,7 +487,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 );
 
                 // Attach social_id to the context by transport_id
-                let mut write = context.server_context.transport_context.read().await;
+                let mut write = context.server_context.transport_context.write().await;
                 let social_transport_context = write.get(&context.transport_id);
 
                 match social_transport_context {
