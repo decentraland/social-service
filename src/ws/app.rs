@@ -130,10 +130,10 @@ pub async fn run_ws_transport(
     });
 
     let metrics_clone = Arc::clone(&metrics);
-    let transport_contexts_clone = transport_contexts.clone();
+    let transport_contexts_clone = Arc::clone(&transport_contexts);
     rpc_server.set_on_transport_connected_handler(move |_transport, transport_id| {
         metrics_clone.increment_connected_clients();
-        let transport_contexts_clone = transport_contexts_clone.clone();
+        let transport_contexts_clone = Arc::clone(&transport_contexts_clone);
         tokio::spawn(async move {
             transport_contexts_clone.write().await.insert(
                 transport_id,
