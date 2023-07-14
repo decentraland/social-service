@@ -203,15 +203,15 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
     ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
         let start_time = Instant::now();
         let metrics = context.server_context.metrics.clone();
-        // metrics
-        //     .clone()
-        //     .record_in_procedure_call_size(Procedure::GetFriends, &request);
+        metrics
+            .clone()
+            .record_in_procedure_call_size(Procedure::GetFriends, &request);
 
         let (friendships_generator, friendships_yielder) = Generator::create();
 
         let Some(other_user) = request.user.clone() else {
             let error = BadRequestError{ message: "`user` was not provided".to_owned() };
-            // metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+            metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
 
             let result = friendships_yielder
             .r#yield(UsersResponse::from_response(users_response::Response::BadRequestError(
@@ -225,7 +225,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
 
         let Some(auth_token) = request.clone().auth_token.take() else {
             let error = UnauthorizedError{ message: "`auth_token` was not provided".to_owned() };
-            // metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+            metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
 
             let result = friendships_yielder
             .r#yield(UsersResponse::from_response(users_response::Response::UnauthorizedError(
@@ -247,7 +247,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         let Some(repos) = context.server_context.db.db_repos.clone() else {
             log::error!("[RPC] Get mutual friends > Db repositories > `repos` is None.");
             let error = InternalServerError{ message: "An error occurred while getting the mutual friendships".to_owned() };
-            // metrics.record_procedure_call_and_duration_and_out_size( Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+            metrics.record_procedure_call_and_duration_and_out_size( Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
 
             let result = friendships_yielder
             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
@@ -262,12 +262,12 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
         match request_user_id {
             Err(err) => {
                 let error_response: UsersResponse = err.clone().into();
-                // metrics.record_procedure_call_and_duration_and_out_size(
-                //     Some(err.clone().into()),
-                //     Procedure::GetMutualFriends,
-                //     start_time,
-                //     error_response.encoded_len(),
-                // );
+                metrics.record_procedure_call_and_duration_and_out_size(
+                    Some(err.clone().into()),
+                    Procedure::GetMutualFriends,
+                    start_time,
+                    error_response.encoded_len(),
+                );
                 let result = friendships_yielder.r#yield(error_response).await;
                 if let Err(err) = result {
                     log::error!(
@@ -294,7 +294,7 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             "[RPC] Get mutual friends > Get user friends stream > Error: There was an error accessing to the friendships repository."
                         );
                         let error = InternalServerError{ message: "An error occurred while sending the response to the stream".to_owned() };
-                        // metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+                        metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
 
                         let result = friendships_yielder
                             .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
@@ -321,11 +321,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                             let response = UsersResponse::from_response(
                                 users_response::Response::Users(users.clone()),
                             );
-                            // metrics_clone.record_out_procedure_call_size(
-                            //     None,
-                            //     Procedure::GetMutualFriends,
-                            //     response.encoded_len(),
-                            // );
+                            metrics_clone.record_out_procedure_call_size(
+                                None,
+                                Procedure::GetMutualFriends,
+                                response.encoded_len(),
+                            );
                             let result = friendships_yielder.r#yield(response).await;
                             if let Err(err) = result {
                                 log::error!("[RPC] There was an error yielding the response to the mutual friendships generator: {:?}", err);
@@ -338,11 +338,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                         let response = UsersResponse::from_response(
                             users_response::Response::Users(users.clone()),
                         );
-                        // metrics_clone.record_out_procedure_call_size(
-                        //     None,
-                        //     Procedure::GetMutualFriends,
-                        //     response.encoded_len(),
-                        // );
+                        metrics_clone.record_out_procedure_call_size(
+                            None,
+                            Procedure::GetMutualFriends,
+                            response.encoded_len(),
+                        );
                         let result = friendships_yielder.r#yield(response).await;
                         if let Err(err) = result {
                             log::error!("[RPC] There was an error yielding the response to the mutual friendships generator: {:?}", err);
@@ -350,11 +350,11 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                     }
                 });
 
-                // metrics.record_procedure_call_and_duration(
-                //     None,
-                //     Procedure::GetMutualFriends,
-                //     start_time,
-                // );
+                metrics.record_procedure_call_and_duration(
+                    None,
+                    Procedure::GetMutualFriends,
+                    start_time,
+                );
 
                 log::info!(
                     "[RPC] Returning generator for mutual friends for user {} and {}",
