@@ -1,3 +1,4 @@
+// This query retrieves the intersecition of friends between two users
 pub const MUTUALS_FRIENDS_QUERY: &str = "WITH friendsA as (
   SELECT
     CASE

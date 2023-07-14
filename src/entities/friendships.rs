@@ -21,6 +21,11 @@ pub struct Friendship {
     pub synapse_room_id: String,
 }
 
+#[derive(FromRow)]
+pub struct UserEntity {
+    pub address: String,
+}
+
 #[derive(Clone)]
 pub struct FriendshipsRepository {
     db_connection: Arc<Option<DBConnection>>,
@@ -82,6 +87,12 @@ pub trait FriendshipRepositoryImplementation {
         address: &str,
         only_active: bool,
     ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error>;
+
+    async fn get_mutual_friends_stream<'a>(
+        &'a self,
+        address_1: String,
+        address_2: String,
+    ) -> Result<Pin<Box<dyn Stream<Item = UserEntity> + Send>>, sqlx::Error>;
 
     async fn update_friendship_status(
         &self,
@@ -266,6 +277,34 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
             }
         });
         Ok(Box::pin(friends_stream))
+    }
+
+    #[tracing::instrument(name = "Get mutual friends from DB stream")]
+    async fn get_mutual_friends_stream<'a>(
+        &'a self,
+        address_1: String,
+        address_2: String,
+    ) -> Result<Pin<Box<dyn Stream<Item = UserEntity> + Send>>, sqlx::Error> {
+        let query: &str = MUTUALS_FRIENDS_QUERY;
+
+        let query = sqlx::query(query).bind(address_1).bind(address_2);
+
+        let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
+
+        let response = DatabaseComponent::fetch_stream(query, pool);
+        let mutual_friends_stream = response.filter_map(|row| async move {
+            match row {
+                Ok(row) => {
+                    let user = UserEntity::from_row(&row).expect("to be a user");
+                    Some(user)
+                }
+                Err(err) => {
+                    log::error!("Couldn't stream fetch mutual friends, {}", err);
+                    None
+                }
+            }
+        });
+        Ok(Box::pin(mutual_friends_stream))
     }
 
     #[tracing::instrument(name = "Get mutual user friends from DB")]

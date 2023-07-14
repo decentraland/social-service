@@ -260,6 +260,7 @@ impl Reject for InvalidHeader {}
 #[derive(Clone)]
 pub enum Procedure {
     GetFriends,
+    GetMutualFriends,
     GetRequestEvents,
     UpdateFriendshipEvent,
     SubscribeFriendshipEventsUpdates,
@@ -269,6 +270,7 @@ impl Procedure {
     pub fn as_str(&self) -> &str {
         match self {
             Procedure::GetFriends => "GetFriends",
+            Procedure::GetMutualFriends => "GetMutualFriends",
             Procedure::GetRequestEvents => "GetRequestEvents",
             Procedure::UpdateFriendshipEvent => "UpdateFriendshipEvent",
             Procedure::SubscribeFriendshipEventsUpdates => "SubscribeFriendshipEventsUpdates",

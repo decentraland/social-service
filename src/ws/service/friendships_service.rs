@@ -20,10 +20,11 @@ use crate::{
     domain::{address::Address, error::CommonError},
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     friendships::{
-        request_events_response, update_friendship_response, users_response,
-        FriendshipsServiceServer, InternalServerError, Payload, RequestEventsResponse,
-        ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse, UnauthorizedError,
-        UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users, UsersResponse,
+        request_events_response, update_friendship_response, users_response, BadRequestError,
+        FriendshipsServiceServer, InternalServerError, MutualFriendsPayload, Payload,
+        RequestEventsResponse, ServerStreamResponse, SubscribeFriendshipEventsUpdatesResponse,
+        UnauthorizedError, UpdateFriendshipPayload, UpdateFriendshipResponse, User, Users,
+        UsersResponse,
     },
     ws::{
         app::{SocialContext, SocialTransportContext},
@@ -185,6 +186,180 @@ impl FriendshipsServiceServer<SocialContext, RPCFriendshipsServiceError> for MyF
                 log::info!(
                     "[RPC] Returning generator for all friends for user {}",
                     social_id
+                );
+            }
+        }
+        Ok(friendships_generator)
+    }
+
+    #[tracing::instrument(
+        name = "RPC SERVER > Get Mutual Friends Generator",
+        skip(request, context)
+    )]
+    async fn get_mutual_friends(
+        &self,
+        request: MutualFriendsPayload,
+        context: ProcedureContext<SocialContext>,
+    ) -> Result<ServerStreamResponse<UsersResponse>, RPCFriendshipsServiceError> {
+        let start_time = Instant::now();
+        let metrics = context.server_context.metrics.clone();
+        metrics
+            .clone()
+            .record_in_procedure_call_size(Procedure::GetFriends, &request);
+
+        let (friendships_generator, friendships_yielder) = Generator::create();
+
+        let Some(other_user) = request.user.clone() else {
+            let error = BadRequestError{ message: "`user` was not provided".to_owned() };
+            metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+
+            let result = friendships_yielder
+            .r#yield(UsersResponse::from_response(users_response::Response::BadRequestError(
+                error)))
+            .await;
+            if let Err(err) = result {
+                log::error!("[RPC] There was an error yielding the error to the mutual friendships generator: {:?}", err);
+            };
+            return Ok(friendships_generator);
+        };
+
+        let Some(auth_token) = request.clone().auth_token.take() else {
+            let error = UnauthorizedError{ message: "`auth_token` was not provided".to_owned() };
+            metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+
+            let result = friendships_yielder
+            .r#yield(UsersResponse::from_response(users_response::Response::UnauthorizedError(
+                error)))
+            .await;
+            if let Err(err) = result {
+                log::error!("[RPC] There was an error yielding the error to the mutual friendships generator: {:?}", err);
+            };
+            return Ok(friendships_generator);
+        };
+
+        let request_user_id = get_user_id_from_request(
+            &auth_token,
+            context.server_context.synapse.clone(),
+            context.server_context.users_cache.clone(),
+        )
+        .await;
+
+        let Some(repos) = context.server_context.db.db_repos.clone() else {
+            log::error!("[RPC] Get mutual friends > Db repositories > `repos` is None.");
+            let error = InternalServerError{ message: "An error occurred while getting the mutual friendships".to_owned() };
+            metrics.record_procedure_call_and_duration_and_out_size( Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+
+            let result = friendships_yielder
+            .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
+                error)))
+            .await;
+            if let Err(err) = result {
+                log::error!("[RPC] There was an error yielding the error to the mutual friendships generator: {:?}", err);
+            };
+            return Ok(friendships_generator);
+        };
+
+        match request_user_id {
+            Err(err) => {
+                let error_response: UsersResponse = err.clone().into();
+                metrics.record_procedure_call_and_duration_and_out_size(
+                    Some(err.clone().into()),
+                    Procedure::GetMutualFriends,
+                    start_time,
+                    error_response.encoded_len(),
+                );
+                let result = friendships_yielder.r#yield(error_response).await;
+                if let Err(err) = result {
+                    log::error!(
+                        "[RPC] There was an error yielding the error to the mutual friendships generator: {:?}",
+                        err
+                    );
+                };
+            }
+            Ok(user_id) => {
+                let social_id = user_id.social_id.clone();
+                let other_id = other_user.address.clone();
+                log::info!(
+                    "[RPC] Getting all mutual friends for user: {} and {}",
+                    social_id,
+                    other_id
+                );
+
+                let Ok(mut friendship) = repos
+                    .friendships
+                    .clone()
+                    .get_mutual_friends_stream(user_id.social_id.clone().to_string(), other_user.address.clone().to_string())
+                    .await else {
+                        log::error!(
+                            "[RPC] Get mutual friends > Get user friends stream > Error: There was an error accessing to the friendships repository."
+                        );
+                        let error = InternalServerError{ message: "An error occurred while sending the response to the stream".to_owned() };
+                        metrics.record_procedure_call_and_duration_and_out_size(Some(error.clone().into()), Procedure::GetMutualFriends, start_time, error.encoded_len());
+
+                        let result = friendships_yielder
+                            .r#yield(UsersResponse::from_response(users_response::Response::InternalServerError(
+                                error)))
+                            .await;
+                        if let Err(err) = result {
+                            log::error!("[RPC] There was an error yielding the error to the mutual friendships generator: {:?}", err);
+                        };
+                        return Ok(friendships_generator);
+                    };
+                let metrics_clone = metrics.clone();
+                tokio::spawn(async move {
+                    let mut users: Users = Users::default();
+
+                    let friends_stream_page_size =
+                        context.server_context.friends_stream_page_size as usize;
+
+                    while let Some(user_id) = friendship.next().await {
+                        let current_user = User {
+                            address: user_id.address,
+                        };
+                        users.users.push(current_user);
+                        if users.users.len() == friends_stream_page_size {
+                            let response = UsersResponse::from_response(
+                                users_response::Response::Users(users.clone()),
+                            );
+                            metrics_clone.record_out_procedure_call_size(
+                                None,
+                                Procedure::GetMutualFriends,
+                                response.encoded_len(),
+                            );
+                            let result = friendships_yielder.r#yield(response).await;
+                            if let Err(err) = result {
+                                log::error!("[RPC] There was an error yielding the response to the mutual friendships generator: {:?}", err);
+                                break;
+                            };
+                            users = Users::default();
+                        }
+                    }
+                    if !users.users.is_empty() {
+                        let response = UsersResponse::from_response(
+                            users_response::Response::Users(users.clone()),
+                        );
+                        metrics_clone.record_out_procedure_call_size(
+                            None,
+                            Procedure::GetMutualFriends,
+                            response.encoded_len(),
+                        );
+                        let result = friendships_yielder.r#yield(response).await;
+                        if let Err(err) = result {
+                            log::error!("[RPC] There was an error yielding the response to the mutual friendships generator: {:?}", err);
+                        };
+                    }
+                });
+
+                metrics.record_procedure_call_and_duration(
+                    None,
+                    Procedure::GetMutualFriends,
+                    start_time,
+                );
+
+                log::info!(
+                    "[RPC] Returning generator for mutual friends for user {} and {}",
+                    social_id,
+                    other_id
                 );
             }
         }
