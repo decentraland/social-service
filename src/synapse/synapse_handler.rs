@@ -123,6 +123,10 @@ async fn get_room_id_for_alias_in_synapse(
     room_alias_name: &str,
     synapse: &SynapseComponent,
 ) -> Result<String, CommonError> {
+    println!(
+        "get_room_id_for_alias_in_synapse >> room_alias_name: {:?}",
+        room_alias_name
+    );
     let res = synapse
         .get_room_id_for_alias(token, room_alias_name, synapse)
         .await;
@@ -158,6 +162,10 @@ pub async fn get_or_create_synapse_room_id(
         None => {
             if new_event == &FriendshipEvent::REQUEST {
                 let room_alias_name: String = build_room_local_alias(acting_user, second_user);
+                println!(
+                    "get_or_create_synapse_room_id >> room_alias_name: {:?}",
+                    room_alias_name
+                );
 
                 let get_room_result =
                     get_room_id_for_alias_in_synapse(token, &room_alias_name, synapse).await;
