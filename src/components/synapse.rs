@@ -239,7 +239,7 @@ impl SynapseComponent {
             res.chunk
                 .iter_mut()
                 .filter(|room_member| room_member.state_key.starts_with('@'))
-                .for_each(|mut room_member| {
+                .for_each(|room_member| {
                     room_member.social_user_id =
                         Some(clean_synapse_user_id(&room_member.state_key));
                 });
@@ -258,9 +258,6 @@ impl SynapseComponent {
         let path = "/_matrix/client/r0/createRoom".to_string();
 
         let invite = synapse_user_ids.iter().map(|id| id.to_string()).collect();
-
-        print!("invite: {:?}", invite);
-        print!("room_alias_name: {:?}", room_alias_name);
 
         Self::authenticated_post_request(
             &path,
@@ -322,7 +319,6 @@ impl SynapseComponent {
         synapse: &SynapseComponent,
     ) -> Result<RoomIdResponse, CommonError> {
         let encoded_alias = full_encoded_alias(alias, synapse);
-        println!("encoded_alias: {:?}", encoded_alias);
         let path = format!("/_matrix/client/r0/directory/room/{encoded_alias}");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
@@ -381,7 +377,6 @@ impl SynapseComponent {
         synapse_url: &str,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
-        println!("url: {:?}", url);
         let client = reqwest::Client::new();
         let response = client
             .get(url)
@@ -389,15 +384,13 @@ impl SynapseComponent {
             .send()
             .await;
 
-        Self::process_synapse_response::<T>(response).await // {"room_id":"!UYnHrhkydFmiWaEvVp:decentraland.zone","servers":["decentraland.zone"]}
+        Self::process_synapse_response::<T>(response).await
     }
     async fn process_synapse_response<T: DeserializeOwned>(
         response: Result<reqwest::Response, reqwest::Error>,
     ) -> Result<T, CommonError> {
         match response {
             Ok(response) => {
-                println!("response OK: {:?}", response);
-
                 let text = response.text().await;
                 if let Err(err) = text {
                     log::warn!("[Synapse] error reading synapse response {}", err);
@@ -405,7 +398,6 @@ impl SynapseComponent {
                 }
 
                 let text = text.unwrap();
-                println!("text: {}", text);
                 let response = serde_json::from_str::<T>(&text);
 
                 response.map_err(|_err| Self::parse_and_return_error(&text))
