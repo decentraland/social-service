@@ -96,6 +96,10 @@ async fn create_private_room_in_synapse(
     room_alias_name: String,
     synapse: &SynapseComponent,
 ) -> Result<CreateRoomResponse, CommonError> {
+    println!(
+        "create_private_room_in_synapse >> synapse_user_ids: {:?}, room_alias_name: {:?}",
+        synapse_user_ids, room_alias_name
+    );
     let res = synapse
         .create_private_room(token, synapse_user_ids, &room_alias_name)
         .await;
