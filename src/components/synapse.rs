@@ -258,6 +258,9 @@ impl SynapseComponent {
 
         let invite = synapse_user_ids.iter().map(|id| id.to_string()).collect();
 
+        print!("invite: {:?}", invite);
+        print!("room_alias_name: {:?}", room_alias_name);
+
         Self::authenticated_post_request(
             &path,
             token,
@@ -318,6 +321,7 @@ impl SynapseComponent {
         synapse: &SynapseComponent,
     ) -> Result<RoomIdResponse, CommonError> {
         let encoded_alias = full_encoded_alias(alias, synapse);
+        println!("encoded_alias: {:?}", encoded_alias);
         let path = format!("/_matrix/client/r0/directory/room/{encoded_alias}");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
@@ -397,6 +401,7 @@ impl SynapseComponent {
                 }
 
                 let text = text.unwrap();
+                println!("text: {}", text);
                 let response = serde_json::from_str::<T>(&text);
 
                 response.map_err(|_err| Self::parse_and_return_error(&text))
