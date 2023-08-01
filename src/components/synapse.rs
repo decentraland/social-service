@@ -16,9 +16,10 @@ pub struct AccountDataContentResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RoomIdResponse {
     pub room_id: String,
-    _servers: Vec<String>,
+    servers: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -380,6 +381,7 @@ impl SynapseComponent {
         synapse_url: &str,
     ) -> Result<T, CommonError> {
         let url = format!("{synapse_url}{path}");
+        println!("url: {:?}", url);
         let client = reqwest::Client::new();
         let response = client
             .get(url)
@@ -387,13 +389,15 @@ impl SynapseComponent {
             .send()
             .await;
 
-        Self::process_synapse_response::<T>(response).await
+        Self::process_synapse_response::<T>(response).await // {"room_id":"!UYnHrhkydFmiWaEvVp:decentraland.zone","servers":["decentraland.zone"]}
     }
     async fn process_synapse_response<T: DeserializeOwned>(
         response: Result<reqwest::Response, reqwest::Error>,
     ) -> Result<T, CommonError> {
         match response {
             Ok(response) => {
+                println!("response OK: {:?}", response);
+
                 let text = response.text().await;
                 if let Err(err) = text {
                     log::warn!("[Synapse] error reading synapse response {}", err);
