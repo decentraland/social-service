@@ -162,7 +162,7 @@ impl SynapseComponent {
         })
     }
 
-    #[tracing::instrument(name = "put room event > Synapse components")]
+    #[tracing::instrument(name = "put room event > Synapse components", skip(token))]
     pub async fn store_room_event(
         &self,
         token: &str,
@@ -184,7 +184,10 @@ impl SynapseComponent {
         .await
     }
 
-    #[tracing::instrument(name = "put send message event to the given room > Synapse components")]
+    #[tracing::instrument(
+        name = "put send message event to the given room > Synapse components",
+        skip(token)
+    )]
     pub async fn send_message_event_given_room(
         &self,
         token: &str,
@@ -217,7 +220,7 @@ impl SynapseComponent {
         .await
     }
 
-    #[tracing::instrument(name = "get_room_members > Synapse components")]
+    #[tracing::instrument(name = "get_room_members > Synapse components", skip(token))]
     pub async fn get_room_members(
         &self,
         token: &str,
@@ -244,7 +247,7 @@ impl SynapseComponent {
         })
     }
 
-    #[tracing::instrument(name = "create_private_room > Synapse components")]
+    #[tracing::instrument(name = "create_private_room > Synapse components", skip(token))]
     pub async fn create_private_room(
         &self,
         token: &str,
