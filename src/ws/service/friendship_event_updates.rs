@@ -108,17 +108,6 @@ pub async fn handle_friendship_update(
     )
     .await?;
 
-    // Store the friendship event in the given room.
-    // We'll continue storing the event in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates
-    store_room_event_in_synapse_room(
-        &synapse_token,
-        synapse_room_id.as_str(),
-        new_event,
-        room_message_body,
-        &context.synapse,
-    )
-    .await?;
-
     // End transaction
     if let Err(err) = transaction.commit().await {
         log::error!(
