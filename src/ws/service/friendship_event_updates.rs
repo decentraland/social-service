@@ -15,7 +15,6 @@ use crate::{
     },
     synapse::synapse_handler::{
         get_or_create_synapse_room_id, set_account_data, store_message_in_synapse_room,
-        store_room_event_in_synapse_room,
     },
     ws::app::SocialContext,
 };
