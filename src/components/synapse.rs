@@ -16,9 +16,10 @@ pub struct AccountDataContentResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RoomIdResponse {
     pub room_id: String,
-    _servers: Vec<String>,
+    servers: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -162,7 +163,7 @@ impl SynapseComponent {
         })
     }
 
-    #[tracing::instrument(name = "put room event > Synapse components")]
+    #[tracing::instrument(name = "put room event > Synapse components", skip(token))]
     pub async fn store_room_event(
         &self,
         token: &str,
@@ -184,7 +185,10 @@ impl SynapseComponent {
         .await
     }
 
-    #[tracing::instrument(name = "put send message event to the given room > Synapse components")]
+    #[tracing::instrument(
+        name = "put send message event to the given room > Synapse components",
+        skip(token)
+    )]
     pub async fn send_message_event_given_room(
         &self,
         token: &str,
@@ -217,7 +221,7 @@ impl SynapseComponent {
         .await
     }
 
-    #[tracing::instrument(name = "get_room_members > Synapse components")]
+    #[tracing::instrument(name = "get_room_members > Synapse components", skip(token))]
     pub async fn get_room_members(
         &self,
         token: &str,
@@ -235,7 +239,7 @@ impl SynapseComponent {
             res.chunk
                 .iter_mut()
                 .filter(|room_member| room_member.state_key.starts_with('@'))
-                .for_each(|mut room_member| {
+                .for_each(|room_member| {
                     room_member.social_user_id =
                         Some(clean_synapse_user_id(&room_member.state_key));
                 });
@@ -244,7 +248,7 @@ impl SynapseComponent {
         })
     }
 
-    #[tracing::instrument(name = "create_private_room > Synapse components")]
+    #[tracing::instrument(name = "create_private_room > Synapse components", skip(token))]
     pub async fn create_private_room(
         &self,
         token: &str,
