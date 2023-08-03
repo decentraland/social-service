@@ -109,6 +109,7 @@ pub async fn handle_friendship_update(
     .await?;
 
     // If it's a accepted friendship request event, then the user has to accept the room invitation in synapse.
+    // We'll continue storing the room membership update in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates
     accept_room_invitation(
         &synapse_token,
         synapse_room_id.as_str(),
