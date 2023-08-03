@@ -175,7 +175,7 @@ impl SynapseComponent {
     ) -> Result<RoomJoinResponse, CommonError> {
         let path = format!("/_matrix/client/r0/rooms/{room_id}/join");
 
-        Self::authenticated_post_request(&path, token, &self.synapse_url, {}).await
+        Self::authenticated_post_request(&path, token, &self.synapse_url, ()).await
     }
 
     #[tracing::instrument(name = "put room event > Synapse components", skip(token))]
