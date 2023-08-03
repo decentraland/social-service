@@ -24,6 +24,26 @@ fn build_room_local_alias(acting_user: &str, second_user: &str) -> String {
     addresses.join("+")
 }
 
+/// When accepting a friend request, then the room invitation needs to be accepted too. Check out [here](https://spec.matrix.org/v1.3/client-server-api/#room-membership) to find out more about room membership and permissions based on the state in which a user may be.
+pub async fn accept_room_invitation<'a>(
+    token: &str,
+    room_id: &str,
+    room_event: FriendshipEvent,
+    room_message_body: Option<&str>,
+    synapse: &SynapseComponent,
+) -> Result<(), CommonError> {
+    // Check if it's a `accept` event.
+    if room_event != FriendshipEvent::ACCEPT {
+        return Ok(());
+    }
+
+    synapse
+        .join_room(token, room_id, room_event, room_message_body)
+        .await?;
+
+    Ok(())
+}
+
 /// Stores a message event in a Synapse room if it's a friendship request event and the request contains a message.
 pub async fn store_message_in_synapse_room<'a>(
     token: &str,
