@@ -4,7 +4,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
-    api::routes::synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
+    api::routes::synapse::room_events::{
+        RoomEventRequestBody, RoomEventResponse, RoomJoinResponse,
+    },
     domain::{error::CommonError, friendship_event::FriendshipEvent},
 };
 
@@ -161,6 +163,19 @@ impl SynapseComponent {
             res.social_user_id = Some(clean_synapse_user_id(&res.user_id));
             res
         })
+    }
+
+    #[tracing::instrument(name = "join room > Synapse components", skip(token))]
+    pub async fn join_room(
+        &self,
+        token: &str,
+        room_id: &str,
+        room_event: FriendshipEvent,
+        room_message_body: Option<&str>,
+    ) -> Result<RoomJoinResponse, CommonError> {
+        let path = format!("/_matrix/client/r0/rooms/{room_id}/join");
+
+        Self::authenticated_post_request(&path, token, &self.synapse_url, {}).await
     }
 
     #[tracing::instrument(name = "put room event > Synapse components", skip(token))]

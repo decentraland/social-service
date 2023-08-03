@@ -32,6 +32,11 @@ pub struct RoomEventResponse {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct RoomJoinResponse {
+    pub room_id: String,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct RoomEventRequestBody {
     pub r#type: FriendshipEvent,
     pub message: Option<String>,

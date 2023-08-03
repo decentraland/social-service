@@ -14,8 +14,8 @@ use crate::{
         friendship_status_calculator::get_new_friendship_status,
     },
     synapse::synapse_handler::{
-        get_or_create_synapse_room_id, set_account_data, store_message_in_synapse_room,
-        store_room_event_in_synapse_room,
+        accept_room_invitation, get_or_create_synapse_room_id, set_account_data,
+        store_message_in_synapse_room, store_room_event_in_synapse_room,
     },
     ws::app::SocialContext,
 };
@@ -100,6 +100,16 @@ pub async fn handle_friendship_update(
 
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
     store_message_in_synapse_room(
+        &synapse_token,
+        synapse_room_id.as_str(),
+        new_event,
+        room_message_body,
+        &context.synapse,
+    )
+    .await?;
+
+    // If it's a accepted friendship request event, then the user has to accept the room invitation in synapse.
+    accept_room_invitation(
         &synapse_token,
         synapse_room_id.as_str(),
         new_event,
