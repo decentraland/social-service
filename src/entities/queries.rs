@@ -15,7 +15,7 @@ pub const MUTUALS_FRIENDS_QUERY: &str = "WITH friendsA as (
         (
           LOWER(f_a.address_1) = LOWER($1)
           or LOWER(f_a.address_2) = LOWER($1)
-        )
+        ) and f_a.is_active = true
     ) as friends_a
 )
 SELECT
@@ -39,7 +39,7 @@ WHERE
           (
             LOWER(f_b.address_1) = LOWER($2)
             or LOWER(f_b.address_2) = LOWER($2)
-          )
+          ) and f_b.is_active = true
       ) as friends_b
   );";
 
