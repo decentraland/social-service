@@ -226,40 +226,34 @@ pub async fn set_account_data(
         .get_account_data(token, &acting_user_as_synapse_id)
         .await;
 
-    match m_direct_event {
+    let mut direct_room_map = match m_direct_event {
         Ok(m_direct_event) => {
-            let mut direct_room_map = if !m_direct_event.direct.is_empty() {
+            if !m_direct_event.direct.is_empty() {
                 m_direct_event.direct.clone()
             } else {
                 HashMap::new()
-            };
+            }
+        }
+        Err(_) => HashMap::new(),
+    };
 
-            let second_user_as_synapse_id =
-                user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
-            if let Some(room_ids) = direct_room_map.get_mut(&second_user_as_synapse_id) {
-                if room_ids.contains(&room_id.to_string()) {
-                    return Ok(());
-                } else {
-                    direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
-                    synapse
-                        .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
-                        .await
-                        .map_err(|err| {
-                            log::error!(
-                                "[RPC] Set account data > Error setting account data {err}"
-                            );
-                            err
-                        })?;
-                    return Ok(());
-                }
-            };
-            Ok(())
+    let second_user_as_synapse_id = user_id_as_synapse_user_id(second_user, &synapse.synapse_url);
+    if let Some(room_ids) = direct_room_map.get_mut(&second_user_as_synapse_id) {
+        if room_ids.contains(&room_id.to_string()) {
+            return Ok(());
+        } else {
+            direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
+            synapse
+                .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
+                .await
+                .map_err(|err| {
+                    log::error!("[RPC] Set account data > Error setting account data {err}");
+                    err
+                })?;
+            return Ok(());
         }
-        Err(err) => {
-            log::error!("[RPC] Set account data > Error getting account data {err}");
-            Err(err)
-        }
-    }
+    };
+    Ok(())
 }
 
 #[cfg(test)]
