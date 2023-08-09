@@ -173,7 +173,8 @@ impl SynapseComponent {
         room_event: FriendshipEvent,
         room_message_body: Option<&str>,
     ) -> Result<RoomJoinResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/rooms/{room_id}/join");
+        let encoded_room_id = encode(&room_id).to_string();
+        let path = format!("/_matrix/client/r0/rooms/{encoded_room_id}/join");
 
         Self::authenticated_post_request(&path, token, &self.synapse_url, ()).await
     }
@@ -186,7 +187,9 @@ impl SynapseComponent {
         room_event: FriendshipEvent,
         room_message_body: Option<&str>,
     ) -> Result<RoomEventResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship");
+        let encoded_room_id = encode(&room_id).to_string();
+        let path =
+            format!("/_matrix/client/r0/rooms/{encoded_room_id}/state/org.decentraland.friendship");
 
         Self::authenticated_put_request(
             &path,
@@ -222,7 +225,9 @@ impl SynapseComponent {
                 .as_millis()
         );
 
-        let path = format!("/_matrix/client/r0/rooms/{room_id}/send/m.room.message/{txn_id}");
+        let encoded_room_id = encode(&room_id).to_string();
+        let path =
+            format!("/_matrix/client/r0/rooms/{encoded_room_id}/send/m.room.message/{txn_id}");
 
         Self::authenticated_put_request(
             &path,
@@ -242,7 +247,8 @@ impl SynapseComponent {
         token: &str,
         room_id: &str,
     ) -> Result<RoomMembersResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/rooms/{room_id}/members");
+        let encoded_room_id = encode(&room_id).to_string();
+        let path = format!("/_matrix/client/r0/rooms/{encoded_room_id}/members");
         let response = Self::authenticated_get_request::<RoomMembersResponse>(
             &path,
             token,
@@ -296,8 +302,9 @@ impl SynapseComponent {
         synapse_user_id: &str,
         direct_room_map: HashMap<String, Vec<String>>,
     ) -> Result<(), CommonError> {
+        let encoded_synapse_user_id = encode(&synapse_user_id).to_string();
         let path: String =
-            format!("/_matrix/client/r0/user/{synapse_user_id}/account_data/m.direct");
+            format!("/_matrix/client/r0/user/{encoded_synapse_user_id}/account_data/m.direct");
 
         let result: Result<HashMap<String, Vec<String>>, _> =
             Self::authenticated_put_request::<HashMap<String, Vec<String>>, _>(
@@ -321,8 +328,9 @@ impl SynapseComponent {
         token: &str,
         synapse_user_id: &str,
     ) -> Result<AccountDataContentResponse, CommonError> {
+        let encoded_synapse_user_id = encode(&synapse_user_id).to_string();
         let path: String =
-            format!("/_matrix/client/r0/user/{synapse_user_id}/account_data/m.direct");
+            format!("/_matrix/client/r0/user/{encoded_synapse_user_id}/account_data/m.direct");
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
