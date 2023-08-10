@@ -242,17 +242,19 @@ pub async fn set_account_data(
         if room_ids.contains(&room_id.to_string()) {
             return Ok(());
         } else {
-            direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
-            synapse
-                .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
-                .await
-                .map_err(|err| {
-                    log::error!("[RPC] Set account data > Error setting account data {err}");
-                    err
-                })?;
-            return Ok(());
+            room_ids.push(room_id.to_string());
         }
+    } else {
+        direct_room_map.insert((&second_user).to_string(), vec![room_id.to_string()]);
     };
+
+    synapse
+        .set_account_data(token, &acting_user_as_synapse_id, direct_room_map)
+        .await
+        .map_err(|err| {
+            log::error!("[RPC] Set account data > Error setting account data {err}");
+            err
+        })?;
     Ok(())
 }
 
