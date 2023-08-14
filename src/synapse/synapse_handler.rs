@@ -24,37 +24,6 @@ fn build_room_local_alias(acting_user: &str, second_user: &str) -> String {
     addresses.join("+")
 }
 
-pub async fn invite_other_if_needed<'a>(
-    token: &str,
-    room_id: &str,
-    synapse_other_user_id: &str,
-    synapse: &SynapseComponent,
-) -> Result<(), CommonError> {
-    // Get room members
-    let room_members = synapse.get_room_members(token, room_id).await;
-    match room_members {
-        Ok(response) => {
-            let exists = response
-                .chunk
-                .iter()
-                .find(|x| x.user_id == synapse_other_user_id);
-            match exists {
-                Some(m) => Ok(()),
-                None => {
-                    let invite_response = synapse
-                        .invite_user_to_room(token, room_id, synapse_other_user_id)
-                        .await;
-                    match invite_response {
-                        Ok(_) => Ok(()),
-                        Err(err) => Err(err),
-                    }
-                }
-            }
-        }
-        Err(err) => Err(err),
-    }
-}
-
 /// When accepting a friend request, then the room invitation needs to be accepted too. Check out [here](https://spec.matrix.org/v1.3/client-server-api/#room-membership) to find out more about room membership and permissions based on the state in which a user may be.
 pub async fn accept_room_invitation<'a>(
     token: &str,

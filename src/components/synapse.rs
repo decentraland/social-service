@@ -284,26 +284,6 @@ impl SynapseComponent {
         })
     }
 
-    /// https://spec.matrix.org/v1.3/client-server-api/#post_matrixclientv3roomsroomidinvite
-    pub async fn invite_user_to_room(
-        &self,
-        token: &str,
-        room_id: &str,
-        user_id: &str,
-    ) -> Result<(), CommonError> {
-        let encoded_room_id = encode(room_id).to_string();
-        let path = format!("/_matrix/client/r0/rooms/{encoded_room_id}/invite");
-        Self::authenticated_post_request(
-            &path,
-            token,
-            self.synapse_url.as_str(),
-            &InviteUserRequest {
-                user_id: user_id.to_string(),
-            },
-        )
-        .await
-    }
-
     /// https://spec.matrix.org/v1.3/client-server-api/#creation
     #[tracing::instrument(name = "create_private_room > Synapse components", skip(token))]
     pub async fn create_private_room(
