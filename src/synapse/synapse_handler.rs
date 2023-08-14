@@ -41,10 +41,7 @@ pub async fn accept_room_invitation<'a>(
                 let joined_room = synapse
                     .join_room(token, room_id, room_event, room_message_body)
                     .await;
-                match joined_room {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(err),
-                }
+                joined_room.map(|_| ())
             } else {
                 Ok(())
             }
