@@ -48,6 +48,18 @@ pub async fn handle_friendship_update(
     )
     .await?;
 
+    let room_message_body = event_payload.request_event_message_body.as_deref();
+
+    // The room may exists but maybe the current user hasn't joined it yet.
+    accept_room_invitation(
+        &synapse_token,
+        synapse_room_id.as_str(),
+        new_event,
+        room_message_body,
+        &context.synapse,
+    )
+    .await?;
+
     set_account_data(
         &synapse_token,
         &acting_user,
@@ -81,7 +93,6 @@ pub async fn handle_friendship_update(
     };
 
     // Update the friendship accordingly in the database. This means creating an entry in the friendships table or updating the is_active column.
-    let room_message_body = event_payload.request_event_message_body.as_deref();
     let room_info = RoomInfo {
         room_event: new_event,
         room_message_body,
@@ -100,17 +111,6 @@ pub async fn handle_friendship_update(
 
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
     store_message_in_synapse_room(
-        &synapse_token,
-        synapse_room_id.as_str(),
-        new_event,
-        room_message_body,
-        &context.synapse,
-    )
-    .await?;
-
-    // If it's a accepted friendship request event, then the user has to accept the room invitation in synapse.
-    // We'll continue storing the room membership update in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates
-    accept_room_invitation(
         &synapse_token,
         synapse_room_id.as_str(),
         new_event,
