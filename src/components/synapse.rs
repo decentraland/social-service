@@ -174,7 +174,7 @@ impl SynapseComponent {
     /// https://spec.matrix.org/v1.3/client-server-api/#get_matrixclientv3joined_rooms
     #[tracing::instrument(name = "get joined rooms > Synapse components", skip(token))]
     pub async fn get_joined_rooms(&self, token: &str) -> Result<JoinedRoomsResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/joined_rooms");
+        let path = "/_matrix/client/r0/joined_rooms".to_string();
 
         Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }

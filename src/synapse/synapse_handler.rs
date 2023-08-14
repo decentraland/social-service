@@ -38,7 +38,7 @@ pub async fn accept_room_invitation<'a>(
             if !rooms.joined_rooms.contains(&room_id.to_string()) {
                 // The room exists of a previous interaction between users, but the current user hasn't joined yet
                 let joined_room = synapse
-                    .join_room(token, &room_id, room_event, room_message_body)
+                    .join_room(token, room_id, room_event, room_message_body)
                     .await;
                 match joined_room {
                     Ok(_) => Ok(()),
