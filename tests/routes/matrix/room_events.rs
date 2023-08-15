@@ -41,12 +41,14 @@ mod tests {
                     r#type: "".to_string(),
                     state_key: room_members.0,
                     social_user_id: None,
+                    user_id: "".to_string(),
                 },
                 RoomMember {
                     room_id: "a_room_id".to_string(),
                     r#type: "".to_string(),
                     state_key: room_members.1,
                     social_user_id: None,
+                    user_id: "".to_string(),
                 },
             ],
         };

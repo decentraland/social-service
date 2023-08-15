@@ -5,7 +5,7 @@ use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     api::routes::synapse::room_events::{
-        RoomEventRequestBody, RoomEventResponse, RoomJoinResponse,
+        JoinedRoomsResponse, RoomEventRequestBody, RoomEventResponse, RoomJoinResponse,
     },
     domain::{error::CommonError, friendship_event::FriendshipEvent},
 };
@@ -85,10 +85,11 @@ pub struct SynapseLoginResponse {
     pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct RoomMember {
     pub state_key: String,
     pub social_user_id: Option<String>, // social_user_id is not present in synapse
+    pub user_id: String,
     pub room_id: String,
     pub r#type: String,
 }
@@ -110,6 +111,11 @@ pub struct CreateRoomOpts {
     pub preset: String,
     pub invite: Vec<String>,
     pub is_direct: bool,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct InviteUserRequest {
+    pub user_id: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -165,13 +171,20 @@ impl SynapseComponent {
         })
     }
 
+    /// https://spec.matrix.org/v1.3/client-server-api/#get_matrixclientv3joined_rooms
+    #[tracing::instrument(name = "get joined rooms > Synapse components", skip(token))]
+    pub async fn get_joined_rooms(&self, token: &str) -> Result<JoinedRoomsResponse, CommonError> {
+        let path = "/_matrix/client/r0/joined_rooms".to_string();
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
+    }
+
+    /// https://spec.matrix.org/v1.3/client-server-api/#joining-rooms
     #[tracing::instrument(name = "join room > Synapse components", skip(token))]
     pub async fn join_room(
         &self,
         token: &str,
         room_id: &str,
-        room_event: FriendshipEvent,
-        room_message_body: Option<&str>,
     ) -> Result<RoomJoinResponse, CommonError> {
         let encoded_room_id = encode(room_id).to_string();
         let path = format!("/_matrix/client/r0/rooms/{encoded_room_id}/join");
@@ -269,6 +282,7 @@ impl SynapseComponent {
         })
     }
 
+    /// https://spec.matrix.org/v1.3/client-server-api/#creation
     #[tracing::instrument(name = "create_private_room > Synapse components", skip(token))]
     pub async fn create_private_room(
         &self,

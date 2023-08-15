@@ -37,6 +37,11 @@ pub struct RoomJoinResponse {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct JoinedRoomsResponse {
+    pub joined_rooms: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct RoomEventRequestBody {
     pub r#type: FriendshipEvent,
     pub message: Option<String>,
