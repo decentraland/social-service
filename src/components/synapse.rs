@@ -185,8 +185,6 @@ impl SynapseComponent {
         &self,
         token: &str,
         room_id: &str,
-        room_event: FriendshipEvent,
-        room_message_body: Option<&str>,
     ) -> Result<RoomJoinResponse, CommonError> {
         let encoded_room_id = encode(room_id).to_string();
         let path = format!("/_matrix/client/r0/rooms/{encoded_room_id}/join");

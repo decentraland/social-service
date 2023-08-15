@@ -51,14 +51,7 @@ pub async fn handle_friendship_update(
     let room_message_body = event_payload.request_event_message_body.as_deref();
 
     // The room may exists but maybe the current user hasn't joined it yet.
-    accept_room_invitation(
-        &synapse_token,
-        synapse_room_id.as_str(),
-        new_event,
-        room_message_body,
-        &context.synapse,
-    )
-    .await?;
+    accept_room_invitation(&synapse_token, synapse_room_id.as_str(), &context.synapse).await?;
 
     set_account_data(
         &synapse_token,

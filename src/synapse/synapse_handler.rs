@@ -29,8 +29,6 @@ fn build_room_local_alias(acting_user: &str, second_user: &str) -> String {
 pub async fn accept_room_invitation<'a>(
     token: &str,
     room_id: &str,
-    room_event: FriendshipEvent,
-    room_message_body: Option<&str>,
     synapse: &SynapseComponent,
 ) -> Result<(), CommonError> {
     let joined_rooms = synapse.get_joined_rooms(token).await;
@@ -38,9 +36,7 @@ pub async fn accept_room_invitation<'a>(
         Ok(rooms) => {
             if !rooms.joined_rooms.contains(&room_id.to_string()) {
                 // The room exists of a previous interaction between users, but the current user hasn't joined yet
-                let joined_room = synapse
-                    .join_room(token, room_id, room_event, room_message_body)
-                    .await;
+                let joined_room = synapse.join_room(token, room_id).await;
                 joined_room.map(|_| ())
             } else {
                 Ok(())
