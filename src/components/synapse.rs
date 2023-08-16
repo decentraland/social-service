@@ -292,7 +292,10 @@ impl SynapseComponent {
     ) -> Result<CreateRoomResponse, CommonError> {
         let path = "/_matrix/client/r0/createRoom".to_string();
 
-        let invite = synapse_user_ids.iter().map(|id| id.to_string()).collect();
+        let invite = synapse_user_ids
+            .iter()
+            .map(|id| id.to_string().to_lowercase())
+            .collect();
 
         Self::authenticated_post_request(
             &path,
