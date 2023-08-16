@@ -1,10 +1,7 @@
 use urlencoding::encode;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    time::SystemTime,
-};
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     api::routes::synapse::room_events::{
