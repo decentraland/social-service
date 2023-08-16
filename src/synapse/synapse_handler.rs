@@ -34,7 +34,9 @@ pub async fn accept_room_invitation<'a>(
     let joined_rooms = synapse.get_joined_rooms(token).await;
     match joined_rooms {
         Ok(rooms) => {
+            println!("Joined rooms: {:?}", rooms.joined_rooms);
             if !rooms.joined_rooms.contains(&room_id.to_string()) {
+                log::error!("OJO ACA AGUS");
                 // The room exists of a previous interaction between users, but the current user hasn't joined yet
                 let joined_room = synapse.join_room(token, room_id).await;
                 joined_room.map(|_| ())
@@ -82,27 +84,6 @@ pub async fn store_message_in_synapse_room<'a>(
         }
     }
     Ok(())
-}
-
-/// Stores a room event in a Synapse room, and it returns the `EventResponse` containing the event id if the operation was successful
-pub async fn store_room_event_in_synapse_room(
-    token: &str,
-    room_id: &str,
-    room_event: FriendshipEvent,
-    room_message_body: Option<&str>,
-    synapse: &SynapseComponent,
-) -> Result<(), CommonError> {
-    let res = synapse
-        .store_room_event(token, room_id, room_event, room_message_body)
-        .await;
-
-    match res {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            log::error!("[RPC] Store room event in synapse room > Error {err}");
-            Err(err)
-        }
-    }
 }
 
 /// Creates a new private room in Synapse and returns the `CreateRoomResponse` if successful.

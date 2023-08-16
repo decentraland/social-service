@@ -15,7 +15,7 @@ use crate::{
     },
     synapse::synapse_handler::{
         accept_room_invitation, get_or_create_synapse_room_id, set_account_data,
-        store_message_in_synapse_room, store_room_event_in_synapse_room,
+        store_message_in_synapse_room,
     },
     ws::app::SocialContext,
 };
@@ -38,30 +38,6 @@ pub async fn handle_friendship_update(
     // Get the friendship info
     let friendship = get_friendship(&db_repos.friendships, &acting_user, &second_user).await?;
 
-    let synapse_room_id = get_or_create_synapse_room_id(
-        friendship.as_ref(),
-        &new_event,
-        &acting_user,
-        &second_user,
-        &synapse_token,
-        &context.synapse.clone(),
-    )
-    .await?;
-
-    let room_message_body = event_payload.request_event_message_body.as_deref();
-
-    // The room may exists but maybe the current user hasn't joined it yet.
-    accept_room_invitation(&synapse_token, synapse_room_id.as_str(), &context.synapse).await?;
-
-    set_account_data(
-        &synapse_token,
-        &acting_user,
-        &second_user,
-        &synapse_room_id,
-        &context.synapse,
-    )
-    .await?;
-
     //  Get the last status from the database to later validate if the current action is valid
     let last_recorded_history = get_last_history(&db_repos.friendship_history, &friendship).await?;
 
@@ -77,6 +53,7 @@ pub async fn handle_friendship_update(
         friendships_repository: &db_repos.friendships,
         friendship_history_repository: &db_repos.friendship_history,
     };
+
     let transaction = match friendship_ports.db.start_transaction().await {
         Ok(tx) => tx,
         Err(error) => {
@@ -84,6 +61,32 @@ pub async fn handle_friendship_update(
             return Err(CommonError::Unknown("".to_owned()));
         }
     };
+
+    let synapse_room_id = get_or_create_synapse_room_id(
+        friendship.as_ref(),
+        &new_event,
+        &acting_user,
+        &second_user,
+        &synapse_token,
+        &context.synapse.clone(),
+    )
+    .await?;
+
+    let room_message_body = event_payload.request_event_message_body.as_deref();
+
+    // Invite other user if missing
+
+    // The room may exists but maybe the current user hasn't joined it yet.
+    accept_room_invitation(&synapse_token, synapse_room_id.as_str(), &context.synapse).await?;
+
+    set_account_data(
+        &synapse_token,
+        &acting_user,
+        &second_user,
+        &synapse_room_id,
+        &context.synapse,
+    )
+    .await?;
 
     // Update the friendship accordingly in the database. This means creating an entry in the friendships table or updating the is_active column.
     let room_info = RoomInfo {
@@ -104,17 +107,6 @@ pub async fn handle_friendship_update(
 
     // If it's a friendship request event and the request contains a message, send a message event to the given room.
     store_message_in_synapse_room(
-        &synapse_token,
-        synapse_room_id.as_str(),
-        new_event,
-        room_message_body,
-        &context.synapse,
-    )
-    .await?;
-
-    // Store the friendship event in the given room.
-    // We'll continue storing the event in Synapse to maintain the option to rollback to Matrix without losing any friendship interaction updates
-    store_room_event_in_synapse_room(
         &synapse_token,
         synapse_room_id.as_str(),
         new_event,
