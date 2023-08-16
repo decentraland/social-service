@@ -295,12 +295,10 @@ impl SynapseComponent {
     ) -> Result<CreateRoomResponse, CommonError> {
         let path = "/_matrix/client/r0/createRoom".to_string();
 
-        let mut invites = HashSet::new();
-        // we need to invite the original address and the lower case address, as the user may connect with any of them
-        synapse_user_ids.iter().for_each(|id| {
-            invites.insert(id.to_string());
-            invites.insert(id.to_string().to_lowercase());
-        });
+        let invite = synapse_user_ids
+            .iter()
+            .map(|id| id.to_string().to_lowercase())
+            .collect();
 
         Self::authenticated_post_request(
             &path,
@@ -309,7 +307,7 @@ impl SynapseComponent {
             &CreateRoomOpts {
                 room_alias_name: room_alias_name.to_string(),
                 preset: "trusted_private_chat".to_string(),
-                invite: invites.into_iter().collect(),
+                invite,
                 is_direct: true,
             },
         )
