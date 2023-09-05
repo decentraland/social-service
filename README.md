@@ -48,6 +48,14 @@ The main of this project will run an HTTP Server and a Websocket Server.
 
 The Websocket server implements the protocol definition defined in https://github.com/decentraland/protocol/blob/main/proto/decentraland/social/friendships/friendships.proto which is automatically downloaded from GitHub during the build time. If a build fails, it could be related to that.
 
+### Requirements
+
+You need to have protoc installed
+
+```
+brew install protobuf
+```
+
 ### Running the server
 
 ```
