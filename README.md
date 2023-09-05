@@ -44,9 +44,9 @@ There are two recommended editors/IDEs at the moment:
 
 ### Building the server
 
-The main of this project will run an HTTP Server and a Websocket Server.
+This project will run an HTTP Server and a WebSocket Server.
 
-The Websocket server implements the protocol definition defined in https://github.com/decentraland/protocol/blob/main/proto/decentraland/social/friendships/friendships.proto which is automatically downloaded from GitHub during the build time. If a build fails, it could be related to that.
+The WebSocket server implements the protocol definition defined in https://github.com/decentraland/protocol/blob/main/proto/decentraland/social/friendships/friendships.proto which is automatically downloaded from GitHub during the build time. If a build fails, it could be related to that.
 
 ### Requirements
 
@@ -80,7 +80,7 @@ make test
 
 ### Database & Migrations
 
-Migrations or pending migrations run when the server starts up programatically with the [sqlx](https://github.com/launchbadge/sqlx) API.
+Migrations or pending migrations run when the server starts programmatically using the [sqlx](https://github.com/launchbadge/sqlx) API.
 
 In order to create a new migration, you have to run:
 
@@ -90,7 +90,7 @@ make migration name={YOUR_MIGRATION_NAME}
 
 This command will create the migration SQL files (up and down) with the given name
 
-#### Enter in the db
+#### Enter in the DB
 
 ```
 docker exec -ti social_service_db psql -U postgres -d social_service
