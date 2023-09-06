@@ -1,13 +1,15 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::DateTime;
 
+use futures_util::stream::BoxStream;
+use log::LevelFilter;
 use mockall::automock;
 use sqlx::{
-    postgres::{PgArguments, PgPoolOptions, PgQueryResult, PgRow},
+    postgres::{PgArguments, PgConnectOptions, PgPoolOptions, PgQueryResult, PgRow},
     query::Query,
-    Error, Pool, Postgres, Row, Transaction,
+    ConnectOptions, Error, Pool, Postgres, Row, Transaction,
 };
 
 use super::configuration::Database as DatabaseConfig;
@@ -113,6 +115,13 @@ impl DatabaseComponent {
             Executor::Pool(pool) => (query.fetch_all(&pool).await, None),
         }
     }
+
+    pub fn fetch_stream(
+        query: Query<'_, Postgres, PgArguments>,
+        pool: Pool<Postgres>,
+    ) -> BoxStream<'_, Result<PgRow, Error>> {
+        query.fetch(&pool)
+    }
 }
 
 #[async_trait]
@@ -138,26 +147,31 @@ impl DatabaseComponentImplementation for DatabaseComponent {
                 "postgres://{}:{}@{}/{}",
                 self.db_user, self.db_password, self.db_host, self.db_name
             );
-            log::debug!("DB URL: {}", url);
+            log::info!("DB URL: {}", url);
 
             let pool = PgPoolOptions::new().min_connections(5).max_connections(10);
 
-            let db_connection = match pool.connect(url.as_str()).await {
+            let options = PgConnectOptions::from_str(url.as_str())
+                .expect("Unable to parse Database URL")
+                .log_statements(LevelFilter::Debug) // Only log queries when running in debug log level
+                .clone();
+
+            let db_connection = match pool.connect_with(options).await {
                 Ok(db) => db,
                 Err(err) => {
-                    log::debug!("Error on connecting to DB: {:?}", err);
+                    log::error!("Error on connecting to DB: {:?}", err);
                     panic!("Unable to connect to DB")
                 }
             };
 
-            log::debug!("Running Database migrations...");
+            log::info!("Running Database migrations...");
 
             // Just runs the pending migrations
             if let Err(err) = sqlx::migrate!("./migrations").run(&db_connection).await {
                 log::error!("Error on running DB Migrations. Err: {:?}", err);
                 panic!("Unable to run pending migrations")
             } else {
-                log::debug!("Migrations executed!");
+                log::info!("Migrations executed!");
             }
 
             self.db_connection = Arc::new(Some(db_connection));
@@ -169,7 +183,7 @@ impl DatabaseComponentImplementation for DatabaseComponent {
 
             Ok(())
         } else {
-            log::debug!("DB Connection is already set.");
+            log::warn!("DB Connection is already set.");
             Ok(())
         }
     }

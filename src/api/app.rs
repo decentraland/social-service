@@ -6,11 +6,11 @@ use tracing_actix_web::TracingLogger;
 
 use crate::components::app::AppComponents;
 use crate::components::configuration::Config;
+use crate::components::metrics::initialize_metrics;
 use crate::components::tracing::init_telemetry;
-use crate::metrics::initialize_metrics;
-use crate::middlewares::check_auth::CheckAuthToken;
-use crate::middlewares::metrics_token::CheckMetricsToken;
 
+use super::middlewares::check_auth::CheckAuthToken;
+use super::middlewares::metrics_token::CheckMetricsToken;
 use super::routes::health::handlers::health;
 use super::routes::health::handlers::live;
 use super::routes::synapse::handlers::{login, version};
@@ -25,12 +25,10 @@ pub struct AppOptions {
 
 pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> {
     init_telemetry();
-
-    let server_host = data.config.server.host.clone();
     let server_port = data.config.server.port;
 
     let server = HttpServer::new(move || get_app_router(&data))
-        .bind((server_host, server_port))?
+        .bind(("0.0.0.0", server_port))?
         .run();
 
     Ok(server)

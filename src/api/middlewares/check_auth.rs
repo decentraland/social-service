@@ -1,6 +1,7 @@
 use std::{
     future::{ready, Ready},
     rc::Rc,
+    sync::Arc,
 };
 
 use actix_web::{
@@ -10,9 +11,11 @@ use actix_web::{
     Error, HttpMessage, HttpResponse,
 };
 use futures_util::future::LocalBoxFuture;
-use serde::{Deserialize, Serialize};
 
-use crate::{api::routes::v1::error::CommonError, components::app::AppComponents};
+use crate::{
+    components::{app::AppComponents, users_cache::get_user_id_from_token},
+    domain::error::CommonError,
+};
 
 pub struct CheckAuthToken {
     auth_routes: Vec<String>,
@@ -54,12 +57,6 @@ fn is_auth_route(routes: &[String], path: &str) -> bool {
     routes.iter().any(|x| *x == path)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct UserId {
-    pub social_id: String,
-    pub synapse_id: String,
-}
-
 #[derive(Debug)]
 pub struct Token(pub String);
 
@@ -80,7 +77,8 @@ where
         let is_metrics_call = request.path().eq_ignore_ascii_case("/metrics");
         if matched_route.is_none() && !is_metrics_call {
             let (request, _pl) = request.into_parts();
-            let response = HttpResponse::from_error(CommonError::NotFound).map_into_right_body();
+            let response = HttpResponse::from_error(CommonError::NotFound("".to_owned()))
+                .map_into_right_body();
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }
 
@@ -121,55 +119,39 @@ where
 
         let token = token.to_string();
 
-        let components = request.app_data::<Data<AppComponents>>().unwrap().clone();
         let svc = self.service.clone();
-
         Box::pin(async move {
-            let user_id = {
-                let mut user_cache = components.users_cache.lock().await;
-                match user_cache.get_user(&token).await {
-                    Ok(user_id) => Ok(user_id),
-                    Err(e) => {
-                        log::info!("trying to get user {token} but {e}");
-                        match components.synapse.who_am_i(&token).await {
-                            Ok(response) => {
-                                let user_id = UserId {
-                                    social_id: response.social_user_id.unwrap(),
-                                    synapse_id: response.user_id,
-                                };
+            match request.app_data::<Data<AppComponents>>() {
+                Some(components) => {
+                    let user_id = get_user_id_from_token(
+                        components.synapse.clone(),
+                        Arc::clone(&components.users_cache),
+                        &token,
+                    )
+                    .await;
 
-                                if let Err(err) = user_cache
-                                    .add_user(&token, &user_id.social_id, &user_id.synapse_id, None)
-                                    .await
-                                {
-                                    log::error!(
-                                        "check_auth.rs > Error on storing token into Redis: {:?}",
-                                        err
-                                    )
-                                }
+                    if let Ok(user_id) = user_id {
+                        {
+                            let mut extensions = request.extensions_mut();
+                            extensions.insert(user_id);
+                            extensions.insert(Token(token));
+                        } // drop extension
 
-                                Ok(user_id)
-                            }
-                            Err(err) => Err(err),
-                        }
+                        let res = svc.call(request);
+                        res.await.map(ServiceResponse::map_into_left_body)
+                    } else {
+                        let (request, _pl) = request.into_parts();
+                        let response =
+                            HttpResponse::from_error(user_id.err().unwrap()).map_into_right_body();
+                        Ok(ServiceResponse::new(request, response))
                     }
                 }
-            }; // drop mutex lock at the end of scope
-
-            if let Ok(user_id) = user_id {
-                {
-                    let mut extensions = request.extensions_mut();
-                    extensions.insert(user_id);
-                    extensions.insert(Token(token));
-                } // drop extension
-
-                let res = svc.call(request);
-                res.await.map(ServiceResponse::map_into_left_body)
-            } else {
-                let (request, _pl) = request.into_parts();
-                let response =
-                    HttpResponse::from_error(user_id.err().unwrap()).map_into_right_body();
-                Ok(ServiceResponse::new(request, response))
+                None => {
+                    let (request, _pl) = request.into_parts();
+                    let response = HttpResponse::from_error(CommonError::Unknown("".to_owned()))
+                        .map_into_right_body();
+                    Ok(ServiceResponse::new(request, response))
+                }
             }
         })
     }

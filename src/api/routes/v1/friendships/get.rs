@@ -6,10 +6,9 @@ use actix_web::{
 
 use super::{errors::FriendshipsError, types::FriendshipsResponse};
 use crate::{
-    api::routes::v1::error::CommonError,
-    components::{app::AppComponents, synapse::clean_synapse_user_id},
+    components::{app::AppComponents, synapse::clean_synapse_user_id, users_cache::UserId},
+    domain::error::CommonError,
     entities::friendships::{Friendship, FriendshipRepositoryImplementation},
-    middlewares::check_auth::UserId,
 };
 
 const ME: &str = "me";
@@ -49,7 +48,9 @@ pub async fn get_user_friends(
                 .get_user_friends(&clean_user_id, true, None)
                 .await;
             match friendships {
-                Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown)),
+                Err(_) => Err(FriendshipsError::CommonError(CommonError::Unknown(
+                    "".to_owned(),
+                ))),
                 Ok(friendships) => {
                     let response =
                         FriendshipsResponse::new(get_friends(&clean_user_id, friendships));
@@ -57,7 +58,9 @@ pub async fn get_user_friends(
                 }
             }
         }
-        None => Err(FriendshipsError::CommonError(CommonError::NotFound)),
+        None => Err(FriendshipsError::CommonError(CommonError::NotFound(
+            "".to_owned(),
+        ))),
     }
 }
 

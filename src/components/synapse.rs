@@ -1,15 +1,32 @@
-use std::{collections::HashMap, time::SystemTime};
+use urlencoding::encode;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{collections::HashMap, time::SystemTime};
 
-use crate::api::routes::{
-    synapse::room_events::{FriendshipEvent, RoomEventRequestBody, RoomEventResponse},
-    v1::error::CommonError,
+use crate::{
+    api::routes::synapse::room_events::{
+        JoinedRoomsResponse, RoomEventRequestBody, RoomEventResponse, RoomJoinResponse,
+    },
+    domain::{error::CommonError, friendship_event::FriendshipEvent},
 };
 
-#[derive(Debug)]
+#[derive(Deserialize, Serialize)]
+pub struct AccountDataContentResponse {
+    #[serde(flatten)]
+    #[serde(rename = "m.direct")]
+    pub direct: HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct RoomIdResponse {
+    pub room_id: String,
+    servers: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct SynapseComponent {
-    synapse_url: String,
+    pub synapse_url: String,
 }
 
 pub const VERSION_URI: &str = "/_matrix/client/versions";
@@ -68,10 +85,11 @@ pub struct SynapseLoginResponse {
     pub well_known: HashMap<String, HashMap<String, String>>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct RoomMember {
     pub state_key: String,
     pub social_user_id: Option<String>, // social_user_id is not present in synapse
+    pub user_id: String,
     pub room_id: String,
     pub r#type: String,
 }
@@ -85,6 +103,24 @@ pub struct RoomMembersResponse {
 pub struct MessageRequestEventBody {
     pub msgtype: String,
     pub body: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateRoomOpts {
+    pub room_alias_name: String,
+    pub preset: String,
+    pub invite: Vec<String>,
+    pub is_direct: bool,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct InviteUserRequest {
+    pub user_id: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateRoomResponse {
+    pub room_id: String,
 }
 
 impl SynapseComponent {
@@ -135,7 +171,28 @@ impl SynapseComponent {
         })
     }
 
-    #[tracing::instrument(name = "put room event > Synapse components")]
+    /// https://spec.matrix.org/v1.3/client-server-api/#get_matrixclientv3joined_rooms
+    #[tracing::instrument(name = "get joined rooms > Synapse components", skip(token))]
+    pub async fn get_joined_rooms(&self, token: &str) -> Result<JoinedRoomsResponse, CommonError> {
+        let path = "/_matrix/client/r0/joined_rooms".to_string();
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
+    }
+
+    /// https://spec.matrix.org/v1.3/client-server-api/#joining-rooms
+    #[tracing::instrument(name = "join room > Synapse components", skip(token))]
+    pub async fn join_room(
+        &self,
+        token: &str,
+        room_id: &str,
+    ) -> Result<RoomJoinResponse, CommonError> {
+        let encoded_room_id = encode(room_id).to_string();
+        let path = format!("/_matrix/client/r0/rooms/{encoded_room_id}/join");
+
+        Self::authenticated_post_request(&path, token, &self.synapse_url, ()).await
+    }
+
+    #[tracing::instrument(name = "put room event > Synapse components", skip(token))]
     pub async fn store_room_event(
         &self,
         token: &str,
@@ -143,7 +200,9 @@ impl SynapseComponent {
         room_event: FriendshipEvent,
         room_message_body: Option<&str>,
     ) -> Result<RoomEventResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship");
+        let encoded_room_id = encode(room_id).to_string();
+        let path =
+            format!("/_matrix/client/r0/rooms/{encoded_room_id}/state/org.decentraland.friendship");
 
         Self::authenticated_put_request(
             &path,
@@ -157,7 +216,10 @@ impl SynapseComponent {
         .await
     }
 
-    #[tracing::instrument(name = "put send message event to the given room > Synapse components")]
+    #[tracing::instrument(
+        name = "put send message event to the given room > Synapse components",
+        skip(token)
+    )]
     pub async fn send_message_event_given_room(
         &self,
         token: &str,
@@ -176,7 +238,9 @@ impl SynapseComponent {
                 .as_millis()
         );
 
-        let path = format!("/_matrix/client/r0/rooms/{room_id}/send/m.room.message/{txn_id}");
+        let encoded_room_id = encode(room_id).to_string();
+        let path =
+            format!("/_matrix/client/r0/rooms/{encoded_room_id}/send/m.room.message/{txn_id}");
 
         Self::authenticated_put_request(
             &path,
@@ -190,13 +254,14 @@ impl SynapseComponent {
         .await
     }
 
-    #[tracing::instrument(name = "get_room_members > Synapse components")]
+    #[tracing::instrument(name = "get_room_members > Synapse components", skip(token))]
     pub async fn get_room_members(
         &self,
         token: &str,
         room_id: &str,
     ) -> Result<RoomMembersResponse, CommonError> {
-        let path = format!("/_matrix/client/r0/rooms/{room_id}/members");
+        let encoded_room_id = encode(room_id).to_string();
+        let path = format!("/_matrix/client/r0/rooms/{encoded_room_id}/members");
         let response = Self::authenticated_get_request::<RoomMembersResponse>(
             &path,
             token,
@@ -208,13 +273,95 @@ impl SynapseComponent {
             res.chunk
                 .iter_mut()
                 .filter(|room_member| room_member.state_key.starts_with('@'))
-                .for_each(|mut room_member| {
+                .for_each(|room_member| {
                     room_member.social_user_id =
                         Some(clean_synapse_user_id(&room_member.state_key));
                 });
 
             res
         })
+    }
+
+    /// https://spec.matrix.org/v1.3/client-server-api/#creation
+    #[tracing::instrument(name = "create_private_room > Synapse components", skip(token))]
+    pub async fn create_private_room(
+        &self,
+        token: &str,
+        synapse_user_ids: Vec<&str>,
+        room_alias_name: &str,
+    ) -> Result<CreateRoomResponse, CommonError> {
+        let path = "/_matrix/client/r0/createRoom".to_string();
+
+        let invite = synapse_user_ids
+            .iter()
+            .map(|id| id.to_string().to_lowercase())
+            .collect();
+
+        Self::authenticated_post_request(
+            &path,
+            token,
+            &self.synapse_url,
+            &CreateRoomOpts {
+                room_alias_name: room_alias_name.to_string(),
+                preset: "trusted_private_chat".to_string(),
+                invite,
+                is_direct: true,
+            },
+        )
+        .await
+    }
+
+    /// Sets the account data content for the given user id
+    /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#get_matrixclientv3useruseridaccount_datatype)
+    pub async fn set_account_data(
+        &self,
+        token: &str,
+        synapse_user_id: &str,
+        direct_room_map: HashMap<String, Vec<String>>,
+    ) -> Result<(), CommonError> {
+        let encoded_synapse_user_id = encode(synapse_user_id).to_string();
+        let path: String =
+            format!("/_matrix/client/r0/user/{encoded_synapse_user_id}/account_data/m.direct");
+
+        let result: Result<HashMap<String, Vec<String>>, _> =
+            Self::authenticated_put_request::<HashMap<String, Vec<String>>, _>(
+                &path,
+                token,
+                &self.synapse_url,
+                direct_room_map,
+            )
+            .await;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Retrieves the account data content for the given user id
+    /// Check out the details [here](https://spec.matrix.org/v1.3/client-server-api/#put_matrixclientv3useruseridaccount_datatype)
+    pub async fn get_account_data(
+        &self,
+        token: &str,
+        synapse_user_id: &str,
+    ) -> Result<AccountDataContentResponse, CommonError> {
+        let encoded_synapse_user_id = encode(synapse_user_id).to_string();
+        let path: String =
+            format!("/_matrix/client/r0/user/{encoded_synapse_user_id}/account_data/m.direct");
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
+    }
+
+    pub async fn get_room_id_for_alias(
+        &self,
+        token: &str,
+        alias: &str,
+        synapse: &SynapseComponent,
+    ) -> Result<RoomIdResponse, CommonError> {
+        let encoded_alias = full_encoded_alias(alias, synapse);
+        let path = format!("/_matrix/client/r0/directory/room/{encoded_alias}");
+
+        Self::authenticated_get_request(&path, token, &self.synapse_url).await
     }
 
     async fn get_request<T: DeserializeOwned>(
@@ -246,6 +393,24 @@ impl SynapseComponent {
         Self::process_synapse_response::<T>(response).await
     }
 
+    async fn authenticated_post_request<T: DeserializeOwned, S: Serialize>(
+        path: &str,
+        token: &str,
+        synapse_url: &str,
+        body: S,
+    ) -> Result<T, CommonError> {
+        let url = format!("{synapse_url}{path}");
+        let client = reqwest::Client::new();
+        let response = client
+            .post(url)
+            .json(&body)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await;
+
+        Self::process_synapse_response::<T>(response).await
+    }
+
     async fn authenticated_get_request<T: DeserializeOwned>(
         path: &str,
         token: &str,
@@ -261,7 +426,6 @@ impl SynapseComponent {
 
         Self::process_synapse_response::<T>(response).await
     }
-
     async fn process_synapse_response<T: DeserializeOwned>(
         response: Result<reqwest::Response, reqwest::Error>,
     ) -> Result<T, CommonError> {
@@ -269,18 +433,18 @@ impl SynapseComponent {
             Ok(response) => {
                 let text = response.text().await;
                 if let Err(err) = text {
-                    log::warn!("error reading synapse response {}", err);
-                    return Err(CommonError::Unknown);
+                    log::warn!("[Synapse] error reading synapse response {}", err);
+                    return Err(CommonError::Unknown("".to_owned()));
                 }
 
                 let text = text.unwrap();
                 let response = serde_json::from_str::<T>(&text);
 
-                response.map_err(|_| Self::parse_and_return_error(&text))
+                response.map_err(|_err| Self::parse_and_return_error(&text))
             }
             Err(err) => {
-                log::warn!("error connecting to synapse {}", err);
-                Err(CommonError::Unknown)
+                log::warn!("[Synapse] error connecting to synapse {}", err);
+                Err(CommonError::Unknown("".to_owned()))
             }
         }
     }
@@ -293,17 +457,36 @@ impl SynapseComponent {
                 "M_FORBIDDEN" => {
                     CommonError::Forbidden(error.error.unwrap_or("Forbidden".to_string()))
                 }
-                "M_UNKNOWN_TOKEN" => CommonError::Unauthorized,
-                "M_MISSING_TOKEN" => CommonError::Unauthorized,
-                "M_LIMIT_EXCEEDED" => CommonError::TooManyRequests,
-                _ => CommonError::Unknown,
+                "M_UNKNOWN_TOKEN" => CommonError::Unauthorized("".to_owned()),
+                "M_MISSING_TOKEN" => CommonError::Unauthorized("".to_owned()),
+                "M_LIMIT_EXCEEDED" => CommonError::TooManyRequests("".to_owned()),
+                _ => CommonError::Unknown("".to_owned()),
             },
             Err(err) => {
                 log::warn!("error parsing synapse error {}", err);
-                CommonError::Unknown
+                CommonError::Unknown("".to_owned())
             }
         }
     }
+}
+
+/// This function is used when getting the room by alias (full alias: like '#wombat:example.com')
+/// and as it's part of the query parameter it must be encoded
+///
+/// Returns the encoded room alias name as a string, created from the sorted and joined user addresses in `joined_addresses`.
+///
+/// We need to build the room alias in this way because we're leveraging the room creation process from Matrix + SDK.
+/// It follows the pattern:
+/// `#{sorted and joined addresses}:decentraland.{domain}`
+/// where `sorted and joined addresses` are the addresses of the two users concatenated and sorted,
+/// and `domain` is the domain of the Synapse server.
+fn full_encoded_alias(joined_addresses: &str, synapse: &SynapseComponent) -> String {
+    let full_alias = format!(
+        "#{}:decentraland.{}",
+        joined_addresses,
+        extract_domain(&synapse.synapse_url)
+    );
+    encode(&full_alias).to_string()
 }
 
 /// Get the local part of the userId from matrixUserId
@@ -326,9 +509,35 @@ pub fn clean_synapse_user_id(user_id: &str) -> String {
     user_id.to_string()
 }
 
+/// Extracts the domain from a URL.
+///
+/// Returns a string representing the domain extracted from the URL. If the URL cannot
+/// be split into parts or the domain is empty, the function returns the default value
+/// `zone`.
+pub fn extract_domain(url: &str) -> &str {
+    let splited_domain: Vec<&str> = url.split('.').collect();
+    let last_part = splited_domain.last().unwrap_or(&"zone");
+
+    if last_part == &"zone" || last_part == &"org" {
+        last_part
+    } else {
+        "zone"
+    }
+}
+
+/// Gets the synapse user id for the given user id
+///
+/// @example
+/// from: '0x1111ada11111'
+/// to: '@0x1111ada11111:decentraland.org'
+pub fn user_id_as_synapse_user_id(user_id: &str, synapse_url: &str) -> String {
+    let result = format!("@{}:decentraland.{}", user_id, extract_domain(synapse_url));
+    result
+}
+
 #[cfg(test)]
 mod tests {
-    use super::clean_synapse_user_id;
+    use super::{clean_synapse_user_id, user_id_as_synapse_user_id};
 
     #[test]
     fn clear_should_obtain_expected_string_for_synapse_user() {
@@ -342,5 +551,12 @@ mod tests {
         let res = clean_synapse_user_id("0x1111ada11111");
 
         assert_eq!(res, "0x1111ada11111");
+    }
+
+    #[test]
+    fn user_id_as_synapse_id_for_plain_user() {
+        let res = user_id_as_synapse_user_id("0x1111ada11111", "");
+
+        assert_eq!(res, "@0x1111ada11111:decentraland.zone");
     }
 }

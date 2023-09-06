@@ -1,8 +1,10 @@
 use async_trait::async_trait;
-use sqlx::{types::Uuid, Error, Postgres, Row, Transaction};
-use std::{fmt, sync::Arc};
+use futures_util::{Stream, StreamExt};
+use sqlx::{types::Uuid, Error, FromRow, Postgres, Row, Transaction};
+use std::{fmt, pin::Pin, sync::Arc};
 
 use super::queries::MUTUALS_FRIENDS_QUERY;
+
 use crate::{
     components::database::{DBConnection, DatabaseComponent, Executor},
     generate_uuid_v4,
@@ -10,11 +12,18 @@ use crate::{
 
 use super::utils::get_transaction_result_from_executor;
 
+#[derive(Default, FromRow)]
 pub struct Friendship {
     pub id: Uuid,
     pub address_1: String,
     pub address_2: String,
     pub is_active: bool,
+    pub synapse_room_id: String,
+}
+
+#[derive(FromRow)]
+pub struct UserEntity {
+    pub address: String,
 }
 
 #[derive(Clone)]
@@ -47,6 +56,7 @@ pub trait FriendshipRepositoryImplementation {
         &self,
         addresses: (&str, &str),
         is_active: bool,
+        synapse_room_id: &str,
         transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Uuid, sqlx::Error>,
@@ -71,6 +81,18 @@ pub trait FriendshipRepositoryImplementation {
         Result<Vec<Friendship>, sqlx::Error>,
         Option<Transaction<'static, Postgres>>,
     );
+
+    async fn get_user_friends_stream(
+        &self,
+        address: &str,
+        only_active: bool,
+    ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error>;
+
+    async fn get_mutual_friends_stream<'a>(
+        &'a self,
+        address_1: String,
+        address_2: String,
+    ) -> Result<Pin<Box<dyn Stream<Item = UserEntity> + Send>>, sqlx::Error>;
 
     async fn update_friendship_status(
         &self,
@@ -106,6 +128,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         &self,
         addresses: (&str, &str),
         is_active: bool,
+        synapse_room_id: &str,
         transaction: Option<Transaction<'static, Postgres>>,
     ) -> (
         Result<Uuid, sqlx::Error>,
@@ -117,12 +140,13 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let id = Uuid::parse_str(generate_uuid_v4().as_str()).unwrap();
 
         let query = sqlx::query(
-            "INSERT INTO friendships(id, address_1, address_2, is_active) VALUES($1, $2, $3, $4);",
+            "INSERT INTO friendships(id, address_1, address_2, is_active, synapse_room_id) VALUES($1, $2, $3, $4, $5);",
         )
         .bind(id)
         .bind(address1)
         .bind(address2)
-        .bind(is_active);
+        .bind(is_active)
+        .bind(synapse_room_id);
 
         let executor = self.get_executor(transaction);
 
@@ -145,14 +169,12 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         Option<Transaction<'static, Postgres>>,
     ) {
         let (address1, address2) = addresses;
-        let address1_lowercase = address1.to_ascii_lowercase();
-        let address2_lowercase = address2.to_ascii_lowercase();
 
         let query = sqlx::query(
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 AND LOWER(address_2) = $2) OR (LOWER(address_1) = $2 AND LOWER(address_2) = $1)"
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) AND LOWER(address_2) = LOWER($2)) OR (LOWER(address_1) = LOWER($2) AND LOWER(address_2) = LOWER($1))"
         )
-        .bind(address1_lowercase)
-        .bind(address2_lowercase);
+        .bind(address1)
+        .bind(address2);
 
         let executor = self.get_executor(transaction);
 
@@ -162,12 +184,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
 
         match result {
             Ok(row) => {
-                let friendship = Friendship {
-                    id: row.try_get("id").unwrap(),
-                    address_1: row.try_get("address_1").unwrap(),
-                    address_2: row.try_get("address_2").unwrap(),
-                    is_active: row.try_get("is_active").unwrap(),
-                };
+                let friendship = Friendship::from_row(&row).expect("to be a friendship");
                 (Ok(Some(friendship)), transaction_to_return)
             }
             Err(err) => match err {
@@ -193,14 +210,14 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         let active_only_clause = " AND is_active";
 
         let mut query =
-            "SELECT * FROM friendships WHERE (LOWER(address_1) = $1 OR LOWER(address_2) = $1)"
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1))"
                 .to_owned();
 
         if only_active {
             query.push_str(active_only_clause);
         }
 
-        let query = sqlx::query(&query).bind(address.to_ascii_lowercase());
+        let query = sqlx::query(&query).bind(address);
 
         let executor = self.get_executor(transaction);
 
@@ -213,12 +230,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
                 let response = Ok(rows
                     .iter()
                     .map(|row| -> Friendship {
-                        Friendship {
-                            id: row.try_get("id").unwrap(),
-                            address_1: row.try_get("address_1").unwrap(),
-                            address_2: row.try_get("address_2").unwrap(),
-                            is_active: row.try_get("is_active").unwrap(),
-                        }
+                        Friendship::from_row(row).expect("to be a friendship")
                     })
                     .collect::<Vec<Friendship>>());
                 (response, transaction_to_return)
@@ -233,6 +245,68 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
         }
     }
 
+    /// If `only_active` is set to true, only the current friends will be returned.
+    /// If set to false, all past and current friendships will be returned.
+    #[tracing::instrument(name = "Get user friends from DB stream")]
+    async fn get_user_friends_stream(
+        &self,
+        address: &str,
+        only_active: bool,
+    ) -> Result<Pin<Box<dyn Stream<Item = Friendship> + Send>>, sqlx::Error> {
+        let active = "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1)) AND is_active;";
+        let inactive =
+            "SELECT * FROM friendships WHERE (LOWER(address_1) = LOWER($1) OR LOWER(address_2) = LOWER($1));";
+
+        let query = if only_active { active } else { inactive };
+
+        let query = sqlx::query(query).bind(address.to_string());
+
+        let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
+
+        let response = DatabaseComponent::fetch_stream(query, pool);
+        let friends_stream = response.filter_map(|row| async move {
+            match row {
+                Ok(row) => {
+                    let friendship = Friendship::from_row(&row).expect("to be a friendship");
+                    Some(friendship)
+                }
+                Err(err) => {
+                    log::error!("Couldn't stream fetch user friends, {}", err);
+                    None
+                }
+            }
+        });
+        Ok(Box::pin(friends_stream))
+    }
+
+    #[tracing::instrument(name = "Get mutual friends from DB stream")]
+    async fn get_mutual_friends_stream<'a>(
+        &'a self,
+        address_1: String,
+        address_2: String,
+    ) -> Result<Pin<Box<dyn Stream<Item = UserEntity> + Send>>, sqlx::Error> {
+        let query: &str = MUTUALS_FRIENDS_QUERY;
+
+        let query = sqlx::query(query).bind(address_1).bind(address_2);
+
+        let pool = DatabaseComponent::get_connection(&self.db_connection).clone();
+
+        let response = DatabaseComponent::fetch_stream(query, pool);
+        let mutual_friends_stream = response.filter_map(|row| async move {
+            match row {
+                Ok(row) => {
+                    let user = UserEntity::from_row(&row).expect("to be a user");
+                    Some(user)
+                }
+                Err(err) => {
+                    log::error!("Couldn't stream fetch mutual friends, {}", err);
+                    None
+                }
+            }
+        });
+        Ok(Box::pin(mutual_friends_stream))
+    }
+
     #[tracing::instrument(name = "Get mutual user friends from DB")]
     async fn get_mutual_friends(
         &self,
@@ -245,9 +319,7 @@ impl FriendshipRepositoryImplementation for FriendshipsRepository {
     ) {
         let query = MUTUALS_FRIENDS_QUERY.to_string();
 
-        let query = sqlx::query(&query)
-            .bind(address_1.to_ascii_lowercase())
-            .bind(address_2.to_ascii_lowercase());
+        let query = sqlx::query(&query).bind(address_1).bind(address_2);
 
         let executor = self.get_executor(transaction);
 

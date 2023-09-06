@@ -8,13 +8,12 @@ mod tests {
     use actix_http::Request;
 
     use social_service::{
-        api::routes::synapse::room_events::{
-            FriendshipEvent, RoomEventRequestBody, RoomEventResponse,
-        },
+        api::routes::synapse::room_events::{RoomEventRequestBody, RoomEventResponse},
         components::{
             database::DBRepositories,
             synapse::{RoomMember, RoomMembersResponse},
         },
+        domain::friendship_event::FriendshipEvent,
         entities::friendships::{Friendship, FriendshipRepositoryImplementation},
     };
     use uuid::Uuid;
@@ -42,12 +41,14 @@ mod tests {
                     r#type: "".to_string(),
                     state_key: room_members.0,
                     social_user_id: None,
+                    user_id: "".to_string(),
                 },
                 RoomMember {
                     room_id: "a_room_id".to_string(),
                     r#type: "".to_string(),
                     state_key: room_members.1,
                     social_user_id: None,
+                    user_id: "".to_string(),
                 },
             ],
         };
@@ -402,7 +403,7 @@ mod tests {
             message: body,
         };
 
-        let header = ("authorization", format!("Bearer {}", token));
+        let header = ("authorization", format!("Bearer {token}"));
 
         actix_web::test::TestRequest::put()
             .uri(ROOM_STATE_URI)
@@ -449,7 +450,6 @@ mod tests {
         let message_body = result
             .metadata
             .and_then(|j| j.message.clone())
-            .map(|j| j.to_string())
             .unwrap_or("".to_string());
         assert_eq!(message_body, message.unwrap_or("".to_string()));
     }

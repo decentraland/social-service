@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use actix_web::{
     put,
     web::{self, Data},
@@ -10,17 +8,20 @@ use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    api::routes::v1::error::CommonError,
+    api::middlewares::check_auth::Token,
     components::{
         app::AppComponents,
         database::{DatabaseComponent, DatabaseComponentImplementation},
         synapse::{RoomMembersResponse, SynapseComponent},
+        users_cache::UserId,
+    },
+    domain::{
+        error::CommonError, friendship_event::FriendshipEvent, friendship_status::FriendshipStatus,
     },
     entities::{
         friendship_history::{FriendshipHistory, FriendshipHistoryRepository, FriendshipMetadata},
         friendships::{Friendship, FriendshipRepositoryImplementation, FriendshipsRepository},
     },
-    middlewares::check_auth::{Token, UserId},
 };
 
 use super::errors::SynapseError;
@@ -31,74 +32,19 @@ pub struct RoomEventResponse {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct RoomJoinResponse {
+    pub room_id: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct JoinedRoomsResponse {
+    pub joined_rooms: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct RoomEventRequestBody {
     pub r#type: FriendshipEvent,
     pub message: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy, Hash)]
-pub enum FriendshipEvent {
-    #[serde(rename = "request")]
-    REQUEST, // Send a friendship request
-    #[serde(rename = "cancel")]
-    CANCEL, // Cancel a friendship request
-    #[serde(rename = "accept")]
-    ACCEPT, // Accept a friendship request
-    #[serde(rename = "reject")]
-    REJECT, // Reject a friendship request
-    #[serde(rename = "delete")]
-    DELETE, // Delete an existing friendship
-}
-
-lazy_static::lazy_static! {
-    static ref VALID_FRIENDSHIP_EVENT_TRANSITIONS: HashMap<FriendshipEvent, Vec<Option<FriendshipEvent>>> = {
-        let mut m = HashMap::new();
-
-        // This means that request is valid new event for all the specified events
-        // (meaning that that's the previous event)
-        m.insert(FriendshipEvent::REQUEST, vec![None, Some(FriendshipEvent::CANCEL), Some(FriendshipEvent::REJECT), Some(FriendshipEvent::DELETE)]);
-        m.insert(FriendshipEvent::CANCEL, vec![Some(FriendshipEvent::REQUEST)]);
-        m.insert(FriendshipEvent::ACCEPT, vec![Some(FriendshipEvent::REQUEST)]);
-        m.insert(FriendshipEvent::REJECT, vec![Some(FriendshipEvent::REQUEST)]);
-        m.insert(FriendshipEvent::DELETE, vec![Some(FriendshipEvent::ACCEPT)]);
-
-        m
-    };
-}
-
-impl FriendshipEvent {
-    fn validate_new_event_is_valid(
-        current_event: &Option<FriendshipEvent>,
-        new_event: FriendshipEvent,
-    ) -> bool {
-        let valid_transitions = VALID_FRIENDSHIP_EVENT_TRANSITIONS.get(&new_event).unwrap();
-        valid_transitions.contains(current_event)
-    }
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub enum FriendshipStatus {
-    Friends,
-    Requested(String),
-    NotFriends,
-}
-
-impl FriendshipStatus {
-    fn from_history_event(history: Option<FriendshipHistory>) -> Self {
-        if history.is_none() {
-            return FriendshipStatus::NotFriends;
-        }
-
-        let history = history.unwrap();
-
-        match history.event {
-            FriendshipEvent::REQUEST => FriendshipStatus::Requested(history.acting_user),
-            FriendshipEvent::CANCEL => FriendshipStatus::NotFriends,
-            FriendshipEvent::ACCEPT => FriendshipStatus::Friends,
-            FriendshipEvent::REJECT => FriendshipStatus::NotFriends,
-            FriendshipEvent::DELETE => FriendshipStatus::NotFriends,
-        }
-    }
 }
 
 #[put("/_matrix/client/r0/rooms/{room_id}/state/org.decentraland.friendship")]
@@ -137,13 +83,10 @@ pub async fn room_event_handler(
     )
     .await;
 
-    if let Ok(res) = response {
-        return Ok(HttpResponse::Ok().json(res));
+    match response {
+        Ok(res) => Ok(HttpResponse::Ok().json(res)),
+        Err(err) => Err(err),
     }
-
-    let err = response.err().unwrap();
-
-    Err(err)
 }
 
 async fn process_room_event<'a>(
@@ -187,8 +130,7 @@ async fn process_room_event<'a>(
         friendship_history_repository: &repos.friendship_history,
     };
 
-    // The only case where we don't create the friendship if it didn't exist
-    // If they are still no friends, it's unnecessary to create a friendship
+    // If the status has not changed, no action is taken.
     if current_status == new_status {
         return Ok(RoomEventResponse {
             event_id: room_id.to_string(),
@@ -200,7 +142,9 @@ async fn process_room_event<'a>(
         Ok(tx) => tx,
         Err(error) => {
             log::error!("Couldn't start transaction to store friendship update {error}");
-            return Err(SynapseError::CommonError(CommonError::Unknown));
+            return Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )));
         }
     };
 
@@ -231,7 +175,9 @@ async fn process_room_event<'a>(
 
             match transaction_result {
                 Ok(_) => Ok(value),
-                Err(_) => Err(SynapseError::CommonError(CommonError::Unknown)),
+                Err(_) => Err(SynapseError::CommonError(CommonError::Unknown(
+                    "".to_owned(),
+                ))),
             }
         }
         Err(err) => Err(SynapseError::CommonError(err)),
@@ -278,9 +224,9 @@ async fn get_friendship_from_db(
         let err = friendship_result.err().unwrap();
 
         log::warn!("Error getting friendship in room event {}", err);
-        return Err(SynapseError::CommonError(
-            crate::api::routes::v1::error::CommonError::Unknown,
-        ));
+        return Err(SynapseError::CommonError(CommonError::Unknown(
+            "".to_owned(),
+        )));
     }
 
     Ok(friendship_result.unwrap())
@@ -306,7 +252,7 @@ async fn get_last_history_from_db(
 
         log::warn!("Error getting friendship history in room event {}", err);
         return Err(SynapseError::CommonError(
-            crate::api::routes::v1::error::CommonError::Unknown,
+            crate::domain::error::CommonError::Unknown("".to_owned()),
         ));
     }
 
@@ -417,6 +363,7 @@ async fn update_friendship_status<'a>(
         is_active,
         acting_user,
         second_user,
+        room_info.room_id,
         friendship_ports.friendships_repository,
         transaction,
     )
@@ -428,7 +375,9 @@ async fn update_friendship_status<'a>(
             log::error!("Couldn't store friendship update {err}");
             let _ = transaction.rollback().await;
 
-            return Err(SynapseError::CommonError(CommonError::Unknown));
+            return Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )));
         }
     };
 
@@ -437,16 +386,16 @@ async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Error serializing room event: {:?}", err);
             let _ = transaction.rollback().await;
-            return Err(SynapseError::CommonError(CommonError::Unknown));
+            return Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )));
         }
     };
 
-    let metadata = room_info.room_message_body.map(|message| {
-        sqlx::types::Json(FriendshipMetadata {
-            message: Some(message.to_string()),
-            synapse_room_id: Some(room_info.room_id.to_string()),
-            migrated_from_synapse: None,
-        })
+    let metadata = sqlx::types::Json(FriendshipMetadata {
+        message: room_info.room_message_body.map(|m| m.to_string()),
+        synapse_room_id: Some(room_info.room_id.to_string()),
+        migrated_from_synapse: None,
     });
 
     // store history
@@ -456,7 +405,7 @@ async fn update_friendship_status<'a>(
             friendship_id,
             &room_event,
             acting_user,
-            metadata,
+            Some(metadata),
             Some(transaction),
         )
         .await;
@@ -468,7 +417,9 @@ async fn update_friendship_status<'a>(
         Err(err) => {
             log::error!("Couldn't store friendship history update: {:?}", err);
             let _ = transaction.rollback().await;
-            Err(SynapseError::CommonError(CommonError::Unknown))
+            Err(SynapseError::CommonError(CommonError::Unknown(
+                "".to_owned(),
+            )))
         }
     }
 }
@@ -478,6 +429,7 @@ async fn store_friendship_update(
     is_active: bool,
     address_0: &str,
     address_1: &str,
+    synapse_room_id: &str,
     friendships_repository: &FriendshipsRepository,
     transaction: Transaction<'static, Postgres>,
 ) -> (Result<Uuid, SynapseError>, Transaction<'static, Postgres>) {
@@ -491,7 +443,9 @@ async fn store_friendship_update(
                 Ok(_) => Ok(friendship.id),
                 Err(err) => {
                     log::warn!("Couldn't update friendship {err}");
-                    Err(SynapseError::CommonError(CommonError::Unknown))
+                    Err(SynapseError::CommonError(CommonError::Unknown(
+                        "".to_owned(),
+                    )))
                 }
             };
 
@@ -499,12 +453,17 @@ async fn store_friendship_update(
         }
         None => {
             let (friendship_id, transaction) = friendships_repository
-                .create_new_friendships((address_0, address_1), false, Some(transaction))
+                .create_new_friendships(
+                    (address_0, address_1),
+                    false,
+                    synapse_room_id,
+                    Some(transaction),
+                )
                 .await;
             (
                 friendship_id.map_err(|err| {
                     log::warn!("Couldn't crate new friendship {err}");
-                    SynapseError::CommonError(CommonError::Unknown)
+                    SynapseError::CommonError(CommonError::Unknown("".to_owned()))
                 }),
                 transaction.unwrap(),
             )
@@ -539,6 +498,7 @@ async fn store_message_in_synapse_room<'a>(
                     }
                     Err(err) => {
                         if retry_count == 2 {
+                            log::error!("[RPC] Store message in synapse room > Error {err}");
                             return Err(SynapseError::CommonError(err));
                         }
                     }
@@ -554,10 +514,12 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::{
-        api::routes::synapse::errors::SynapseError, entities::friendship_history::FriendshipHistory,
+        api::routes::synapse::errors::SynapseError,
+        domain::{friendship_event::FriendshipEvent, friendship_status::FriendshipStatus},
+        entities::friendship_history::FriendshipHistory,
     };
 
-    use super::{process_friendship_status, FriendshipEvent, FriendshipStatus};
+    use super::process_friendship_status;
 
     fn get_last_history(event: FriendshipEvent, acting_user: &str) -> Option<FriendshipHistory> {
         Some(FriendshipHistory {
