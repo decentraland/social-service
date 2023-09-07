@@ -1,4 +1,4 @@
-FROM rust as builder
+FROM rust:1.71.1 as builder
 COPY . /app
 WORKDIR /app
 RUN apt update && apt-get install -y protobuf-compiler
