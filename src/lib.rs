@@ -11,6 +11,12 @@ pub mod friendships {
         "/decentraland.social.friendships.rs"
     ));
 }
+pub mod friendships_v2 {
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/decentraland.social.friendships_v2.rs"
+    ));
+}
 pub mod notifications {
     include!(concat!(
         env!("OUT_DIR"),

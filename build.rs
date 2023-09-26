@@ -9,10 +9,12 @@ use std::{
 const DCL_PROTOCOL_REPO_URL: &str =
     "https://api.github.com/repos/decentraland/protocol/contents/proto/decentraland";
 const FRIENDSHIP_PROTO_PATH: &str = "/social/friendships/friendships.proto";
+const FRIENDSHIP_V2_PROTO_PATH: &str = "/social/friendships_v2/friendships_v2.proto";
 /// Modify this value to update the proto version, it is the commit sha from protocol repo used for downloading the proto file
-const FRIENDSHIPS_PROTOCOL_VERSION: &str = "964ab8860e93917c93b7c32ea5614a9e8387b301";
+const FRIENDSHIPS_PROTOCOL_VERSION: &str = "de15c100a9a90a98f3f64f676c79181961594279";
 const EXTERNAL_DEFINITIONS_FOLDER: &str = "ext-proto";
 const EXT_FRIENDSHIPS_PROTO_FILE: &str = "ext-proto/friendships.proto";
+const EXT_FRIENDSHIPS_V2_PROTO_FILE: &str = "ext-proto/friendships_v2.proto";
 const INTERNAL_DEFINITIONS_FOLDER: &str = "int-proto";
 const INT_NOTIFICATIONS_PROTO_FILE: &str = "int-proto/notifications.proto";
 
@@ -23,13 +25,18 @@ fn main() -> Result<()> {
 
     // Tell Cargo that if the given file changes, to rerun this build script.
     println!("cargo:rerun-if-changed=ext-proto/friendships.proto");
+    println!("cargo:rerun-if-changed=ext-proto/friendships_v2.proto");
     println!("cargo:rerun-if-changed=int-proto/notifications.proto");
 
     let mut prost_config = prost_build::Config::new();
     prost_config.protoc_arg("--experimental_allow_proto3_optional");
     prost_config.service_generator(Box::new(dcl_rpc::codegen::RPCServiceGenerator::new()));
     prost_config.compile_protos(
-        &[EXT_FRIENDSHIPS_PROTO_FILE, INT_NOTIFICATIONS_PROTO_FILE],
+        &[
+            EXT_FRIENDSHIPS_PROTO_FILE,
+            EXT_FRIENDSHIPS_V2_PROTO_FILE,
+            INT_NOTIFICATIONS_PROTO_FILE,
+        ],
         &[EXTERNAL_DEFINITIONS_FOLDER, INTERNAL_DEFINITIONS_FOLDER],
     )?;
     Ok(())
@@ -59,23 +66,40 @@ fn should_download_proto() -> bool {
 fn download_proto_from_github() -> Result<()> {
     let client = reqwest::blocking::Client::new();
 
-    let file_url = build_github_url_to_download();
+    download(
+        client.clone(),
+        FRIENDSHIP_PROTO_PATH,
+        EXT_FRIENDSHIPS_PROTO_FILE,
+    )?;
+    download(
+        client,
+        FRIENDSHIP_V2_PROTO_PATH,
+        EXT_FRIENDSHIPS_V2_PROTO_FILE,
+    )
+}
+
+fn download(
+    client: reqwest::blocking::Client,
+    github_proto_path: &str,
+    ext_proto_file: &str,
+) -> std::result::Result<(), std::io::Error> {
+    let file_url = build_github_url_to_download(github_proto_path);
     let file_metadata = get_file_info(&client, file_url);
 
     let content_url = extract_file_url(file_metadata);
     let content = download_file(client, content_url);
 
-    save_content_to_file(content)
+    save_content_to_file(content, ext_proto_file)
 }
 
-fn save_content_to_file(content: reqwest::blocking::Response) -> Result<()> {
+fn save_content_to_file(content: reqwest::blocking::Response, proto_file: &str) -> Result<()> {
     let cwd = env::current_dir()?;
     // Create folder if missing
     std::fs::create_dir_all(
         String::from(cwd.to_string_lossy()) + "/" + EXTERNAL_DEFINITIONS_FOLDER,
     )?;
 
-    let file_path: String = String::from(cwd.to_string_lossy()) + "/" + EXT_FRIENDSHIPS_PROTO_FILE;
+    let file_path: String = String::from(cwd.to_string_lossy()) + "/" + proto_file;
     // Create destination file
     let mut file = std::fs::File::create(file_path)?;
     let inner = match content.bytes() {
@@ -117,9 +141,9 @@ fn get_file_info(client: &reqwest::blocking::Client, url: Url) -> serde_json::Va
     }
 }
 
-fn build_github_url_to_download() -> Url {
+fn build_github_url_to_download(friendship_proto_path: &str) -> Url {
     let github_url = format!(
-        "{DCL_PROTOCOL_REPO_URL}{FRIENDSHIP_PROTO_PATH}?ref={FRIENDSHIPS_PROTOCOL_VERSION}"
+        "{DCL_PROTOCOL_REPO_URL}{friendship_proto_path}?ref={FRIENDSHIPS_PROTOCOL_VERSION}"
     );
 
     match Url::parse(&github_url) {

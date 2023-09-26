@@ -30,6 +30,7 @@ use crate::{
         subscribe_friendship_events_updates_response, FriendshipEventResponses,
         FriendshipsServiceRegistration, SubscribeFriendshipEventsUpdatesResponse,
     },
+    friendships_v2::FriendshipsServiceV2Registration,
     notifications::Event,
 };
 
@@ -126,6 +127,15 @@ pub async fn run_ws_transport(
         FriendshipsServiceRegistration::register_service(
             port,
             friendships_service::MyFriendshipsService {},
+        )
+    });
+
+    let mut rpc_server_v2: RpcServer<SocialContext, WebSocketTransport<WarpWebSocket, ()>> =
+        dcl_rpc::server::RpcServer::create(ctx);
+    rpc_server.set_module_registrator_handler(|port| {
+        FriendshipsServiceV2Registration::register_service(
+            8086, // todo: modify port in ctx
+            friendships_service::MyFriendshipsServiceV2 {},
         )
     });
 
