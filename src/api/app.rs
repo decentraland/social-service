@@ -64,10 +64,10 @@ pub fn get_app_router(
     App::new()
         .app_data(data.clone())
         .wrap(TracingLogger::default())
-        .wrap(initialize_metrics(data.config.env.clone()))
-        .wrap(CheckMetricsToken::new(
-            data.config.wkc_metrics_bearer_token.clone(),
-        ))
+        // .wrap(initialize_metrics(data.config.env.clone()))
+        // .wrap(CheckMetricsToken::new(
+        //     data.config.wkc_metrics_bearer_token.clone(),
+        // ))
         .wrap(CheckAuthToken::new(protected_routes))
         .wrap(middleware::NormalizePath::trim())
         .service(live)
