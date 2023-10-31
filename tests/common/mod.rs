@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use actix_web::{body::MessageBody, dev::ServiceFactory, web::Data, App};
+use dcl_http_prom_metrics::HttpMetricsCollectorBuilder;
 use social_service::{
     api::app::get_app_router,
     components::{
@@ -37,7 +38,10 @@ pub async fn get_app(
 > {
     let app_components = components.unwrap_or(AppComponents::new(Some(config)).await);
     let app_data = Data::new(app_components);
-    get_app_router(&app_data)
+
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    get_app_router(&app_data, &http_metrics_collector)
 }
 
 /// We need this to avoid conccurency issues in Tests
