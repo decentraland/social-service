@@ -1,5 +1,6 @@
 mod common;
 pub use common::*;
+use dcl_http_prom_metrics::HttpMetricsCollectorBuilder;
 
 use std::collections::HashMap;
 use wiremock::{
@@ -51,7 +52,9 @@ async fn should_be_200_and_has_user_in_cache() {
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);
 
-    let router = get_app_router(&app_data);
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    let router = get_app_router(&app_data, &http_metrics_collector);
 
     let app = test::init_service(router).await;
 
@@ -121,7 +124,9 @@ async fn should_be_500_and_not_user_in_cache() {
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);
 
-    let router = get_app_router(&app_data);
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    let router = get_app_router(&app_data, &http_metrics_collector);
 
     let app = test::init_service(router).await;
 

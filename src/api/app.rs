@@ -2,11 +2,11 @@ use actix_web::body::MessageBody;
 use actix_web::dev::{Server, ServiceFactory};
 use actix_web::middleware;
 use actix_web::{web::Data, App, HttpServer};
+use dcl_http_prom_metrics::HttpMetricsCollector;
 use tracing_actix_web::TracingLogger;
 
 use crate::components::app::AppComponents;
 use crate::components::configuration::Config;
-use crate::components::metrics::initialize_metrics;
 use crate::components::tracing::init_telemetry;
 
 use super::middlewares::check_auth::CheckAuthToken;
@@ -27,7 +27,10 @@ pub fn run_service(data: Data<AppComponents>) -> Result<Server, std::io::Error> 
     init_telemetry();
     let server_port = data.config.server.port;
 
-    let server = HttpServer::new(move || get_app_router(&data))
+    let http_metrics_collector =
+        Data::new(dcl_http_prom_metrics::HttpMetricsCollectorBuilder::default().build());
+
+    let server = HttpServer::new(move || get_app_router(&data, &http_metrics_collector))
         .bind(("0.0.0.0", server_port))?
         .run();
 
@@ -47,6 +50,7 @@ const ROUTES_NEED_AUTH_TOKEN: [&str; 3] = [
 
 pub fn get_app_router(
     data: &Data<AppComponents>,
+    http_metrics_collector: &Data<HttpMetricsCollector>,
 ) -> App<
     impl ServiceFactory<
         actix_web::dev::ServiceRequest,
@@ -63,13 +67,14 @@ pub fn get_app_router(
 
     App::new()
         .app_data(data.clone())
-        .wrap(TracingLogger::default())
-        // .wrap(initialize_metrics(data.config.env.clone()))
-        // .wrap(CheckMetricsToken::new(
-        //     data.config.wkc_metrics_bearer_token.clone(),
-        // ))
+        .app_data(http_metrics_collector.clone())
         .wrap(CheckAuthToken::new(protected_routes))
+        .wrap(dcl_http_prom_metrics::metrics())
+        .wrap(CheckMetricsToken::new(
+            data.config.wkc_metrics_bearer_token.clone(),
+        ))
         .wrap(middleware::NormalizePath::trim())
+        .wrap(TracingLogger::default())
         .service(live)
         .service(health)
         .service(version)

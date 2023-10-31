@@ -12,7 +12,6 @@ config = "0.13"
 serde = "1.0.136"
 log = "0.4.16"
 env_logger = "0.9.0"
-actix-web-prom = "0.6.0"
 async-trait = "0.1.57"
 tracing = "0.1"
 tracing-log = "0.1"
@@ -44,6 +43,7 @@ warp = "0.3"
 tokio-tungstenite = "0.18.0"
 urlencoding = "2.1.2"
 prometheus = { version = "0.13.3", features = ["process"] }
+dcl-http-prom-metrics = "0.1.0"
 
 [build-dependencies]
 dcl-rpc = "2.3.5"

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use actix_http::StatusCode;
 use actix_web::{test, web::Data};
+use dcl_http_prom_metrics::HttpMetricsCollectorBuilder;
 use social_service::{
     api::{app::get_app_router, routes::v1::friendships::types::FriendshipsResponse},
     components::{app::AppComponents, database::DatabaseComponentImplementation},
@@ -28,7 +29,9 @@ async fn test_get_friendships_me_when_active() {
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);
 
-    let router = get_app_router(&app_data);
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    let router = get_app_router(&app_data, &http_metrics_collector);
 
     let app = test::init_service(router).await;
 
@@ -74,7 +77,9 @@ async fn test_get_friends_when_active() {
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);
 
-    let router = get_app_router(&app_data);
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    let router = get_app_router(&app_data, &http_metrics_collector);
 
     let app = test::init_service(router).await;
 
@@ -120,7 +125,9 @@ async fn test_get_friends_when_inactive() {
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);
 
-    let router = get_app_router(&app_data);
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    let router = get_app_router(&app_data, &http_metrics_collector);
 
     let app = test::init_service(router).await;
 
@@ -188,7 +195,9 @@ async fn test_get_user_friends_database_error_should_return_unknown_error() {
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);
 
-    let router = get_app_router(&app_data);
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    let router = get_app_router(&app_data, &http_metrics_collector);
 
     app_data.db.close().await;
     let app = test::init_service(router).await;
@@ -224,7 +233,9 @@ async fn test_get_user_friends_should_return_the_address_list() {
     let app_components = AppComponents::new(Some(config)).await;
     let app_data = Data::new(app_components);
 
-    let router = get_app_router(&app_data);
+    let http_metrics_collector = Data::new(HttpMetricsCollectorBuilder::default().build());
+
+    let router = get_app_router(&app_data, &http_metrics_collector);
 
     let app = test::init_service(router).await;
 
